@@ -1,0 +1,75 @@
+# Image tags: words the palette always offers with an image (prototype-02).
+#
+# In stages 1 and 2 the palette deals a few random nouns, verbs, adjectives and
+# yeahs (5/5/5/3, then 10/10/10/6). An image's tagged words are always in the
+# deal while that image has been shown; random words fill the rest. If an
+# image tags more words than the stage deals, they all show.
+#
+# - Group words under the image's file name, then by bin (as in bins.yaml).
+# - Bins you leave out stay fully random.
+# - Only images listed here are shown. List one with nothing under it to
+#   show it with random words. With fewer than two listed, every image is used.
+# - Words match as in bins.yaml: case is ignored, and "yeh!" matches only
+#   that spelling.
+# - A word shows in the bin bins.yaml puts it in. Listing it under another
+#   bin shows a warning next to the play button.
+# - Tags under pronoun or glue change nothing: those bins already show every word.
+# - Reload the page to see edits.
+
+1.png:
+  noun:
+    - hot-dog
+    - table
+    - person
+  adjective:
+    - long
+    - hot
+  verb: 
+    - laying
+    - sits
+    - connected
+2.png:
+  noun:
+    - bathroom
+    - person
+    - floor
+  verb:
+    - laying
+    - sleep
+  adjective: 
+    - alone
+    - smooth
+    - white
+3.png:
+  noun:  
+    - vegetables
+    - market 
+    - table
+    - fruits
+    - sale
+  verb:
+    - sits
+    - sleep
+    - are
+  adjective:
+    - behind
+    - colourless
+    - green
+    - stale
+4.png:
+  noun:
+    - umbrella
+    - woman
+    - lucozade
+    - stone
+    - chair
+  verb:
+    - sit
+    - sits
+    - holding
+    - hides
+  adjective:
+    - also
+    - behind
+    - fine
+    - together

@@ -72,6 +72,25 @@ yeah:
 
 The script's bins are `noun`, `verb`, `describer`, `pronoun`, `glue` and `other`. The `yeah` bin only exists in `bins.yaml`.
 
+## Tag words to images (prototype-02)
+
+In prototype-02's first two stages the palette deals a few random nouns, verbs, adjectives and yeahs to go with an image. `build/images/tags.yaml` sets words that always come up with a given image:
+
+```yaml
+1.png:
+  noun:
+    - hot-dog
+    - vegetables
+  adjective:
+    - long
+```
+
+- The tagged words are always dealt, and random words fill the rest of the stage's count. If an image tags more words than the stage deals, they all show.
+- Bins an image doesn't list stay fully random.
+- Only images listed here come up (an image listed with no words gets random words). If it lists fewer than the two a game needs, every image is used and a warning shows.
+- Words match as in `bins.yaml`. A word shows in its real bin; listing it under another bin shows a warning.
+- Reload the page to see edits. They apply to games already in progress as well.
+
 ## Add a prototype
 
 Copy `build/prototype-01.html` to `build/prototype-02.html` and add a link to it in `build/index.html`.

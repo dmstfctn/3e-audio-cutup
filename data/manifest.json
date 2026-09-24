@@ -557,49 +557,48 @@
     },
     {
       "id": 57,
-      "text": "A long hot dog, a banana-fish",
+      "text": "A long hot-dog, a banana-fish",
       "wordIds": [
         208,
         209,
         210,
         211,
-        212,
-        213
+        212
       ]
     },
     {
       "id": 58,
       "text": "laying on the bathroom floor",
       "wordIds": [
+        213,
         214,
         215,
         216,
-        217,
-        218
+        217
       ]
     },
     {
       "id": 59,
       "text": "A person sits at a white table",
       "wordIds": [
+        218,
         219,
         220,
         221,
         222,
         223,
-        224,
-        225
+        224
       ]
     },
     {
       "id": 60,
       "text": "holding a piece of cloth",
       "wordIds": [
+        225,
         226,
         227,
         228,
-        229,
-        230
+        229
       ]
     }
   ],
@@ -3546,38 +3545,24 @@
     },
     {
       "id": 210,
-      "word": "hot",
-      "raw": "hot",
+      "word": "hot-dog",
+      "raw": "hot-dog,",
       "line": 57,
       "index": 2,
       "start": 143.629,
-      "end": 143.829,
-      "score": 0.881,
-      "bin": "describer",
-      "pos": "ADJ",
-      "tag": "JJ",
-      "lemma": "hot"
-    },
-    {
-      "id": 211,
-      "word": "dog",
-      "raw": "dog,",
-      "line": 57,
-      "index": 3,
-      "start": 143.849,
       "end": 144.089,
-      "score": 0.817,
+      "score": 0.819,
       "bin": "noun",
       "pos": "NOUN",
       "tag": "NN",
       "lemma": "dog"
     },
     {
-      "id": 212,
+      "id": 211,
       "word": "a",
       "raw": "a",
       "line": 57,
-      "index": 4,
+      "index": 3,
       "start": 144.889,
       "end": 144.949,
       "score": 0.862,
@@ -3587,11 +3572,11 @@
       "lemma": "a"
     },
     {
-      "id": 213,
+      "id": 212,
       "word": "banana-fish",
       "raw": "banana-fish",
       "line": 57,
-      "index": 5,
+      "index": 4,
       "start": 144.989,
       "end": 145.749,
       "score": 0.759,
@@ -3601,7 +3586,7 @@
       "lemma": "fish"
     },
     {
-      "id": 214,
+      "id": 213,
       "word": "laying",
       "raw": "laying",
       "line": 58,
@@ -3615,7 +3600,7 @@
       "lemma": "lay"
     },
     {
-      "id": 215,
+      "id": 214,
       "word": "on",
       "raw": "on",
       "line": 58,
@@ -3629,7 +3614,7 @@
       "lemma": "on"
     },
     {
-      "id": 216,
+      "id": 215,
       "word": "the",
       "raw": "the",
       "line": 58,
@@ -3643,7 +3628,7 @@
       "lemma": "the"
     },
     {
-      "id": 217,
+      "id": 216,
       "word": "bathroom",
       "raw": "bathroom",
       "line": 58,
@@ -3657,7 +3642,7 @@
       "lemma": "bathroom"
     },
     {
-      "id": 218,
+      "id": 217,
       "word": "floor",
       "raw": "floor",
       "line": 58,
@@ -3671,7 +3656,7 @@
       "lemma": "floor"
     },
     {
-      "id": 219,
+      "id": 218,
       "word": "A",
       "raw": "A",
       "line": 59,
@@ -3685,7 +3670,7 @@
       "lemma": "a"
     },
     {
-      "id": 220,
+      "id": 219,
       "word": "person",
       "raw": "person",
       "line": 59,
@@ -3699,7 +3684,7 @@
       "lemma": "person"
     },
     {
-      "id": 221,
+      "id": 220,
       "word": "sits",
       "raw": "sits",
       "line": 59,
@@ -3713,7 +3698,7 @@
       "lemma": "sit"
     },
     {
-      "id": 222,
+      "id": 221,
       "word": "at",
       "raw": "at",
       "line": 59,
@@ -3727,7 +3712,7 @@
       "lemma": "at"
     },
     {
-      "id": 223,
+      "id": 222,
       "word": "a",
       "raw": "a",
       "line": 59,
@@ -3741,7 +3726,7 @@
       "lemma": "a"
     },
     {
-      "id": 224,
+      "id": 223,
       "word": "white",
       "raw": "white",
       "line": 59,
@@ -3755,7 +3740,7 @@
       "lemma": "white"
     },
     {
-      "id": 225,
+      "id": 224,
       "word": "table",
       "raw": "table",
       "line": 59,
@@ -3769,7 +3754,7 @@
       "lemma": "table"
     },
     {
-      "id": 226,
+      "id": 225,
       "word": "holding",
       "raw": "holding",
       "line": 60,
@@ -3783,7 +3768,7 @@
       "lemma": "hold"
     },
     {
-      "id": 227,
+      "id": 226,
       "word": "a",
       "raw": "a",
       "line": 60,
@@ -3797,7 +3782,7 @@
       "lemma": "a"
     },
     {
-      "id": 228,
+      "id": 227,
       "word": "piece",
       "raw": "piece",
       "line": 60,
@@ -3811,7 +3796,7 @@
       "lemma": "piece"
     },
     {
-      "id": 229,
+      "id": 228,
       "word": "of",
       "raw": "of",
       "line": 60,
@@ -3825,7 +3810,7 @@
       "lemma": "of"
     },
     {
-      "id": 230,
+      "id": 229,
       "word": "cloth",
       "raw": "cloth",
       "line": 60,
