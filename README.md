@@ -110,6 +110,24 @@ a treasure is just a / prison to a coin
 - A line that's said as a whole in the recording uses the words from that take. Any other line gets a random recording of each word, with a warning. Couplets come up in a random order and don't repeat until every one has been used.
 - Reload the page to see edits. They apply from the next new game (restart).
 
+## First lines and starting tray (prototype-04)
+
+Prototype-04 opens with one line from `build/words/first-lines.txt`, one line per line of the file, and a blank second line comes next. The tray starts with the words in `build/words/tray.yaml`, grouped by bin:
+
+```yaml
+noun:
+  - angels
+  - book
+verb:
+  - that’s
+```
+
+- Words match as in `bins.yaml`, and apostrophes are ignored (`that’s` finds the recorded "thats"). A word that isn't in the recording is left out, with a warning next to the play button.
+- Each game picks a random recording of every word. The first line's recordings show in the tray, so a word said twice in it shows twice.
+- A tray word shows in the bin `bins.yaml` gives it. Listing it under another bin shows a warning.
+- First lines come up in a random order and don't repeat until every one has been used.
+- Reload the page to see edits. `tray.yaml` edits apply to games in progress. `first-lines.txt` edits apply from the next new game (restart).
+
 ## Add a prototype
 
 Copy `build/prototype-01.html` to `build/prototype-02.html` and add a link to it in `build/index.html`.

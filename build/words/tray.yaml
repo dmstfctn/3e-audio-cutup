@@ -1,0 +1,74 @@
+# Words the tray starts with in prototype-04, grouped by bin.
+#
+# - A word shows in the bin bins.yaml gives it. Listing it under another bin
+#   still offers it, with a warning next to the play button.
+# - Words match as in bins.yaml; apostrophes are ignored (that’s = thats).
+# - Each game picks a random recording of each word.
+# - Reload the page to see edits. They apply to games in progress too.
+
+noun:
+  - angels
+  - book
+  - cash
+  - club
+  - coin
+  - hashtag
+  - ideas
+  - living
+  - mask
+  - pages
+  - prison
+  - puritan
+  - vaporwave
+  - words
+
+adjective:
+  - real
+  - unruly
+
+verb:
+  - are
+  - awaken
+  - do
+  - is
+  - needed
+  - say
+  - stop
+  - tell
+  - that’s
+  - was
+  - welcome
+  - what’s
+
+pronoun:
+  - i
+  - it
+  - its
+  - my
+  - nothing
+  - them
+  - this
+  - what
+
+glue:
+  - a
+  - an
+  - and
+  - also
+  - at
+  - but
+  - by
+  - down
+  - for
+  - if
+  - just
+  - no
+  - not
+  - of
+  - on
+  - out
+  - that
+  - the
+  - to
+  - with
+  - there

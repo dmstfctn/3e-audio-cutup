@@ -97,7 +97,6 @@ verb:
 
 adjective:
   - alone
-  - also
   - behind
   - blank
   - colourless
@@ -108,7 +107,6 @@ adjective:
   - green
   - happy
   - hot
-  - just
   - long
   - minimal
   - much
@@ -138,12 +136,14 @@ glue:
   - a
   - an
   - and
+  - also
   - at
   - but
   - by
   - down
   - for
   - if
+  - just
   - no
   - not
   - of
