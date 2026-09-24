@@ -91,6 +91,25 @@ In prototype-02's first two stages the palette deals a few random nouns, verbs, 
 - Words match as in `bins.yaml`. A word shows in its real bin; listing it under another bin shows a warning.
 - Reload the page to see edits. They apply to games already in progress as well.
 
+## Couplets (prototype-03)
+
+Prototype-03 opens with the first line of a couplet from `build/words/lines.txt`, with one word switched for another from the same bin. The next step brings in the second line, cut short at the `/`, and the player finishes it from the tray. Write each couplet as two lines, with a blank line between couplets:
+
+```
+A market with vegetables and fruits for sale.
+A rich feast, but / the bread is stale
+
+A woman an umbrella, but there is no rain
+a treasure is just a / prison to a coin
+```
+
+- The `/` goes in the second line and isn't shown. Without one, the line is cut in the middle.
+
+- Every word has to be in the recording. Words match as in `bins.yaml`. Case and punctuation are ignored, except hyphens and apostrophes inside a word (`hot-dog` and `hot dog` are different).
+- A word that isn't in the recording is left out, with a warning next to the play button.
+- A line that's said as a whole in the recording uses the words from that take. Any other line gets a random recording of each word, with a warning. Couplets come up in a random order and don't repeat until every one has been used.
+- Reload the page to see edits. They apply from the next new game (restart).
+
 ## Add a prototype
 
 Copy `build/prototype-01.html` to `build/prototype-02.html` and add a link to it in `build/index.html`.
