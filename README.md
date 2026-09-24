@@ -128,6 +128,22 @@ verb:
 - First lines come up in a random order and don't repeat until every one has been used.
 - Reload the page to see edits. `tray.yaml` edits apply to games in progress. `first-lines.txt` edits apply from the next new game (restart).
 
+## Minigames (prototype-05)
+
+Prototype-05 plays like prototype-04, but each stage after the first two opens with a minigame from [3e-coco-games](../3e-coco-games): Find It before the 4-line stage, Caption Match before the 6-line stage, Find Them All before the 8-line stage. The new lines come whatever the result. The words come only for a win: every round right, or every one found.
+
+- Find It and Caption Match each add a round of words (5 nouns, verbs and adjectives, 3 yeahs). Find Them All adds every word.
+- The games box at the top right lists the games played so far. A lost game can be played again there to win its words. A won game can be replayed, but it adds nothing.
+- The music stops while a game is played. Press play again after it.
+- The game code is in `build/minigames/minigames.js`, and the rules text is in `GAMES` in `prototype-05.html`.
+- The games' data is in `build/minigames/*.json`, copied from the 3e-coco-games pages. After rebuilding the games there, copy it again:
+
+  ```
+  python3 preprocess/import_minigames.py ../3e-coco-games
+  ```
+
+- The photos load from COCO's image host, which only serves `http://`. A deploy served over `https://` will block them until they're hosted elsewhere.
+
 ## Add a prototype
 
 Copy `build/prototype-01.html` to `build/prototype-02.html` and add a link to it in `build/index.html`.
