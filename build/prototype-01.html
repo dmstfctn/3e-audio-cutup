@@ -32,14 +32,6 @@
     border: 1px solid black; padding: 0 1px; overflow: hidden; white-space: nowrap; text-align: center;
     cursor: grab; user-select: none;
   }
-  .noun { background: lightskyblue; }
-  .verb { background: lightsalmon; }
-  .describer { background: palegreen; }
-  .pronoun { background: plum; }
-  .glue { background: lightgray; }
-  .other { background: khaki; }
-  .yeah { background: gold; }
-  .rest { background: white; }
 </style>
 </head>
 <body>
@@ -52,6 +44,7 @@
 <div id="lines"></div>
 <div id="palette"></div>
 
+<script src="lib/js-yaml.min.js"></script>
 <script>
 const BPM = 144;
 const BEATS_PER_LINE = 8;                       // 2 bars of 4/4
@@ -61,6 +54,12 @@ const PAD = 0.03;                               // seconds around each word's al
 const FADE = 0.008;                             // seconds of fade in/out on each word
 const LOOKAHEAD = 0.15;                         // how far ahead lines are scheduled
 const BIN_ORDER = ['rest', 'yeah', 'noun', 'verb', 'describer', 'pronoun', 'glue', 'other'];
+const BIN_COLORS = {
+  rest: 'white', yeah: 'gold', noun: 'lightskyblue', verb: 'lightsalmon', describer: 'palegreen',
+  pronoun: 'plum', glue: 'lightgray', other: 'khaki',
+};
+// handed out in order to bins that only exist in bins.yaml
+const EXTRA_COLORS = ['lightpink', 'aquamarine', 'peachpuff', 'lightsteelblue', 'wheat', 'thistle', 'palegoldenrod', 'paleturquoise'];
 const BIN_LABELS = { rest: 'pause' };
 // silent blocks: 1/32, 1/16, 1/8 and 1/4 notes, one ~ per 1/32
 const RESTS = [['r32', '~', 1 / 8], ['r16', '~~', 1 / 4], ['r8', '~~~~', 1 / 2], ['r4', '~~~~~~~~', 1]];
@@ -69,6 +68,7 @@ const STORE_KEY = 'cutup-prototype-01';
 const ctx = new AudioContext();
 let beatBuf, wordsBuf;
 let words = {};  // id -> { id, text, bin, a, d }; rests have no audio (a = null)
+let binOrder = [...BIN_ORDER];  // palette sections: pauses, bins.yaml's order, then any bins it leaves out
 
 // state: lines[i] is an array of word ids in play order
 const lines = Array.from({ length: N_LINES }, () => []);
@@ -91,8 +91,9 @@ async function load() {
     for (const w of manifest.words) {
       const a = Math.max(0, w.start - PAD);
       const b = Math.min(voice.duration, w.end + PAD);
-      words[w.id] = { id: w.id, text: w.word.toLowerCase(), bin: w.bin, a, d: b - a };
+      words[w.id] = { id: w.id, text: w.word.toLowerCase(), raw: w.raw.toLowerCase(), bin: w.bin, a, d: b - a };
     }
+    await applyBinOverrides();
     for (const [id, text, beats] of RESTS) {
       words[id] = { id, text, bin: 'rest', a: null, d: beats * 60 / BPM };
     }
@@ -104,13 +105,56 @@ async function load() {
   buildLines();
   buildPalette();
   sizeToWindow();
-  $('#status').textContent = '';
+  $('#status').textContent = warnings.join(' · ');
   $('#play').disabled = false;
+}
+
+// bins.yaml maps bin -> [words] and moves every occurrence of each word (ignoring case)
+// into that bin; words it doesn't list keep the bin from words.json.
+// An entry written with the transcript's punctuation ("yeh!") only matches that spelling,
+// shows it, and beats the plain entry ("yeh"), which covers the rest.
+const warnings = [];
+async function applyBinOverrides() {
+  let doc = {};
+  try {
+    const r = await fetch('audio/bins.yaml', { cache: 'no-cache' });  // pick up edits on reload
+    if (r.ok) doc = jsyaml.load(await r.text()) || {};  // no file: use the tagger's bins
+    if (typeof doc !== 'object' || Array.isArray(doc)) throw new Error('expected bin names with lists of words');
+  } catch (e) {
+    warnings.push(`bins.yaml ignored, could not read it: ${e.message}`);
+    doc = {};
+  }
+  const all = Object.values(words);
+  const texts = new Set(all.map(w => w.text));
+  const punctuated = new Set(all.filter(w => w.raw !== w.text).map(w => w.raw));
+  const textBins = {}, rawBins = {}, unknown = [], twice = [];
+  const yamlOrder = [];
+  for (const [bin, list] of Object.entries(doc)) {
+    if (bin === 'rest') { warnings.push('bins.yaml: "rest" is reserved for pauses'); continue; }
+    yamlOrder.push(bin);
+    for (const item of [].concat(list ?? [])) {  // a lone word works as well as a list
+      const entry = String(item).toLowerCase().trim();
+      const bins = punctuated.has(entry) ? rawBins : texts.has(entry) ? textBins : null;
+      if (!bins) { unknown.push(entry); continue; }
+      if (bins[entry]) twice.push(`${entry} (${bins[entry]}, ${bin})`);
+      bins[entry] = bin;
+    }
+  }
+  for (const w of all) {
+    if (rawBins[w.raw]) { w.bin = rawBins[w.raw]; w.text = w.raw; }
+    else if (textBins[w.text]) w.bin = textBins[w.text];
+  }
+  if (unknown.length) warnings.push(`bins.yaml: not in the recording: ${unknown.join(', ')}`);
+  if (twice.length) warnings.push(`bins.yaml: listed twice, last one used: ${twice.join(', ')}`);
+  // bins from words.json that bins.yaml doesn't mention still get a section, after its bins
+  binOrder = [...new Set(['rest', ...yamlOrder, ...BIN_ORDER, ...all.map(w => w.bin)])];
+  binOrder.filter(b => !BIN_COLORS[b]).forEach((b, i) => BIN_COLORS[b] = EXTRA_COLORS[i % EXTRA_COLORS.length]);
 }
 
 // ---------- layout ----------
 
 function sizeToWindow() {
+  if (!lineEls.length) return;  // resize before load finished
   // one line (2 bars) spans the line box, so px-per-second follows from its width
   const pps = lineEls[0].clientWidth / LINE_DUR;
   document.documentElement.style.setProperty('--pps', pps);
@@ -120,7 +164,8 @@ window.addEventListener('resize', sizeToWindow);
 
 function wordEl(w) {
   const el = document.createElement('div');
-  el.className = 'word ' + w.bin;
+  el.className = 'word';
+  el.style.background = BIN_COLORS[w.bin];
   el.textContent = w.text;
   el.title = w.bin === 'rest' ? `pause (${w.d.toFixed(2)}s)` : `${w.text} (${w.bin}, ${w.d.toFixed(2)}s)`;
   el.style.setProperty('--d', w.d);
@@ -131,7 +176,7 @@ function wordEl(w) {
 
 function buildPalette() {
   const palette = $('#palette');
-  for (const bin of BIN_ORDER) {
+  for (const bin of binOrder) {
     const binWords = Object.values(words).filter(w => w.bin === bin);
     // pauses stay shortest to longest; words go alphabetically
     if (bin !== 'rest') binWords.sort((a, b) => a.text.localeCompare(b.text));

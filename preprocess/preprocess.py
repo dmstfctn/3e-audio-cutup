@@ -31,7 +31,8 @@ import soundfile as sf
 
 ROOT = Path(__file__).resolve().parent.parent
 
-# spaCy UPOS tag -> bin shown to the player
+# spaCy UPOS tag -> bin shown to the player. Corrections, and bins spaCy can't
+# know about (e.g. "yeah"), go in build/audio/bins.yaml, which the prototypes apply.
 BINS = {
     "NOUN": "noun", "PROPN": "noun",
     "VERB": "verb", "AUX": "verb",
@@ -40,12 +41,6 @@ BINS = {
     "DET": "glue", "ADP": "glue", "CCONJ": "glue", "SCONJ": "glue", "PART": "glue",
     "NUM": "describer", "INTJ": "other", "X": "other", "SYM": "other", "PUNCT": "other",
 }
-
-# Words that get their own bin whatever spaCy says, matched on the cleaned word
-# (case-insensitive). The transcript spelling is kept: "Yeh", "yehh", "Yeah".
-WORD_BINS = [
-    (re.compile(r"^y+e+a*h+$", re.I), "yeah"),
-]
 
 LOW_SCORE = 0.4  # alignment confidence below which a word is flagged for checking
 
@@ -71,13 +66,6 @@ def read_transcript(path: Path) -> list[list[str]]:
 def clean_word(w: str) -> str:
     """Strips surrounding punctuation, keeps internal apostrophes and hyphens."""
     return re.sub(r"^[^\w']+|[^\w']+$", "", w)
-
-
-def bin_for(word: str, pos: str) -> str:
-    for pattern, b in WORD_BINS:
-        if pattern.match(word):
-            return b
-    return BINS.get(pos, "other")
 
 
 def separate_vocals(wav: Path, out_dir: Path) -> Path:
@@ -190,7 +178,7 @@ def main():
             "start": round(a["start"], 3) if "start" in a else None,
             "end": round(a["end"], 3) if "end" in a else None,
             "score": round(a.get("score", 0.0), 3),
-            "bin": bin_for(clean_word(raw) or raw, t["pos"]),
+            "bin": BINS.get(t["pos"], "other"),
             **t,
         })
 

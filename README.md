@@ -8,7 +8,7 @@ A browser game where players drag words cut from a recorded performance into fou
 source/       original recording (.wav) and transcript (.txt, one spoken line per line)
 preprocess/   word alignment + tagging script
 data/         preprocess output (manifest.json kept; audio + clips regenerable)
-build/        static site: prototypes + the audio/data they load
+build/        static site: prototypes + the audio/data they load (lib/ holds js-yaml)
 ```
 
 ## Run the prototypes
@@ -51,7 +51,26 @@ Options:
 - `--pad`, `--fade`: clip padding and fade in seconds (defaults 0.03, 0.008). The prototype sets its own padding (`PAD`) and fade (`FADE`).
 - `--wav`, `--transcript`: use files other than the ones in `source/`
 
-To fix a wrong category, edit the word's `bin` in `build/audio/words.json`. The bins are `noun`, `verb`, `describer`, `pronoun`, `glue`, `yeah` and `other`. Words that get a bin by spelling rather than part of speech (the `yeah` variants) are listed in `WORD_BINS` in `preprocess.py`. Re-running the script overwrites these edits.
+## Fix word categories
+
+The preprocess script guesses each word's category (`bin`) from its part of speech, and gets some wrong. Corrections go in `build/audio/bins.yaml`. The prototypes load it and apply it over `words.json`, so it survives re-running preprocessing, and anyone can edit it without the Python setup.
+
+```yaml
+noun:
+  - club
+  - nothing
+yeah:
+  - yeh
+  - yehh
+  - yeah
+```
+
+- Each word listed moves to that bin everywhere it appears. Matching ignores case.
+- Words that aren't listed keep the bin the script gave them.
+- A new bin name makes a new palette section with its own colour.
+- Reload the page to see edits. Problems (a word that isn't in the recording, a word listed under two bins, a YAML syntax error) show next to the play button.
+
+The script's bins are `noun`, `verb`, `describer`, `pronoun`, `glue` and `other`. The `yeah` bin only exists in `bins.yaml`.
 
 ## Add a prototype
 

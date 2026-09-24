@@ -1,0 +1,139 @@
+# Word bins: which palette section each word goes in.
+#
+# The prototypes load this and it overrides the preprocess script's
+# part-of-speech tags (the `bin` in words.json). Every occurrence of a word
+# moves, wherever it appears. Matching ignores case.
+#
+# - To move a word, cut it from one list and paste it into another.
+# - Words that aren't listed keep the bin the preprocess script gave them,
+#   so you can delete the entries that are already right.
+# - A new bin name (e.g. `rhyme:`) makes a new palette section.
+# - Write a word with its transcript punctuation ("yeh!") to split it off from
+#   the plain word ("yeh"); it then shows with that punctuation.
+# - Quote words YAML would read as something else: "true", "null", "~", "1".
+
+# the preprocess script has no yeah bin, so keep these listed
+yeah:
+  - yeah
+  - yeah!
+  - yeh
+  - yeh!
+  - yehh
+
+noun:
+  - banana-fish
+  - bathroom
+  - book
+  - bread
+  - cash
+  - chair
+  - cloth
+  - club
+  - coin
+  - crack
+  - depth
+  - dog
+  - fear
+  - feast
+  - floor
+  - fruits
+  - geometries
+  - hashtag
+  - ideas
+  - living
+  - market
+  - mask
+  - pages
+  - person
+  - piece
+  - prison
+  - rain
+  - sale
+  - stone
+  - table
+  - time
+  - treasure
+  - umbrella
+  - vaporwave
+  - vegetables
+  - woman
+  - words
+
+verb:
+  - are
+  - awaken
+  - connected
+  - do
+  - hides
+  - holding
+  - is
+  - laying
+  - made
+  - needed
+  - say
+  - sit
+  - sits
+  - sleep
+  - stop
+  - tell
+  - thats
+  - was
+  - welcome
+  - what's
+
+adjective:
+  - alone
+  - also
+  - behind
+  - blank
+  - colourless
+  - counterfeit
+  - deep
+  - fine
+  - furiously
+  - green
+  - happy
+  - hot
+  - just
+  - long
+  - much
+  - poor
+  - real
+  - rich
+  - smooth
+  - stale
+  - together
+  - unruly
+  - white
+  - shining
+
+pronoun:
+  - i
+  - it
+  - its
+  - my
+  - nothing
+  - them
+  - this
+  - what
+
+glue:
+  - a
+  - an
+  - and
+  - at
+  - but
+  - by
+  - down
+  - for
+  - if
+  - no
+  - not
+  - of
+  - on
+  - out
+  - that
+  - the
+  - to
+  - with
+  - there

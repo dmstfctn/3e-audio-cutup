@@ -501,7 +501,7 @@
       "start": 0.06,
       "end": 0.5,
       "score": 0.519,
-      "bin": "yeah",
+      "bin": "noun",
       "pos": "PROPN",
       "tag": "NNP",
       "lemma": "yeh"
@@ -515,7 +515,7 @@
       "start": 3.501,
       "end": 3.901,
       "score": 0.41,
-      "bin": "yeah",
+      "bin": "noun",
       "pos": "NOUN",
       "tag": "NN",
       "lemma": "yehh"
@@ -529,7 +529,7 @@
       "start": 6.741,
       "end": 7.161,
       "score": 0.238,
-      "bin": "yeah",
+      "bin": "noun",
       "pos": "NOUN",
       "tag": "NN",
       "lemma": "yeh"
@@ -543,7 +543,7 @@
       "start": 8.542,
       "end": 8.942,
       "score": 0.547,
-      "bin": "yeah",
+      "bin": "noun",
       "pos": "PROPN",
       "tag": "NNP",
       "lemma": "yeh"
@@ -557,7 +557,7 @@
       "start": 10.162,
       "end": 10.602,
       "score": 0.57,
-      "bin": "yeah",
+      "bin": "noun",
       "pos": "PROPN",
       "tag": "NNP",
       "lemma": "yeh"
@@ -571,7 +571,7 @@
       "start": 11.822,
       "end": 12.262,
       "score": 0.508,
-      "bin": "yeah",
+      "bin": "noun",
       "pos": "PROPN",
       "tag": "NNP",
       "lemma": "yeh"
@@ -585,7 +585,7 @@
       "start": 15.823,
       "end": 16.263,
       "score": 0.625,
-      "bin": "yeah",
+      "bin": "other",
       "pos": "INTJ",
       "tag": "UH",
       "lemma": "yeah"
@@ -599,7 +599,7 @@
       "start": 17.564,
       "end": 17.984,
       "score": 0.276,
-      "bin": "yeah",
+      "bin": "noun",
       "pos": "PROPN",
       "tag": "NNP",
       "lemma": "yeh"
@@ -613,7 +613,7 @@
       "start": 20.844,
       "end": 21.264,
       "score": 0.537,
-      "bin": "yeah",
+      "bin": "noun",
       "pos": "PROPN",
       "tag": "NNP",
       "lemma": "yeh"
@@ -627,7 +627,7 @@
       "start": 24.205,
       "end": 24.645,
       "score": 0.559,
-      "bin": "yeah",
+      "bin": "noun",
       "pos": "PROPN",
       "tag": "NNP",
       "lemma": "yeh"
@@ -641,7 +641,7 @@
       "start": 27.406,
       "end": 27.826,
       "score": 0.606,
-      "bin": "yeah",
+      "bin": "other",
       "pos": "INTJ",
       "tag": "UH",
       "lemma": "yeah"
@@ -655,7 +655,7 @@
       "start": 29.106,
       "end": 29.546,
       "score": 0.436,
-      "bin": "yeah",
+      "bin": "other",
       "pos": "INTJ",
       "tag": "UH",
       "lemma": "yeah"
@@ -669,7 +669,7 @@
       "start": 30.726,
       "end": 31.166,
       "score": 0.613,
-      "bin": "yeah",
+      "bin": "other",
       "pos": "INTJ",
       "tag": "UH",
       "lemma": "yeah"
