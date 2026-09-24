@@ -1,0 +1,14 @@
+# macOS
+.DS_Store
+
+# Python
+preprocess/.venv/
+__pycache__/
+*.pyc
+
+# Regenerable preprocessing output (re-run preprocess/preprocess.py).
+# manifest.json is kept so alignment/tag changes show up in diffs;
+# the audio the game needs is copied into build/audio/.
+data/audio.wav
+data/clips/
+data/demucs/

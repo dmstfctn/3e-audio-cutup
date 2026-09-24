@@ -1,0 +1,6 @@
+whisperx
+spacy>=3.7
+soundfile
+numpy
+# optional, only for --separate:
+# demucs

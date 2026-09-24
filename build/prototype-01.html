@@ -1,0 +1,384 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Cutup prototype 01</title>
+<link rel="icon" href="data:,">
+<style>
+  body { font: 16px "Times New Roman", Times, serif; margin: 16px; }
+  #transport { display: flex; gap: 8px; align-items: center; margin-bottom: 16px; }
+
+  #lines { border: 1px solid black; padding: 8px; display: flex; flex-direction: column; gap: 8px; }
+  .row { display: flex; gap: 8px; align-items: stretch; }
+  .row button { width: 4em; }
+  .line {
+    flex: 1; position: relative; display: flex; height: 2em; border: 1px solid black;
+    /* beat ticks: 8 beats per line, bar line after 4 */
+    background:
+      linear-gradient(to right, black 1px, transparent 1px) calc(var(--beat) * 4px) 0 / calc(var(--beat) * 4px) 100% no-repeat,
+      repeating-linear-gradient(to right, transparent 0 calc(var(--beat) * 1px - 1px), #ccc calc(var(--beat) * 1px - 1px) calc(var(--beat) * 1px));
+  }
+  .line.off { opacity: 0.4; }
+  .marker { position: absolute; top: -4px; bottom: -4px; width: 2px; margin-left: -1px; background: black; display: none; pointer-events: none; }
+  .playhead { position: absolute; top: 0; bottom: 0; width: 1px; background: red; display: none; pointer-events: none; }
+
+  #palette { border: 1px solid black; padding: 8px; margin-top: 16px; }
+  .bin { margin-bottom: 8px; }
+  .bin-words { display: flex; flex-wrap: wrap; gap: 2px; margin-top: 4px; }
+
+  .word {
+    box-sizing: border-box; flex: none; height: 2em; line-height: calc(2em - 2px);
+    width: calc(var(--d) * var(--pps) * 1px);
+    border: 1px solid black; padding: 0 1px; overflow: hidden; white-space: nowrap; text-align: center;
+    cursor: grab; user-select: none;
+  }
+  .noun { background: lightskyblue; }
+  .verb { background: lightsalmon; }
+  .describer { background: palegreen; }
+  .pronoun { background: plum; }
+  .glue { background: lightgray; }
+  .other { background: khaki; }
+  .rest { background: white; }
+</style>
+</head>
+<body>
+
+<div id="transport">
+  <button id="play" disabled>play</button>
+  <span id="status">loading…</span>
+</div>
+
+<div id="lines"></div>
+<div id="palette"></div>
+
+<script>
+const BPM = 144;
+const BEATS_PER_LINE = 8;                       // 2 bars of 4/4
+const LINE_DUR = BEATS_PER_LINE * 60 / BPM;     // 3.333s
+const N_LINES = 4;
+const PAD = 0.03;                               // seconds around each word's aligned bounds
+const FADE = 0.008;                             // seconds of fade in/out on each word
+const LOOKAHEAD = 0.15;                         // how far ahead lines are scheduled
+const BIN_ORDER = ['rest', 'noun', 'verb', 'describer', 'pronoun', 'glue', 'other'];
+const BIN_LABELS = { rest: 'pause' };
+// silent blocks: 1/32, 1/16, 1/8 and 1/4 notes, one ~ per 1/32
+const RESTS = [['r32', '~', 1 / 8], ['r16', '~~', 1 / 4], ['r8', '~~~~', 1 / 2], ['r4', '~~~~~~~~', 1]];
+const STORE_KEY = 'cutup-prototype-01';
+
+const ctx = new AudioContext();
+let beatBuf, wordsBuf;
+let words = {};  // id -> { id, text, bin, a, d }; rests have no audio (a = null)
+
+// state: lines[i] is an array of word ids in play order
+const lines = Array.from({ length: N_LINES }, () => []);
+const lineOn = Array(N_LINES).fill(true);
+
+const $ = s => document.querySelector(s);
+const lineEls = [], markerEls = [], playheadEls = [], toggleEls = [];
+
+// ---------- loading ----------
+
+async function load() {
+  try {
+    const [manifest, beat, voice] = await Promise.all([
+      fetch('audio/words.json').then(r => r.json()),
+      fetch('audio/beat.wav').then(r => r.arrayBuffer()).then(b => ctx.decodeAudioData(b)),
+      fetch('audio/words.wav').then(r => r.arrayBuffer()).then(b => ctx.decodeAudioData(b)),
+    ]);
+    beatBuf = beat;
+    wordsBuf = voice;
+    for (const w of manifest.words) {
+      const a = Math.max(0, w.start - PAD);
+      const b = Math.min(voice.duration, w.end + PAD);
+      words[w.id] = { id: w.id, text: w.word.toLowerCase(), bin: w.bin, a, d: b - a };
+    }
+    for (const [id, text, beats] of RESTS) {
+      words[id] = { id, text, bin: 'rest', a: null, d: beats * 60 / BPM };
+    }
+  } catch (e) {
+    $('#status').textContent = 'could not load audio — serve this folder, e.g. `python3 -m http.server` in build/, then open http://localhost:8000/prototype-01.html';
+    throw e;
+  }
+  restore();
+  buildLines();
+  buildPalette();
+  sizeToWindow();
+  $('#status').textContent = '';
+  $('#play').disabled = false;
+}
+
+// ---------- layout ----------
+
+function sizeToWindow() {
+  // one line (2 bars) spans the line box, so px-per-second follows from its width
+  const pps = lineEls[0].clientWidth / LINE_DUR;
+  document.documentElement.style.setProperty('--pps', pps);
+  document.documentElement.style.setProperty('--beat', pps * 60 / BPM);
+}
+window.addEventListener('resize', sizeToWindow);
+
+function wordEl(w) {
+  const el = document.createElement('div');
+  el.className = 'word ' + w.bin;
+  el.textContent = w.text;
+  el.title = w.bin === 'rest' ? `pause (${w.d.toFixed(2)}s)` : `${w.text} (${w.bin}, ${w.d.toFixed(2)}s)`;
+  el.style.setProperty('--d', w.d);
+  el.draggable = true;
+  if (w.a !== null) el.addEventListener('click', () => preview(w));
+  return el;
+}
+
+function buildPalette() {
+  const palette = $('#palette');
+  for (const bin of BIN_ORDER) {
+    const binWords = Object.values(words).filter(w => w.bin === bin);
+    // pauses stay shortest to longest; words go alphabetically
+    if (bin !== 'rest') binWords.sort((a, b) => a.text.localeCompare(b.text));
+    if (!binWords.length) continue;
+    const section = document.createElement('div');
+    section.className = 'bin';
+    section.textContent = bin === 'rest' ? BIN_LABELS.rest : `${bin} (${binWords.length})`;
+    const list = document.createElement('div');
+    list.className = 'bin-words';
+    for (const w of binWords) {
+      const el = wordEl(w);
+      el.addEventListener('dragstart', e => startDrag(e, { id: w.id, from: null }));
+      list.append(el);
+    }
+    section.append(list);
+    palette.append(section);
+  }
+  // dropping a placed word back on the list removes it
+  palette.addEventListener('dragover', e => { if (dragging && dragging.from !== null) e.preventDefault(); });
+  palette.addEventListener('drop', e => {
+    e.preventDefault();
+    if (dragging && dragging.from !== null) removeAt(dragging.from, dragging.index);
+  });
+}
+
+function buildLines() {
+  const container = $('#lines');
+  for (let i = 0; i < N_LINES; i++) {
+    const row = document.createElement('div');
+    row.className = 'row';
+    const toggle = document.createElement('button');
+    toggle.addEventListener('click', () => { lineOn[i] = !lineOn[i]; renderLine(i); save(); });
+    const line = document.createElement('div');
+    line.className = 'line';
+    const marker = document.createElement('div');
+    marker.className = 'marker';
+    const playhead = document.createElement('div');
+    playhead.className = 'playhead';
+    line.addEventListener('dragover', e => onLineDragOver(e, i));
+    line.addEventListener('dragleave', e => { if (!line.contains(e.relatedTarget)) marker.style.display = 'none'; });
+    line.addEventListener('drop', e => onLineDrop(e, i));
+    row.append(toggle, line);
+    container.append(row);
+    lineEls.push(line); markerEls.push(marker); playheadEls.push(playhead); toggleEls.push(toggle);
+    renderLine(i);
+  }
+}
+
+function renderLine(i) {
+  const line = lineEls[i];
+  line.replaceChildren(markerEls[i], playheadEls[i]);
+  lines[i].forEach((id, index) => {
+    const el = wordEl(words[id]);
+    el.addEventListener('dragstart', e => startDrag(e, { id, from: i, index }));
+    // dragged out of the lines and dropped nowhere: remove it
+    // (a refused drop onto a full line leaves it where it was)
+    el.addEventListener('dragend', e => {
+      if (e.dataTransfer.dropEffect === 'none' && !overLines && lines[i][index] === id) removeAt(i, index);
+    });
+    line.append(el);
+  });
+  line.classList.toggle('off', !lineOn[i]);
+  toggleEls[i].textContent = lineOn[i] ? 'on' : 'off';
+}
+
+// ---------- drag and drop ----------
+
+let dragging = null;  // { id, from: lineIndex|null, index }
+let overLines = false;  // whether the pointer was last over the lines region
+document.addEventListener('dragover', e => { overLines = !!e.target.closest?.('#lines'); });
+
+function startDrag(e, info) {
+  dragging = info;
+  e.dataTransfer.setData('text/plain', words[info.id].text);
+  e.dataTransfer.effectAllowed = info.from === null ? 'copy' : 'move';
+}
+document.addEventListener('dragend', () => {
+  dragging = null;
+  markerEls.forEach(m => m.style.display = 'none');
+});
+
+const lineDur = i => lines[i].reduce((t, id) => t + words[id].d, 0);
+
+function fits(i) {
+  const own = dragging.from === i ? words[dragging.id].d : 0;
+  return lineDur(i) - own + words[dragging.id].d <= LINE_DUR + 1e-6;
+}
+
+// insertion index = number of placed words whose midpoint is left of the pointer
+function insertIndex(i, clientX) {
+  const els = [...lineEls[i].querySelectorAll('.word')];
+  const idx = els.findIndex(el => { const r = el.getBoundingClientRect(); return clientX < r.left + r.width / 2; });
+  return idx === -1 ? els.length : idx;
+}
+
+function onLineDragOver(e, i) {
+  if (!dragging || !fits(i)) return;  // not preventing default = drop refused
+  e.preventDefault();
+  e.dataTransfer.dropEffect = dragging.from === null ? 'copy' : 'move';
+  const idx = insertIndex(i, e.clientX);
+  const ids = lines[i].slice(0, idx);
+  markerEls[i].style.left = ids.reduce((t, id) => t + words[id].d, 0) / LINE_DUR * lineEls[i].clientWidth + 'px';
+  markerEls[i].style.display = 'block';
+}
+
+function onLineDrop(e, i) {
+  e.preventDefault();
+  markerEls[i].style.display = 'none';
+  if (!dragging || !fits(i)) return;
+  let idx = insertIndex(i, e.clientX);
+  if (dragging.from !== null) {
+    lines[dragging.from].splice(dragging.index, 1);
+    if (dragging.from === i && dragging.index < idx) idx--;
+    if (dragging.from !== i) renderLine(dragging.from);
+  }
+  lines[i].splice(idx, 0, dragging.id);
+  renderLine(i);
+  save();
+}
+
+function removeAt(i, index) {
+  lines[i].splice(index, 1);
+  renderLine(i);
+  save();
+}
+
+// ---------- persistence (per browser, convenience only) ----------
+
+function save() {
+  try { localStorage.setItem(STORE_KEY, JSON.stringify({ lines, lineOn })); } catch {}
+}
+function restore() {
+  try {
+    const s = JSON.parse(localStorage.getItem(STORE_KEY));
+    if (!s) return;
+    s.lines.slice(0, N_LINES).forEach((ids, i) => {
+      lines[i] = ids.filter(id => words[id]);
+      while (lineDur(i) > LINE_DUR + 1e-6) lines[i].pop();
+    });
+    s.lineOn.slice(0, N_LINES).forEach((on, i) => lineOn[i] = !!on);
+  } catch {}
+}
+
+// ---------- audio ----------
+
+const live = new Set();  // scheduled sources, so pause can stop them
+
+function playSlice(buffer, when, offset, duration, fade) {
+  const src = ctx.createBufferSource();
+  src.buffer = buffer;
+  let node = src;
+  if (fade) {
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0, when);
+    g.gain.linearRampToValueAtTime(1, when + fade);
+    g.gain.setValueAtTime(1, when + duration - fade);
+    g.gain.linearRampToValueAtTime(0, when + duration);
+    src.connect(g);
+    node = g;
+  }
+  node.connect(ctx.destination);
+  src.start(when, offset, duration);
+  live.add(src);
+  src.onended = () => live.delete(src);
+}
+
+function preview(w) {
+  if (ctx.state !== 'running') ctx.resume();
+  playSlice(wordsBuf, ctx.currentTime + 0.01, w.a, w.d, FADE);
+}
+
+let playing = false;
+let nextTime = null;   // audio-clock time the next line starts
+let cursor = -1;       // index of the last line scheduled
+let scheduled = [];    // [{ line, t0 }] for the playhead
+
+function nextActiveLine() {
+  for (let k = 1; k <= N_LINES; k++) {
+    const i = (cursor + k) % N_LINES;
+    if (lineOn[i]) return i;
+  }
+  return -1;
+}
+
+// Schedules whole lines slightly ahead of time; toggles and edits apply from the next line.
+function tick() {
+  if (!playing) return;
+  if (nextTime === null) nextTime = ctx.currentTime + 0.05;
+  while (nextTime < ctx.currentTime + LOOKAHEAD) {
+    const i = nextActiveLine();
+    if (i === -1) { nextTime = null; return; }   // nothing on: wait for a line to be switched on
+    const t0 = Math.max(nextTime, ctx.currentTime + 0.01);
+    // the beat follows the lines: line i plays over bars 2i+1..2i+2 of the beat
+    playSlice(beatBuf, t0, i * LINE_DUR, LINE_DUR, 0);
+    let t = t0;
+    for (const id of lines[i]) {
+      const w = words[id];
+      if (w.a !== null) playSlice(wordsBuf, t, w.a, w.d, FADE);
+      t += w.d;
+    }
+    scheduled.push({ line: i, t0 });
+    cursor = i;
+    nextTime = t0 + LINE_DUR;
+  }
+}
+setInterval(tick, 25);
+
+function stopAll() {
+  for (const src of live) { try { src.stop(); } catch {} }
+  live.clear();
+}
+
+$('#play').addEventListener('click', async () => {
+  if (playing) {
+    playing = false;
+    stopAll();
+    // resume from the start of the line that was playing
+    const now = ctx.currentTime;
+    const current = scheduled.find(s => s.t0 <= now && now < s.t0 + LINE_DUR);
+    cursor = current ? (current.line - 1 + N_LINES) % N_LINES : -1;
+    scheduled = [];
+    nextTime = null;
+    $('#play').textContent = 'play';
+  } else {
+    await ctx.resume();
+    playing = true;
+    $('#play').textContent = 'pause';
+    tick();
+  }
+});
+
+function drawPlayhead() {
+  const now = ctx.currentTime;
+  scheduled = scheduled.filter(s => s.t0 + LINE_DUR > now);
+  const current = playing && scheduled.find(s => s.t0 <= now);
+  playheadEls.forEach((el, i) => {
+    if (current && current.line === i) {
+      el.style.left = (now - current.t0) / LINE_DUR * lineEls[i].clientWidth + 'px';
+      el.style.display = 'block';
+    } else {
+      el.style.display = 'none';
+    }
+  });
+  requestAnimationFrame(drawPlayhead);
+}
+requestAnimationFrame(drawPlayhead);
+
+load();
+</script>
+</body>
+</html>
