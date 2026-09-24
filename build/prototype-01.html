@@ -38,6 +38,7 @@
   .pronoun { background: plum; }
   .glue { background: lightgray; }
   .other { background: khaki; }
+  .yeah { background: gold; }
   .rest { background: white; }
 </style>
 </head>
@@ -59,7 +60,7 @@ const N_LINES = 4;
 const PAD = 0.03;                               // seconds around each word's aligned bounds
 const FADE = 0.008;                             // seconds of fade in/out on each word
 const LOOKAHEAD = 0.15;                         // how far ahead lines are scheduled
-const BIN_ORDER = ['rest', 'noun', 'verb', 'describer', 'pronoun', 'glue', 'other'];
+const BIN_ORDER = ['rest', 'yeah', 'noun', 'verb', 'describer', 'pronoun', 'glue', 'other'];
 const BIN_LABELS = { rest: 'pause' };
 // silent blocks: 1/32, 1/16, 1/8 and 1/4 notes, one ~ per 1/32
 const RESTS = [['r32', '~', 1 / 8], ['r16', '~~', 1 / 4], ['r8', '~~~~', 1 / 2], ['r4', '~~~~~~~~', 1]];
@@ -172,7 +173,10 @@ function buildLines() {
     line.addEventListener('dragover', e => onLineDragOver(e, i));
     line.addEventListener('dragleave', e => { if (!line.contains(e.relatedTarget)) marker.style.display = 'none'; });
     line.addEventListener('drop', e => onLineDrop(e, i));
-    row.append(toggle, line);
+    const clear = document.createElement('button');
+    clear.textContent = 'clear';
+    clear.addEventListener('click', () => { lines[i] = []; renderLine(i); save(); });
+    row.append(toggle, line, clear);
     container.append(row);
     lineEls.push(line); markerEls.push(marker); playheadEls.push(playhead); toggleEls.push(toggle);
     renderLine(i);

@@ -51,7 +51,7 @@ Options:
 - `--pad`, `--fade`: clip padding and fade in seconds (defaults 0.03, 0.008). The prototype sets its own padding (`PAD`) and fade (`FADE`).
 - `--wav`, `--transcript`: use files other than the ones in `source/`
 
-To fix a wrong category, edit the word's `bin` in `build/audio/words.json`. The bins are `noun`, `verb`, `describer`, `pronoun`, `glue` and `other`. Re-running the script overwrites these edits.
+To fix a wrong category, edit the word's `bin` in `build/audio/words.json`. The bins are `noun`, `verb`, `describer`, `pronoun`, `glue`, `yeah` and `other`. Words that get a bin by spelling rather than part of speech (the `yeah` variants) are listed in `WORD_BINS` in `preprocess.py`. Re-running the script overwrites these edits.
 
 ## Add a prototype
 
