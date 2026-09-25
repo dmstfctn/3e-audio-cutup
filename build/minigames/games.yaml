@@ -1,0 +1,137 @@
+# Minigame content for prototype-06: which photos each game uses, what's found or
+# matched in them, the words they reward, and the game settings.
+#
+# - Photos are in build/images/. Name them as there (1.jpg, 2.png…).
+# - Shapes for find and find-all are in build/images/<photo name>.svg (1.svg for
+#   1.jpg), drawn at the photo's pixel size. A shape's id is the thing it marks:
+#   "bread", or "fruits_1", "fruits_2"… for several of one thing. Case is ignored,
+#   and anything after a _ is ignored. <polygon>, <path>, <rect>, <circle>,
+#   <ellipse> and <g> (a group counts as one shape) all work.
+# - rewards: the words a photo can win, grouped by bin as in tray.yaml. Words
+#   match as in bins.yaml; a word listed under the wrong bin shows in its real
+#   bin, with a warning next to the play button.
+# - The thing to find always counts as one of the photo's words, listed or not.
+# - prompt (optional): the text shown instead of "find: fruits". The thing's
+#   name is shown in bold wherever it appears in the prompt.
+# - rules: the card shown before the game. {seconds} and {rounds} are filled in
+#   from the settings below.
+# - Problems (a missing .svg, a word not in the recording, a thing with no
+#   shape) show next to the play button, and that photo or thing is left out.
+# - Reload the page to see edits. They apply to games in progress. Words
+#   already won stay won.
+
+# Find It: one photo and one thing per play. Finding it wins the thing's word
+# and half of the photo's other words (not the other things to find). The
+# photo's last thing to be found wins the rest. Each play picks a thing not
+# found yet; once all are found, any thing.
+find:
+  title: find it
+  rules: |
+    click the thing named in the photo.
+    {seconds} seconds.
+    find it to win its word, and more words from the photo.
+  seconds: 5
+  tolerance: 10       # on-screen pixels of slack around each shape
+  photos:
+    1.jpg:
+      find:
+        long:
+        bread:
+      rewards:
+        noun: [hot-dog, table, depth, bread]
+        adjective: [long, deep, shining, stale]
+    2.png:
+      find:
+        laying:
+        floor:
+      rewards:
+        noun: [bathroom, floor, fear]
+        verb: [laying, sleep]
+    4.png:
+      find:
+        rich:
+        lucozade:
+      rewards:
+        noun: [lucozade, bombay]
+        adjective: [behind, together, rich]
+    6.png:
+      find:
+        sits:
+        feast:
+      rewards:
+        noun: [umbrella, chair, feast]
+        verb: [sits]
+        adjective: [hot]
+
+# Find Them All: one photo per play, zoomed in. The count found adds up over
+# plays of the same photo. Words unlock as the count passes each step:
+# with 10 to find and 5 words, one word per 2 found. The thing's own word comes
+# first, then the others in the order listed. Each play picks a photo not
+# finished yet; once all are finished, any photo, starting again from 0 (it
+# can't win anything more).
+find-all:
+  title: find them all
+  rules: |
+    click every one of the things named.
+    the photo is zoomed in: drag to look around.
+    {seconds} seconds. what you find adds up each time you play this photo,
+    and each step on the bar wins a word.
+  seconds: 15
+  zoom: 3             # the photo starts this many times the screen's width
+  tolerance: 10
+  photos:
+    3.png:
+      find: fruits
+      rewards:
+        noun: [market, fruits, sale, growntology]
+        adjective: [sustainable, renewable]
+    5.png:
+      find: white
+      rewards:
+        noun: [piece, geometries]
+        adjective: [smooth, white, fine, minimal, blank]
+    11.png:
+      find: green
+      rewards:
+        noun: [banana-fish, woman, phone-box]
+        adjective: [happy, green]
+        verb: [connected]
+    8.png:
+      find: ecology
+      rewards:
+        noun: [blessings, cloth, vegetables, ecology]
+        adjective: [much, alone]
+    12.jpg:
+      find: rain
+      rewards:
+        noun: [barclays, bike-lane, P12, SL, rain, crack, person]
+        adjective: [colourless]
+
+# Caption Match: every round is played each time, in a random order. Pick the
+# photo the caption describes from it and its decoys to win all its words.
+caption-match:
+  title: caption match
+  rules: |
+    click the photo the caption describes.
+    {rounds} rounds, each quicker than the last.
+    each one you match wins its words.
+  seconds: [6, 4, 3]  # per round, in the order played; the last repeats if there are more rounds
+  rounds:
+    - photo: 9.png
+      caption: holding it furiously
+      decoys: [15.png, 16.png]
+      rewards:
+        noun: [dog]
+        verb: [holding]
+        adjective: [furiously]
+    - photo: 7.png
+      caption: blowing paper
+      decoys: [13.png, 14.png]
+      rewards:
+        verb: [made, hides]
+        adjective: [poor, counterfeit]
+    - photo: 10.png
+      caption: Treasures from the Stone Age
+      decoys: [17.jpg, 18.png]
+      rewards:
+        noun: [stone, time, treasure]

@@ -144,6 +144,31 @@ Prototype-05 plays like prototype-04, but each stage after the first two opens w
 
 - The photos load from COCO's image host, which only serves `http://`. A deploy served over `https://` will block them until they're hosted elsewhere.
 
+## Minigame content (prototype-06)
+
+Prototype-06 plays like prototype-05, but the games use set photos from `build/images/`, and each one wins set words. Only Find It plays automatically, before the 4-line stage. Caption Match and Find Them All are unlocked by the 6-line and 8-line stages: the lines come straight away, and a notice offers **play** or **continue writing**. An unlocked game stays in the games box until it's played. All of it is in `build/minigames/games.yaml`, which explains itself in its comments. For each game it holds:
+
+- the photos, what to find in each one (or, for Caption Match, the caption and the two decoy photos), and an optional prompt
+- the words each photo wins, grouped by bin as in `tray.yaml`
+- the settings: seconds, zoom and click tolerance, and the rules text shown before the game
+
+How the words are won:
+
+- **Find It:** each play shows one photo and one thing to find, picked from the things not found yet. Finding it wins the thing's own word and half of the photo's other words. Things to find don't count as other words. Finding the photo's last thing wins the rest.
+- **Find Them All:** one photo per play. What's found adds up over plays of the same photo. A bar shows the count, with a notch where each word is won: with 10 to find and 5 words, one word per 2 found. The thing's own word comes first, then the others in the order listed.
+- **Caption Match:** every round is played each time, in a random order. Each photo matched wins all its words.
+
+The games box shows the words each game has won out of all the words it has. Any game can be replayed to win more.
+
+The shapes to find are drawn in an SVG per photo, `build/images/<photo name>.svg` (`1.svg` for `1.jpg`), at the photo's pixel size:
+
+- A shape's `id` is the thing it marks. For several of one thing, add `_` and anything else: `fruits_1`, `fruits_2`.
+- Case is ignored. `<polygon>`, `<path>`, `<rect>`, `<circle>` and `<ellipse>` all work, and a group (`<g>`) with an id counts as one shape.
+- The shapes' colours don't matter: the game hides them until it reveals them.
+- All the SVGs except `1.svg` are placeholders, with shapes at random places. Redraw them over their photos and keep the ids.
+
+A missing SVG, a thing with no shape, or a word that isn't in the recording shows a warning next to the play button, and that photo or thing is left out. Reload the page to see edits.
+
 ## Add a prototype
 
 Copy `build/prototype-01.html` to `build/prototype-02.html` and add a link to it in `build/index.html`.

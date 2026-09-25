@@ -16,60 +16,107 @@
 # - Tags under pronoun or glue change nothing: those bins already show every word.
 # - Reload the page to see edits.
 
-1.png:
+1.jpg:
   noun:
     - hot-dog
     - table
-    - person
+    - depth
+    - bread
   adjective:
     - long
-    - hot
-  verb: 
-    - laying
-    - sits
-    - connected
+    - deep
+    - shining
+    - stale
 2.png:
   noun:
     - bathroom
-    - person
     - floor
+    - fear
   verb:
     - laying
     - sleep
-  adjective: 
-    - alone
-    - smooth
-    - white
 3.png:
   noun:  
-    - vegetables
     - market 
-    - table
     - fruits
     - sale
-  verb:
-    - sits
-    - sleep
-    - are
+    - growntology
   adjective:
-    - behind
-    - colourless
-    - green
-    - stale
+    - sustainable
+    - renewable
 4.png:
   noun:
-    - umbrella
-    - woman
     - lucozade
-    - stone
+    - bombay
+  adjective:
+    - behind
+    - together
+    - rich
+5.png:
+  noun:
+    - piece
+    - geometries
+  adjective:
+    - smooth
+    - white
+    - fine
+    - minimal
+    - blank
+6.png:
+  noun:
+    - umbrella
     - chair
+    - feast
   verb:
-    - sit
     - sits
-    - holding
+  adjective:
+    - hot
+7.png:
+  verb:
+    - made
     - hides
   adjective:
-    - also
-    - behind
-    - fine
-    - together
+    - poor
+    - counterfeit
+8.png:
+  noun:
+    - blessings
+    - cloth
+    - vegetables
+    - ecology
+  adjective:
+    - much
+    - alone
+9.png:
+  noun:
+    - dog
+  verb:
+    - holding
+  adjective:
+    - furiously
+10.png:
+  noun:
+    - stone
+    - time
+    - treasure
+11.png:
+  noun:
+    - banana-fish
+    - woman
+    - phone-box
+  adjective:
+    - happy
+    - green
+  verb:
+    - connected
+12.jpg:
+  noun:
+    - barclays 
+    - bike-lane
+    - P12
+    - SL
+    - rain
+    - crack
+    - person
+  adjective:
+    - colourless

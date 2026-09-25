@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- PLACEHOLDER: shapes placed at random, not traced from the photo. Redraw them over 12 at its pixel size, keeping the ids. -->
+<svg version="1.1" xmlns="http://www.w3.org/2000/svg" x="0px" y="0px" viewBox="0 0 1537 1023" xml:space="preserve">
+<style type="text/css">
+	.st0{fill:#FF00FF;fill-opacity:0.5;}
+</style>
+<polygon id="rain_1" class="st0" points="1347.5,570.5 1326.5,596.1 1295.4,617.5 1258.4,593.5 1273.5,554.8 1297.8,534.3 1339.8,528.3"/>
+<polygon id="rain_2" class="st0" points="1356.8,297.9 1331.1,326.3 1300.7,332.0 1266.4,318.2 1279.1,283.8 1297.1,248.3 1337.1,262.1"/>
+<path id="rain_3" class="st0" d="M1087.7,450.1 L1060.1,477.6 L1029.3,488.9 L994.3,471.2 L989.3,426.5 L1028.2,406.4 L1066.7,414.3 Z"/>
+<polygon id="rain_4" class="st0" points="667.0,220.6 647.1,258.4 606.0,268.5 575.5,240.5 585.8,205.6 609.5,188.2 645.8,184.4"/>
+<polygon id="rain_5" class="st0" points="934.6,261.5 925.6,297.1 888.7,298.5 863.5,277.7 855.3,241.3 886.8,216.0 928.9,221.7"/>
+<path id="rain_6" class="st0" d="M1382.5,811.3 L1377.9,852.8 L1337.4,843.9 L1301.4,832.2 L1307.3,793.3 L1333.6,762.1 L1374.4,774.2 Z"/>
+<polygon id="rain_7" class="st0" points="585.2,681.7 556.0,708.8 522.5,733.8 495.0,700.7 488.3,659.5 525.1,640.8 566.9,640.9"/>
+<polygon id="rain_8" class="st0" points="1364.2,154.0 1344.3,192.2 1302.0,205.7 1267.0,176.5 1280.8,138.1 1302.9,106.4 1336.1,126.0"/>
+<path id="rain_9" class="st0" d="M525.7,903.4 L524.3,945.6 L478.5,956.2 L460.4,917.9 L460.0,888.6 L482.1,866.1 L524.2,861.2 Z"/>
+<polygon id="rain_10" class="st0" points="100.2,168.7 81.8,211.2 39.3,206.4 14.8,184.7 18.3,154.5 38.4,126.8 76.1,133.5"/>
+</svg>

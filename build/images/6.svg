@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- PLACEHOLDER: shapes placed at random, not traced from the photo. Redraw them over 6 at its pixel size, keeping the ids. -->
+<svg version="1.1" xmlns="http://www.w3.org/2000/svg" x="0px" y="0px" viewBox="0 0 610 458" xml:space="preserve">
+<style type="text/css">
+	.st0{fill:#FF00FF;fill-opacity:0.5;}
+</style>
+<polygon id="sits" class="st0" points="576.1,129.9 553.4,188.7 493.1,188.7 460.7,152.0 453.2,104.2 495.4,81.0 547.8,78.2"/>
+<polygon id="feast" class="st0" points="365.4,247.9 343.0,297.1 290.2,307.5 241.5,277.9 252.9,223.4 288.4,180.7 332.3,212.2"/>
+</svg>
