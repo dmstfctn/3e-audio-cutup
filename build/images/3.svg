@@ -1,13 +1,27 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- PLACEHOLDER: shapes placed at random, not traced from the photo. Redraw them over 3 at its pixel size, keeping the ids. -->
-<svg version="1.1" xmlns="http://www.w3.org/2000/svg" x="0px" y="0px" viewBox="0 0 640 480" xml:space="preserve">
+<!-- Generator: Adobe Illustrator 27.9.6, SVG Export Plug-In . SVG Version: 9.03 Build 54986)  -->
+<svg version="1.1" id="Layer_2" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
+	 viewBox="0 0 750 555" style="enable-background:new 0 0 750 555;" xml:space="preserve">
 <style type="text/css">
-	.st0{fill:#FF00FF;fill-opacity:0.5;}
+	.st0{fill:#FFFFFF;stroke:#000000;stroke-width:1.0679;stroke-miterlimit:10;}
 </style>
-<polygon id="fruits_1" class="st0" points="453.9,226.0 441.4,240.6 426.0,242.3 413.2,233.9 412.0,217.4 425.7,208.1 445.5,206.2"/>
-<polygon id="fruits_2" class="st0" points="593.2,374.3 586.4,392.3 566.6,398.3 557.9,381.1 555.8,366.4 567.4,353.6 584.9,358.2"/>
-<path id="fruits_3" class="st0" d="M114.6,245.7 L105.6,259.2 L89.4,270.0 L80.8,252.5 L77.7,237.4 L90.7,227.3 L108.8,228.3 Z"/>
-<polygon id="fruits_4" class="st0" points="597.6,322.3 585.4,338.5 568.8,338.8 555.0,330.8 556.2,314.4 568.3,303.8 584.8,306.9"/>
-<polygon id="fruits_5" class="st0" points="424.5,273.8 418.8,290.1 401.0,295.0 389.9,281.5 383.3,263.0 401.3,254.3 421.0,254.7"/>
-<path id="fruits_6" class="st0" d="M265.7,168.1 L257.5,185.3 L239.2,188.3 L225.2,177.0 L223.4,158.3 L238.1,143.5 L255.9,152.9 Z"/>
+<ellipse id="fruits" class="st0" cx="169.31" cy="348.61" rx="7.65" ry="8.72"/>
+<ellipse id="fruits_00000083783725611439978590000007584934935126206087_" class="st0" cx="194.61" cy="360.09" rx="7.65" ry="6.47"/>
+<ellipse id="fruits_00000013183526969723730530000006891720718507526018_" class="st0" cx="177.74" cy="360.09" rx="8.44" ry="6.47"/>
+<ellipse id="fruits_00000166666471761090474180000016631028020841451952_" class="st0" cx="160.28" cy="359.79" rx="6.08" ry="7.55"/>
+<circle id="fruits_00000101068316860852823370000009006784910591343539_" class="st0" cx="474.38" cy="355.3" r="6.7"/>
+<polygon id="fruits_00000064314750482546896210000002715661860770543529_" class="st0" points="280.53,355.77 280.53,357.33 
+	275.56,362.18 272.69,366.56 283.02,367.35 293.74,368.07 290.21,358.13 "/>
+<polygon id="fruits_00000106118974516476724880000016506670883935374735_" class="st0" points="265.76,354.99 270.99,354.2 
+	277.53,358.78 271.64,368.07 263.27,367.35 "/>
+<polygon id="fruits_00000045581290774229386640000006016277260136792976_" class="st0" points="251.89,359.79 256.86,353.61 
+	262.09,355.77 264.79,359.79 261.31,368.07 256.86,368.07 "/>
+<polygon id="fruits_00000031205722309047325810000002489301246664403840_" class="st0" points="238.29,362.57 241.3,368.85 
+	254.64,369.9 249.67,361.13 "/>
+<polygon id="fruits_00000141454174358685476460000011456100729401950879_" class="st0" points="209.52,357.33 209.52,369.9 
+	227.83,368.07 225.74,359.79 "/>
+<polygon id="fruits_00000023276568235491528460000010785621384097977479_" class="st0" points="314.41,353.61 309.44,359.43 
+	314.41,368.07 328.27,365.52 322.51,359.7 328.27,353.61 "/>
+<polygon id="fruits_00000143594894763380005010000000988610141292175008_" class="st0" points="336.12,353.61 325.16,356.9 
+	330.64,368.07 341.09,368.07 348.41,358.39 346.06,353.61 "/>
 </svg>

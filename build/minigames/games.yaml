@@ -40,21 +40,21 @@ find:
       rewards:
         noun: [hot-dog, table, depth, bread]
         adjective: [long, deep, shining, stale]
-    2.png:
+    2.jpg:
       find:
         laying:
         floor:
       rewards:
         noun: [bathroom, floor, fear]
         verb: [laying, sleep]
-    4.png:
+    4.jpg:
       find:
         rich:
         lucozade:
       rewards:
         noun: [lucozade, bombay]
         adjective: [behind, together, rich]
-    6.png:
+    6.jpg:
       find:
         sits:
         feast:
@@ -80,23 +80,23 @@ find-all:
   zoom: 3             # the photo starts this many times the screen's width
   tolerance: 10
   photos:
-    3.png:
+    3.jpg:
       find: fruits
       rewards:
         noun: [market, fruits, sale, growntology]
         adjective: [sustainable, renewable]
-    5.png:
+    5.jpg:
       find: white
       rewards:
         noun: [piece, geometries]
         adjective: [smooth, white, fine, minimal, blank]
-    11.png:
+    11.jpg:
       find: green
       rewards:
         noun: [banana-fish, woman, phone-box]
         adjective: [happy, green]
         verb: [connected]
-    8.png:
+    8.jpg:
       find: ecology
       rewards:
         noun: [blessings, cloth, vegetables, ecology]

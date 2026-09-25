@@ -142,11 +142,10 @@ const MINIGAMES = (() => {
       g.countdown(data.seconds, () => reveal([]));
     });
 
-    // hit: the shapes clicked go green; miss or time-out: every shape goes red
+    // hit: the shapes clicked go green; miss or time-out: the shapes stay hidden, to find next time
     function reveal(hit) {
       g.stop();
-      if (hit.length) hit.forEach(s => s.classList.add('ok'));
-      else shapes.forEach(s => s.classList.add('bad'));
+      hit.forEach(s => s.classList.add('ok'));
       g.later(() => done({ found: hit.length > 0 }), REVEAL_MS);
     }
 
@@ -227,7 +226,7 @@ const MINIGAMES = (() => {
   // plays start found.
 
   function findAll(container, data, done) {
-    const REVEAL_MS = 1500;           // how long the missed ones show before the result
+    const REVEAL_MS = 1500;           // how long the final count shows before the result
     const MIN_COVER = 1.25;           // zoom-out floor: MIN_COVER × the size that just covers the container
     const MAX_ZOOM = 2;               // zoom-in ceiling: MAX_ZOOM × the starting size
     const DRAG_PX = 6;                // a press that moves further than this is a pan, not a click
@@ -317,9 +316,8 @@ const MINIGAMES = (() => {
     const bold = text => { const b = document.createElement('b'); b.textContent = text; return b; };
     function end() {
       g.stop();
-      const missed = shapes.filter((_, k) => !found.has(k));
-      missed.forEach(s => s.classList.add('bad'));
-      prompt.replaceChildren(...(missed.length
+      // the ones not found stay hidden, so they're still there to find next time
+      prompt.replaceChildren(...(found.size < n
         ? ["time's up: ", bold(`${found.size} / ${n}`), ' found']
         : ['you found all ', bold(String(n))]));
       count.textContent = '';
@@ -418,7 +416,6 @@ const MINIGAMES = (() => {
     /* shapes are invisible until revealed, whatever colours the SVG file gave them */
     .mg-overlay g * { fill: transparent; stroke: none; stroke-width: 3; vector-effect: non-scaling-stroke; }
     .mg-overlay g.ok * { fill: rgb(26 158 75 / .35); stroke: #1a9e4b; }
-    .mg-overlay g.bad * { fill: rgb(210 60 60 / .35); stroke: #d23c3c; }
 
     .mg-find { position: relative; line-height: 0; cursor: crosshair; user-select: none; }
     .mg-find .mg-photo { display: block; max-width: 92vw; max-height: calc(100vh - 170px); }

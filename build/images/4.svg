@@ -1,9 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- PLACEHOLDER: shapes placed at random, not traced from the photo. Redraw them over 4 at its pixel size, keeping the ids. -->
-<svg version="1.1" xmlns="http://www.w3.org/2000/svg" x="0px" y="0px" viewBox="0 0 638 471" xml:space="preserve">
+<!-- Generator: Adobe Illustrator 27.9.6, SVG Export Plug-In . SVG Version: 9.03 Build 54986)  -->
+<svg version="1.1" id="Layer_2" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
+	 viewBox="0 0 1461 1077" style="enable-background:new 0 0 1461 1077;" xml:space="preserve">
 <style type="text/css">
-	.st0{fill:#FF00FF;fill-opacity:0.5;}
+	.st0{fill:#FFFFFF;stroke:#000000;stroke-miterlimit:10;}
 </style>
-<polygon id="rich" class="st0" points="496.8,151.1 471.2,209.8 413.3,199.7 358.5,182.8 380.5,130.0 411.1,93.0 456.3,111.1"/>
-<polygon id="lucozade" class="st0" points="282.0,198.7 282.5,260.4 221.4,250.8 172.9,227.8 187.4,176.6 219.6,139.0 274.2,147.3"/>
+<polygon id="lucozade" class="st0" points="933.54,270.73 975.91,270.73 975.91,245.62 975.91,234.63 975.91,168.72 963.35,132.62 
+	963.35,116.93 942.95,109.08 941.38,129.48 933.54,140.47 "/>
+<polygon id="rich" class="st0" points="1076.35,496.85 1076.35,460.76 1115.58,440.36 1148.54,440.36 1165.8,440.36 1187.77,468.61 
+	1187.77,496.85 1197.19,496.85 1197.19,520.39 1183.07,535.5 1183.07,553.35 1225.44,569.05 1247.41,576.89 1269.38,584.74 
+	1285.07,597.29 1329.02,661.64 1363.54,746.38 1329.02,779.34 1308.61,799.74 1307.05,862.52 1288.21,890.77 1292.92,911.17 
+	1272.52,1002.19 1263.1,1027.3 1264.67,1064.96 1205.04,1074 1211.31,936.28 1219.95,920.58 1186.2,898.61 1186.2,875.07 
+	1132.85,870.36 1066.93,889.2 1096.75,1074 1040.25,1074 1054.38,1046.13 1033.98,1046.13 1010.44,1057.12 975.91,843.68 
+	1060.66,782.48 1037.11,771.49 1005.73,771.49 969.63,735.4 997.88,688.32 1041.82,606.71 1088.9,576.89 "/>
 </svg>

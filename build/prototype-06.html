@@ -444,7 +444,7 @@ async function loadShapes(photo) {
   if (svg.nodeName !== 'svg' || doc.querySelector('parsererror')) throw new Error(`${file} isn't a readable SVG`);
   const viewBox = svg.getAttribute('viewBox') ?? `0 0 ${parseFloat(svg.getAttribute('width'))} ${parseFloat(svg.getAttribute('height'))}`;
   const tagOf = el => el.id.toLowerCase().split('_')[0];
-  const byTag = {};
+  const byTag = {}, seen = {};  // seen: id -> times used, so shapes sharing an id still get their own key
   for (const el of svg.querySelectorAll('[id]')) {
     if (el.closest('defs, clipPath, mask, style')) continue;
     // a shape inside a group of the same thing belongs to the group
@@ -453,7 +453,8 @@ async function loadShapes(photo) {
     if (inGroup) continue;
     const copy = el.cloneNode(true);
     for (const n of [copy, ...copy.querySelectorAll('*')]) for (const a of ['id', 'class', 'style', 'fill', 'stroke']) n.removeAttribute(a);
-    (byTag[tagOf(el)] ??= []).push({ key: el.id, el: copy });
+    const n = seen[el.id] = (seen[el.id] ?? 0) + 1;
+    (byTag[tagOf(el)] ??= []).push({ key: n > 1 ? `${el.id}#${n}` : el.id, el: copy });
   }
   return { viewBox, byTag };
 }

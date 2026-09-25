@@ -165,7 +165,7 @@ The shapes to find are drawn in an SVG per photo, `build/images/<photo name>.svg
 - A shape's `id` is the thing it marks. For several of one thing, add `_` and anything else: `fruits_1`, `fruits_2`.
 - Case is ignored. `<polygon>`, `<path>`, `<rect>`, `<circle>` and `<ellipse>` all work, and a group (`<g>`) with an id counts as one shape.
 - The shapes' colours don't matter: the game hides them until it reveals them.
-- All the SVGs except `1.svg` are placeholders, with shapes at random places. Redraw them over their photos and keep the ids.
+- Shapes that share an id (`rain`, `rain`…) each count as one thing, like `rain_1`, `rain_2`.
 
 A missing SVG, a thing with no shape, or a word that isn't in the recording shows a warning next to the play button, and that photo or thing is left out. Reload the page to see edits.
 
