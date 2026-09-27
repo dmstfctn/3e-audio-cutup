@@ -48,33 +48,35 @@ body { font: 16px "Times New Roman", Times, serif; margin: 16px; }
 .marker { position: absolute; top: -4px; bottom: -4px; width: 2px; margin-left: -1px; background: black; display: none; pointer-events: none; }
 .playhead { position: absolute; top: 0; bottom: 0; width: 1px; background: red; display: none; pointer-events: none; }
 
-/* the tray, fixed to the bottom: a row per section, its label above and its words scrolling sideways
-   under it, round and round. Rows sit at the bottom, so while the tray grows out of the strip they
-   come into view from the bottom up. */
-#palette { position: fixed; left: 0; right: 0; bottom: 0; z-index: 5; box-sizing: border-box; background: white;
-           border-top: 1px solid black; display: flex; flex-direction: column; justify-content: flex-end; overflow: hidden; }
-.bin { flex: none; padding: 8px 0; }
-.bin:nth-child(even) { background: #ccc; }
-.bin + .bin { border-top: 1px solid black; }
-.bin:last-child { padding-bottom: calc(8px + 1em); }  /* half a word's height more below the last row */
-.bin-label { font: 12px Arial, sans-serif; text-transform: uppercase; padding: 0 16px 4px; }
-.bin-words { display: flex; gap: 4px; overflow-x: auto; overflow-y: hidden;
-             overscroll-behavior-x: contain; scrollbar-width: none; }
-.bin-words::-webkit-scrollbar { display: none; }
-.bin-words.fits { padding: 0 16px; }  /* a row that doesn't loop starts under its label (TRAY_INSET) */
+/* the tray, fixed to the bottom and scrolling up and down: a section per bin, its words wrapping under
+   its label. The labels stick, stacked in order: --k labels above each at the top, the rest below it
+   at the bottom. */
+#palette { --label: 28px; position: fixed; left: 0; right: 0; bottom: 0; z-index: 5; box-sizing: border-box; max-height: 66svh;
+           background: white; border-top: 1px solid black; overflow-y: auto; overscroll-behavior: contain; }
+.bin-label { position: sticky; z-index: 1; top: calc(var(--k) * var(--label)); bottom: calc((var(--bins) - 1 - var(--k)) * var(--label));
+             box-sizing: border-box; height: var(--label); padding: 10px 16px 0; line-height: 17px;
+             background: white; border-top: 1px solid black; font: 12px Arial, sans-serif; text-transform: uppercase; cursor: pointer; }
+.bin-label:first-child { border-top-color: transparent; }  /* the tray's own border is there; kept the same height as the rest */
+.bin-words { display: flex; flex-wrap: wrap; gap: 4px; padding: 4px 16px 8px; }
+.bin-words:last-child { padding-bottom: calc(8px + 1em); }  /* half a word's height more below the last section */
+/* every other section grey */
+.bin-label:nth-child(4n+3), .bin-words:nth-child(4n+4) { background: #ccc; }
 
 .word {
   box-sizing: border-box; flex: none; height: 2em; line-height: calc(2em - 2px);
   width: calc(var(--d) * var(--pps) * 1px);
   border: 1px solid black; padding: 0 1px; background: white; overflow: hidden; white-space: nowrap; text-align: center;
-  cursor: pointer; user-select: none;
+  cursor: pointer; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
 }
+/* dragged by a finger: the word stays behind, faded, and a copy follows the finger */
+.word.lifted { opacity: .3; }
+.word.dragged { z-index: 13; box-shadow: 0 4px 8px rgb(0 0 0 / .3); }
 
 /* in the tray a word is at least as wide as its text, so it can be read; in the lines it's its duration */
-#palette .word { min-width: max-content; padding: 0 4px; }
+#palette .word, .word.dragged { min-width: max-content; padding: 0 4px; }
 /* narrow screens: smaller text in the tray, where words are narrow; the box keeps its height */
 @media (max-width: 640px) {
-  #palette .word { font-size: 12px; height: 32px; line-height: 30px; }
+  #palette .word, .word.dragged { font-size: 12px; height: 32px; line-height: 30px; }
 }
 
 /* a word's colour by its bin: nouns red, verbs green, adjectives blue, yeahs yellow, pronouns and glue

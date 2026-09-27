@@ -8,8 +8,6 @@ const FADE = 0.008;                             // seconds of fade in/out on eac
 const LOOKAHEAD = 0.15;                         // how far ahead lines are scheduled
 const ENTER_SPREAD = 1.2;                       // seconds over which the words won drop into the tray
 const MORPH_MS = 900, MORPH_SPREAD = 300;       // the strip growing into the tray, and the most its words are staggered by
-const TRAY_GAP = 4;                             // px between words in a tray row, as in .bin-words
-const TRAY_INSET = 16;                          // px a tray row's words start in from the left, under its label
 const JITTER = 30;                              // px: a point, word or track won flies from a random spot this near the click
 const FLY_GAP = 120;                            // the gap between words won together flying to the strip
 // how long a point, a word and a track take to fly to the counter, the strip and the bar: each 10% slower than the last
@@ -43,6 +41,7 @@ const GAME_DEFAULTS = {
 };
 // tracks that have the others in them: while one is on, the others are muted
 const SOLO_TRACKS = ['full'];
+const COARSE = matchMedia('(pointer: coarse)').matches;  // a touch screen
 const BIN_ORDER = ['yeah', 'noun', 'verb', 'describer', 'pronoun', 'glue', 'other', 'rest'];
 const BIN_LABELS = { rest: 'pause' };
 const STORE_KEY = 'cutup';
@@ -997,7 +996,6 @@ function sizeToWindow() {
   if (!pps) return;  // hidden behind the intro
   document.documentElement.style.setProperty('--pps', pps);
   document.documentElement.style.setProperty('--beat', pps * 60 / BPM);
-  trayRows.forEach(layoutRow);  // the words have changed size
 }
 
 function wordEl(w) {
@@ -1008,128 +1006,64 @@ function wordEl(w) {
   el.textContent = w.text;
   el.title = w.bin === 'rest' ? `pause (${w.d.toFixed(2)}s)` : `${w.text} (${w.bin}, ${w.d.toFixed(2)}s)`;
   el.style.setProperty('--d', w.d);
-  el.draggable = true;
+  el.draggable = !COARSE;  // a finger drags with touchDrag instead
   return el;
 }
 
-// The tray: a row per section, each its words in one line. A row too long for the window loops: its
-// words are laid out several times over, and the row is kept scrolled to the copy in the middle (its
-// home), so it scrolls natively, with the OS's inertia, and never reaches an end.
-let trayRows = [];  // per section: { list, ids, setW, homeLeft, settle }
-const trayHome = new Map();  // id -> its word in its row's home copy, which the morph flies to
+// The tray: a section per bin, its words wrapping under its label, in a panel that scrolls up and down.
+// The labels stick, stacking at the top for the sections scrolled past and at the bottom for those
+// still to come, so every label shows, and clicking one scrolls to its section.
+const trayHome = new Map();  // id -> its word in the tray, which the morph flies to
 let morphing = new Set();  // ids hidden in the tray while a word from the strip flies to them
-let enterAt = 0, enterDelays = new Map();  // when the tray was built, and id -> seconds till it pops in
 
 // before: as for showPhase; delay: seconds before the new words start popping in
 function buildPalette(before = null, delay = 0) {
   const palette = $('#palette');
   palette.replaceChildren();
-  trayRows = [];
   trayHome.clear();
   const offered = paletteWords();
   // new words pop in in tray order, spread over ENTER_SPREAD however many there are; words flying from
   // the strip land instead
   const fresh = before ? offered.filter(w => !before.has(w.id) && !morphing.has(w.id)) : [];
   const step = fresh.length && Math.min(0.06, ENTER_SPREAD / fresh.length);
-  enterAt = performance.now();
-  enterDelays = new Map(fresh.map((w, k) => [w.id, delay + k * step]));
-  for (const bin of binOrder) {
+  const enterDelays = new Map(fresh.map((w, k) => [w.id, delay + k * step]));
+  const bins = binOrder.filter(bin => offered.some(w => w.bin === bin));
+  palette.style.setProperty('--bins', bins.length);
+  bins.forEach((bin, k) => {
     const binWords = offered.filter(w => w.bin === bin);
     // pauses go shortest to longest; words go alphabetically, a word's recordings in recording order
     binWords.sort(bin === 'rest' ? (a, b) => a.d - b.d : (a, b) => a.text.localeCompare(b.text));
-    if (!binWords.length) continue;
-    const section = document.createElement('div');
-    section.className = 'bin';
     const label = document.createElement('div');
     label.className = 'bin-label';
     label.textContent = BIN_LABELS[bin] ?? bin;
+    label.style.setProperty('--k', k);
     const list = document.createElement('div');
     list.className = 'bin-words';
-    const row = { list, ids: binWords.map(w => w.id) };
-    list.addEventListener('scroll', () => onTrayScroll(row), { passive: true });
-    list.addEventListener('wheel', e => onTrayWheel(e, list), { passive: false });
-    section.append(label, list);
-    palette.append(section);
-    trayRows.push(row);
-  }
-  trayRows.forEach(layoutRow);
-}
-
-// one copy of a row's words; home marks the copy the row rests on
-function traySet(row, home) {
-  const since = (performance.now() - enterAt) / 1000;
-  return row.ids.map(id => {
-    const el = wordEl(words[id]);
-    el.addEventListener('dragstart', e => startDrag(e, { id, from: null }));
-    el.addEventListener('click', () => addWord(id));
-    if (morphing.has(id)) el.style.visibility = 'hidden';
-    // a relayout part way through keeps a word's pop-in where it had got to
-    const wait = enterDelays.get(id) - since;
-    if (wait > -0.35) {
-      el.classList.add('entering');
-      el.style.animationDelay = `${wait.toFixed(3)}s`;
-    }
-    if (home) trayHome.set(id, el);
-    return el;
+    list.dataset.bin = bin;
+    // scrolled to, the section's words start just under its label, stacked under the labels before it
+    label.addEventListener('click', () => palette.scrollTo({ top: list.offsetTop - (k + 1) * label.offsetHeight, behavior: 'smooth' }));
+    list.append(...binWords.map(w => {
+      const el = wordEl(w);
+      el.addEventListener('dragstart', e => startDrag(e, { id: w.id, from: null }));
+      el.addEventListener('click', () => addWord(w.id));
+      touchDrag(el, { id: w.id, from: null }, true);
+      if (morphing.has(w.id)) el.style.visibility = 'hidden';
+      if (enterDelays.has(w.id)) {
+        el.classList.add('entering');
+        el.style.animationDelay = `${enterDelays.get(w.id).toFixed(3)}s`;
+      }
+      trayHome.set(w.id, el);
+      return el;
+    }));
+    palette.append(label, list);
   });
 }
 
-const mod = (a, n) => ((a % n) + n) % n;
-// how far into its set a row is scrolled; a pixel short of home counts as home, as scrollLeft is rounded
-const intoSet = (row, left) => mod(left - row.homeLeft + 1, row.setW) - 1;
-
-// lays the row out for the window's width, keeping where it was scrolled to
-function layoutRow(row) {
-  const { list } = row;
-  const was = row.setW ? intoSet(row, list.scrollLeft) : null;
-  const home = traySet(row, true);
-  list.replaceChildren(...home);
-  list.classList.remove('fits');
-  row.setW = 0;
-  const view = list.clientWidth;
-  // measured, as a tray word can be wider than its duration to fit its text (a pop-in's scale doesn't count)
-  const width = home.reduce((t, el) => t + el.offsetWidth, 0) + (row.ids.length - 1) * TRAY_GAP;
-  // fits, or hidden: no need to loop, and the words start under the label
-  if (!view || width + 2 * TRAY_INSET <= view) return list.classList.add('fits');
-  const setW = width + TRAY_GAP;
-  const side = Math.ceil(2 * view / setW) + 1;  // copies either side of home: room for a hard fling
-  for (let k = 0; k < side; k++) {
-    list.prepend(...traySet(row, false));
-    list.append(...traySet(row, false));
-  }
-  row.setW = setW;
-  // scrolled to here, the home copy's first word is under the label, the copy before peeking in at the left
-  row.homeLeft = Math.round(side * setW - TRAY_INSET);
-  list.scrollLeft = row.homeLeft + (was == null ? 0 : was * setW / (row.lastSetW || setW));
-  row.lastSetW = setW;
-}
-
-// Once the row settles, it jumps back to the same place in its home copy, which looks the same, so a
-// fling can carry on as far as it likes. Near either end it jumps straight away.
-function onTrayScroll(row) {
-  if (!row.setW) return;
-  const { list } = row;
-  const recentre = () => {
-    const to = row.homeLeft + intoSet(row, list.scrollLeft);
-    if (Math.abs(to - list.scrollLeft) > 1) list.scrollLeft = to;
-  };
-  clearTimeout(row.settle);
-  const max = list.scrollWidth - list.clientWidth;
-  if (list.scrollLeft < row.setW / 2 || list.scrollLeft > max - row.setW / 2) return recentre();
-  row.settle = setTimeout(recentre, 150);
-}
-
-// a mouse wheel scrolls a row sideways; a sideways swipe already does
-function onTrayWheel(e, list) {
-  if (Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return;
-  e.preventDefault();
-  list.scrollLeft += e.deltaY * (e.deltaMode === 1 ? 16 : 1);
-}
-
 // Going from work to writing, the tray grows up out of the strip, and each word in the strip moves to
-// its place in its row, taking its size there. The strip = stripNow(), taken before it was hidden.
+// its place in the tray, taking its size there. The strip = stripNow(), taken before it was hidden.
 function morphTray(strip) {
   const palette = $('#palette');
+  const box = palette.getBoundingClientRect();  // as it will be once grown
   palette.animate([{ height: `${strip.height}px` }, { height: `${palette.offsetHeight}px` }],
     { duration: MORPH_MS, easing: 'cubic-bezier(.3, .7, .2, 1)' });
   const gap = Math.min(40, MORPH_SPREAD / strip.chips.length);
@@ -1146,13 +1080,13 @@ function morphTray(strip) {
       const t = Math.max(0, Math.min(1, (now - t0) / MORPH_MS)), e = 1 - (1 - t) ** 3;
       const target = trayHome.get(id);  // a resize on the way lays the tray out again
       if (target) {
-        const to = target.getBoundingClientRect(), box = target.parentElement.getBoundingClientRect();
+        const to = target.getBoundingClientRect();
         el.style.left = `${rect.left + (to.left - rect.left) * e}px`;
         el.style.top = `${rect.top + (to.top - rect.top) * e}px`;
         el.style.width = `${rect.width + (to.width - rect.width) * e}px`;
         el.style.padding = `0 ${8 - 7 * e}px`;  // .chip's padding to .word's
-        // a place scrolled out of view: fade on the way
-        el.style.opacity = to.right > box.left && to.left < box.right ? 1 : 1 - e;
+        // a place below the tray's fold: fade on the way
+        el.style.opacity = to.bottom <= box.bottom + palette.getBoundingClientRect().top - box.top ? 1 : 1 - e;
       }
       if (t < 1 && target) return requestAnimationFrame(frame);
       el.remove();
@@ -1214,6 +1148,7 @@ function renderLine(i) {
     const el = wordEl(words[id]);
     el.addEventListener('dragstart', e => startDrag(e, { id, from: i, index }));
     el.addEventListener('click', () => removeWord(i, index));
+    touchDrag(el, { id, from: i, index }, false);
     // dragged out of the lines and dropped nowhere: remove it
     // (a refused drop onto a full line leaves it where it was)
     el.addEventListener('dragend', e => {
@@ -1285,22 +1220,31 @@ function insertIndex(i, clientX) {
   return idx === -1 ? els.length : idx;
 }
 
-function onLineDragOver(e, i) {
-  if (!dragging || !fits(i)) return;  // not preventing default = drop refused
-  e.preventDefault();
-  e.dataTransfer.dropEffect = dragging.from === null ? 'copy' : 'move';
-  const idx = insertIndex(i, e.clientX);
-  const ids = lines[i].slice(0, idx);
+// shows where the word being dragged would go in line i at clientX x; false if it doesn't fit
+function showMarker(i, x) {
+  if (!dragging || !fits(i)) return false;
+  const ids = lines[i].slice(0, insertIndex(i, x));
   markerEls[i].style.left = ids.reduce((t, id) => t + words[id].d, 0) / LINE_DUR * lineEls[i].clientWidth + 'px';
   markerEls[i].style.display = 'block';
+  return true;
+}
+
+function onLineDragOver(e, i) {
+  if (!showMarker(i, e.clientX)) return;  // not preventing default = drop refused
+  e.preventDefault();
+  e.dataTransfer.dropEffect = dragging.from === null ? 'copy' : 'move';
+}
+
+function onLineDrop(e, i) {
+  e.preventDefault();
+  dropAt(i, e.clientX);
 }
 
 // a word dropped from the tray becomes the last added; a moved word that was the last added stays so
-function onLineDrop(e, i) {
-  e.preventDefault();
+function dropAt(i, x) {
   markerEls[i].style.display = 'none';
   if (!dragging || !fits(i)) return;
-  let idx = insertIndex(i, e.clientX);
+  let idx = insertIndex(i, x);
   const { id, from, index } = dragging;
   if (from !== null) {
     const wasLast = last?.[0] === from && last[1] === index;
@@ -1316,6 +1260,79 @@ function onLineDrop(e, i) {
   renderLine(i);
   save();
 }
+
+// Touch screens have no HTML5 drag and drop, so a finger drags a copy of the word. In the tray, where a
+// swipe scrolls, the word has to be held first; in the lines it moves straight away. A tap still clicks.
+const HOLD_MS = 300, SLOP = 8;  // how long a hold is, and px a finger can move before it's a swipe
+let touch = null;  // { info, el, x, y, hold, ghost, over }
+
+function touchDrag(el, info, hold) {
+  el.addEventListener('touchstart', e => {
+    if (e.touches.length > 1) return cancelTouch();
+    const t = e.touches[0];
+    touch = { info, el, x: t.clientX, y: t.clientY, hold: hold && setTimeout(() => liftTouch(), HOLD_MS) };
+  }, { passive: true });
+}
+
+function liftTouch() {
+  clearTimeout(touch.hold);
+  touch.hold = null;
+  dragging = touch.info;
+  touch.ghost = wordEl(words[dragging.id]);
+  touch.ghost.classList.add('flying', 'dragged');
+  touch.ghost.style.width = `${touch.el.offsetWidth}px`;
+  document.body.append(touch.ghost);
+  touch.el.classList.add('lifted');
+  moveTouch(touch.x, touch.y);
+}
+
+// the copy sits just above the finger, so it isn't hidden under it
+function moveTouch(x, y) {
+  const { ghost } = touch;
+  ghost.style.left = `${x - ghost.offsetWidth / 2}px`;
+  ghost.style.top = `${y - ghost.offsetHeight * 1.5}px`;
+  const under = document.elementFromPoint(x, y);
+  const i = lineEls.indexOf(under?.closest('.line'));
+  markerEls.forEach(m => m.style.display = 'none');
+  if (i >= 0) showMarker(i, x);
+  touch.over = { i, x, palette: !!under?.closest('#palette'), lines: !!under?.closest('#lines') };
+}
+
+function cancelTouch() {
+  if (!touch) return;
+  clearTimeout(touch.hold);
+  touch.ghost?.remove();
+  touch.el.classList.remove('lifted');
+  if (touch.ghost) dragging = null;
+  markerEls.forEach(m => m.style.display = 'none');
+  touch = null;
+}
+
+document.addEventListener('touchmove', e => {
+  if (!touch) return;
+  const t = e.touches[0];
+  if (!touch.ghost) {
+    if (Math.hypot(t.clientX - touch.x, t.clientY - touch.y) < SLOP) return;
+    if (touch.hold) return cancelTouch();  // moved before the hold: a swipe, which scrolls
+    liftTouch();
+  }
+  e.preventDefault();
+  moveTouch(t.clientX, t.clientY);
+}, { passive: false });
+
+// as with a mouse: dropped on a line, it goes there if it fits; a placed word dropped on the tray or
+// outside the lines is removed
+document.addEventListener('touchend', e => {
+  if (!touch?.ghost) return cancelTouch();
+  e.preventDefault();  // no click
+  const { over } = touch, { from, index } = dragging;
+  if (over?.i >= 0) dropAt(over.i, over.x);
+  else if (from !== null && (over?.palette || !over?.lines)) removeWord(from, index);
+  cancelTouch();
+});
+document.addEventListener('touchcancel', cancelTouch);
+// a long press would open the browser's menu
+document.addEventListener('contextmenu', e => { if (e.target.closest?.('.word')) e.preventDefault(); });
 
 // ---------- persistence (per browser, convenience only) ----------
 
