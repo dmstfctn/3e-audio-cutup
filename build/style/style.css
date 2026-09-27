@@ -34,7 +34,7 @@ body { font: 16px "Times New Roman", Times, serif; margin: 16px; }
 /* plain bold text: submit, and the + / − under the lines that adds or removes two */
 #submit, #more { background: none; border: 0; padding: 0; font: bold 16px Arial, sans-serif; color: black; cursor: pointer; }
 #more { align-self: center; margin-top: 8px; font-size: 20px; }
-#submit[hidden] { display: none; }
+#submit[hidden], #more[hidden] { display: none; }
 
 #lines { border: 1px solid black; padding: 8px; display: flex; flex-direction: column; gap: 8px; }
 .line {

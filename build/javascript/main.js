@@ -599,7 +599,7 @@ function showPhase(before = null, strip = null) {
   morphing = new Set(strip?.chips.map(c => takesOf(c.text)[0]).filter(Boolean));
   buildPalette(before, strip ? (MORPH_MS + MORPH_SPREAD) / 1000 : 0);
   if (strip) morphTray(strip);
-  $('#submit').hidden = phase !== 'write';
+  $('#submit').hidden = $('#more').hidden = phase !== 'write';
   showBars();
 }
 
