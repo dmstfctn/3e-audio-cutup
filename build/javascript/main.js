@@ -1,12 +1,16 @@
 const BPM = 143.59;
 const BEATS_PER_LINE = 8;                       // 2 bars of 4/4
 const LINE_DUR = BEATS_PER_LINE * 60 / BPM;     // 3.343s
-const N_LINES = 2;
+const MIN_LINES = 2, MAX_LINES = 4;              // the lines showing: 2, or 4 with the + below them
 const TRACK_LINES = 2;                          // lines loop the tracks' first 4 bars
 const PAD = 0.03;                               // seconds around each word's aligned bounds
 const FADE = 0.008;                             // seconds of fade in/out on each word
 const LOOKAHEAD = 0.15;                         // how far ahead lines are scheduled
 const ENTER_SPREAD = 1.2;                       // seconds over which the words won drop into the tray
+const MORPH_MS = 900, MORPH_SPREAD = 300;       // the strip growing into the tray, and the most its words are staggered by
+const TRAY_GAP = 4;                             // px between words in a tray row, as in .bin-words
+const TRAY_INSET = 16;                          // px a tray row's words start in from the left, under its label
+const JITTER = 30;                              // px: a point, word or track won flies from a random spot this near the click
 const FLY_GAP = 120;                            // the gap between words won together flying to the strip
 // how long a point, a word and a track take to fly to the counter, the strip and the bar: each 10% slower than the last
 const POINT_FLY_MS = 700, WORD_FLY_MS = POINT_FLY_MS * 1.1, TRACK_FLY_MS = WORD_FLY_MS * 1.1;
@@ -39,13 +43,7 @@ const GAME_DEFAULTS = {
 };
 // tracks that have the others in them: while one is on, the others are muted
 const SOLO_TRACKS = ['full'];
-const BIN_ORDER = ['rest', 'yeah', 'noun', 'verb', 'describer', 'pronoun', 'glue', 'other'];
-const BIN_COLORS = {
-  rest: 'white', yeah: 'gold', noun: 'lightskyblue', verb: 'lightsalmon', describer: 'palegreen',
-  pronoun: 'plum', glue: 'lightgray', other: 'khaki',
-};
-// handed out in order to bins that only exist in bins.yaml
-const EXTRA_COLORS = ['lightpink', 'aquamarine', 'peachpuff', 'lightsteelblue', 'wheat', 'thistle', 'palegoldenrod', 'paleturquoise'];
+const BIN_ORDER = ['yeah', 'noun', 'verb', 'describer', 'pronoun', 'glue', 'other', 'rest'];
 const BIN_LABELS = { rest: 'pause' };
 const STORE_KEY = 'cutup';
 
@@ -54,7 +52,7 @@ let trackBufs = {}, wordsBuf;  // track url -> buffer
 const trackGains = {};  // track name -> its gain, so a toggle is heard straight away
 let words = {};  // id -> { id, text, bin, a, d }; pauses have no audio (a = null)
 let takes = {};  // text -> the ids of its recordings, in recording order
-let binOrder = [...BIN_ORDER];  // palette sections: pauses, bins.yaml's order, then any bins it leaves out
+let binOrder = [...BIN_ORDER];  // palette sections: bins.yaml's order, then any bins it leaves out, then pauses
 let GAMES = {};       // game key -> its content and settings from games.yaml; a key missing can't be played
 // games.yaml: tracks as [name, url], and game key -> its unlocks [{ above, track, text }]
 let TRACKS = [['metronome', 'audio/track-metronome.wav'], ['drums', 'audio/track-drums.wav'], ['full', 'audio/track-full.wav']];
@@ -76,7 +74,8 @@ let shownPoints = 0;  // the counter at the top right: the points that have land
 let landed = {};      // game key -> its points that have landed on the counter, so a retry takes back as many
 const flyingTracks = new Set();  // tracks unlocked whose toggle is still flying to the bar, kept hidden till it lands
 let last = null;   // [line, index] of the word added last, where a clicked word goes after
-const lines = Array.from({ length: N_LINES }, () => []);
+let nLines = MIN_LINES;  // how many lines are showing and played
+const lines = Array.from({ length: MAX_LINES }, () => []);
 
 const $ = s => document.querySelector(s);
 const lineEls = [], markerEls = [], playheadEls = [];
@@ -120,12 +119,14 @@ async function load() {
   $('#palette').addEventListener('dragover', onPaletteDragOver);
   $('#palette').addEventListener('drop', onPaletteDrop);
   new ResizeObserver(sizeToWindow).observe(lineEls[0]);
+  new ResizeObserver(() => document.documentElement.style.setProperty('--tray', `${$('#palette').offsetHeight}px`)).observe($('#palette'));
   $('#status').textContent = warnings.join(' · ');
   showScreen();
   showPhase();
   applyGains();
   if (phase === 'first') startTimer();  // a reload gives the whole time again
-  if (phase === 'work') { fillStrip(); openTask(); }
+  if (phase === 'work' || phase === 'debrief') fillStrip();
+  if (phase === 'work') openTask();
 }
 
 // bins.yaml maps bin -> [words] and moves every occurrence of each word (ignoring case)
@@ -166,8 +167,7 @@ async function applyBinOverrides() {
   if (unknown.length) warnings.push(`bins.yaml: not in the recording: ${unknown.join(', ')}`);
   if (twice.length) warnings.push(`bins.yaml: listed twice, last one used: ${twice.join(', ')}`);
   // bins from words.json that bins.yaml doesn't mention still get a section, after its bins
-  binOrder = [...new Set(['rest', ...yamlOrder, ...BIN_ORDER, ...all.map(w => w.bin)])];
-  binOrder.filter(b => !BIN_COLORS[b]).forEach((b, i) => BIN_COLORS[b] = EXTRA_COLORS[i % EXTRA_COLORS.length]);
+  binOrder = [...new Set([...yamlOrder, ...BIN_ORDER, ...all.map(w => w.bin)].filter(b => b !== 'rest')), 'rest'];
 }
 
 // Matches a word as bins.yaml does: the shown spelling first, so "yeh!" finds the split-off
@@ -453,6 +453,7 @@ function newGame() {
   landed = {};
   shownPoints = 0;
   lines.forEach(l => l.length = 0);
+  nLines = MIN_LINES;
   lines[0] = STORY.first.line.map(t => takesOf(t)[0]).filter(id => id != null);
   let cut = 0;
   while (lineDur(0) > LINE_DUR + 1e-6) { lines[0].pop(); cut++; }
@@ -575,6 +576,7 @@ function showScreen() {
 // moves the game on to phase next
 function enter(next) {
   const before = next === 'write' ? new Set(paletteWords().map(w => w.id)) : null;  // so the words won drop in
+  const strip = next === 'write' ? stripNow() : null;  // so the tray can grow out of it
   phase = next;
   step = 0;
   shown = 1;
@@ -585,23 +587,28 @@ function enter(next) {
   showBars();
   if (next === 'work') return openTask();
   if (SCREENS.includes(next)) return;
-  showPhase(before);
+  showPhase(before, strip);
   if (next === 'first') startTimer();
 }
 
-// before = the tray's word ids before the phase changed, so the new ones can be animated in
-function showPhase(before = null) {
-  for (let i = 0; i < N_LINES; i++) renderLine(i);
-  buildPalette(before);
+// before = the tray's word ids before the phase changed, so the new ones can be animated in;
+// strip = the strip as it was (see stripNow), for the tray to grow out of
+function showPhase(before = null, strip = null) {
+  showLines();
+  sizeToWindow();  // the lines have only just shown, and the tray's words are sized from them
+  morphing = new Set(strip?.chips.map(c => takesOf(c.text)[0]).filter(Boolean));
+  buildPalette(before, strip ? (MORPH_MS + MORPH_SPREAD) / 1000 : 0);
+  if (strip) morphTray(strip);
   $('#submit').hidden = phase !== 'write';
   showBars();
 }
 
-// the header from work on, and the strip of words won during work
+// the header from work on, and the strip of words won during work and the debrief after it
 function showBars() {
+  const strip = phase === 'work' || phase === 'debrief';
   document.body.classList.toggle('with-header', MUSIC.includes(phase));
-  document.body.classList.toggle('with-strip', phase === 'work');
-  $('#strip').hidden = phase !== 'work';
+  document.body.classList.toggle('with-strip', strip);
+  $('#strip').hidden = !strip;
   renderTracks();
 }
 
@@ -804,7 +811,7 @@ function chip(text, key) {
   const el = document.createElement('div');
   el.className = 'chip';
   el.textContent = text;
-  el.style.background = BIN_COLORS[words[takesOf(text)[0]]?.bin] ?? 'white';
+  el.dataset.bin = words[takesOf(text)[0]]?.bin;
   el.dataset.game = key;
   return el;
 }
@@ -819,6 +826,12 @@ function clearStrip(key) {
       { transform: 'scale(0)', opacity: 0, width: '0px', paddingLeft: '0px', paddingRight: '0px', borderWidth: '0px', marginLeft: '-4px' },  // -4px: the strip's gap
     ], { duration: SHRINK_MS, delay: k * SHRINK_GAP, easing: 'ease-in', fill: 'forwards' }).onfinish = () => el.remove();
   });
+}
+
+// the strip's height and its words, where they are, for the tray to grow out of
+function stripNow() {
+  return { height: $('#strip').offsetHeight,
+    chips: [...$('#strip').children].filter(c => c.dataset.game).map(c => ({ text: c.textContent, key: c.dataset.game, rect: c.getBoundingClientRect() })) };
 }
 
 // after a reload, the words already won, without flying
@@ -886,9 +899,13 @@ function dropPoints(key) {
   }, k * gap);
 }
 
-// el flies from (x, y) to where target() is, taking ms, following it as it moves, then land() is called. If
+// el flies from near (x, y) to where target() is, taking ms, following it as it moves, then land() is called. If
 // target() comes back empty on the way, el vanishes where it is and land() is still called.
 function fly(el, target, x, y, ms, land) {
+  // from a random spot near (x, y), so things won together don't all start from one point
+  const a = Math.random() * 2 * Math.PI, r = JITTER * Math.sqrt(Math.random());
+  x += r * Math.cos(a);
+  y += r * Math.sin(a);
   el.classList.add('flying');
   document.body.append(el);
   const fx = x - el.offsetWidth / 2, fy = y - el.offsetHeight / 2, t0 = performance.now();
@@ -923,7 +940,7 @@ $('#submit').addEventListener('click', async () => {
   $('#show').hidden = false;
   await ctx.resume();
   let t = ctx.currentTime + 0.3;
-  for (let i = 0; i < N_LINES; i++) {
+  for (let i = 0; i < nLines; i++) {
     const line = document.createElement('div');
     for (const [id, at] of playLine(i, t, true)) {
       if (words[id].bin === 'rest') continue;
@@ -955,8 +972,17 @@ $('#show-back').addEventListener('click', () => {
   $('#submit').hidden = false;
 });
 
-$('#restart').addEventListener('click', () => {
-  if (!confirm('Start again from the top? This clears your lines and everything the games won.')) return;
+// a new game from the top, clearing the lines and everything the games won: run restart() in the console
+function restart() {
+  mounted?.destroy();
+  mounted = null;
+  run = null;
+  showing++;
+  submitting = false;
+  $('#minigame').hidden = true;
+  $('#show').hidden = true;
+  $('#strip').replaceChildren();
+  GAME_ORDER.forEach(key => stripGen[key] = (stripGen[key] ?? 0) + 1);  // words and points still flying land nowhere
   stopLoop();
   clearTimeout(timer);
   timer = null;
@@ -965,7 +991,7 @@ $('#restart').addEventListener('click', () => {
   showPhase();
   showScreen();
   applyGains();
-});
+}
 
 // ---------- layout ----------
 
@@ -975,12 +1001,14 @@ function sizeToWindow() {
   if (!pps) return;  // hidden behind the intro
   document.documentElement.style.setProperty('--pps', pps);
   document.documentElement.style.setProperty('--beat', pps * 60 / BPM);
+  trayRows.forEach(layoutRow);  // the words have changed size
 }
 
 function wordEl(w) {
   const el = document.createElement('div');
   el.className = 'word';
-  el.style.background = BIN_COLORS[w.bin];
+  el.dataset.id = w.id;
+  el.dataset.bin = w.bin;  // its shade
   el.textContent = w.text;
   el.title = w.bin === 'rest' ? `pause (${w.d.toFixed(2)}s)` : `${w.text} (${w.bin}, ${w.d.toFixed(2)}s)`;
   el.style.setProperty('--d', w.d);
@@ -988,14 +1016,27 @@ function wordEl(w) {
   return el;
 }
 
-function buildPalette(before = null) {
+// The tray: a row per section, each its words in one line. A row too long for the window loops: its
+// words are laid out several times over, and the row is kept scrolled to the copy in the middle (its
+// home), so it scrolls natively, with the OS's inertia, and never reaches an end.
+let trayRows = [];  // per section: { list, ids, setW, homeLeft, settle }
+const trayHome = new Map();  // id -> its word in its row's home copy, which the morph flies to
+let morphing = new Set();  // ids hidden in the tray while a word from the strip flies to them
+let enterAt = 0, enterDelays = new Map();  // when the tray was built, and id -> seconds till it pops in
+
+// before: as for showPhase; delay: seconds before the new words start popping in
+function buildPalette(before = null, delay = 0) {
   const palette = $('#palette');
   palette.replaceChildren();
+  trayRows = [];
+  trayHome.clear();
   const offered = paletteWords();
-  // new words drop in in tray order, spread over ENTER_SPREAD however many there are
-  const entering = before ? offered.filter(w => !before.has(w.id)).length : 0;
-  const step = entering && Math.min(0.06, ENTER_SPREAD / entering);
-  let k = 0;
+  // new words pop in in tray order, spread over ENTER_SPREAD however many there are; words flying from
+  // the strip land instead
+  const fresh = before ? offered.filter(w => !before.has(w.id) && !morphing.has(w.id)) : [];
+  const step = fresh.length && Math.min(0.06, ENTER_SPREAD / fresh.length);
+  enterAt = performance.now();
+  enterDelays = new Map(fresh.map((w, k) => [w.id, delay + k * step]));
   for (const bin of binOrder) {
     const binWords = offered.filter(w => w.bin === bin);
     // pauses go shortest to longest; words go alphabetically, a word's recordings in recording order
@@ -1003,22 +1044,127 @@ function buildPalette(before = null) {
     if (!binWords.length) continue;
     const section = document.createElement('div');
     section.className = 'bin';
-    section.textContent = bin === 'rest' ? BIN_LABELS.rest : `${bin} (${new Set(binWords.map(w => w.text)).size})`;
+    const label = document.createElement('div');
+    label.className = 'bin-label';
+    label.textContent = BIN_LABELS[bin] ?? bin;
     const list = document.createElement('div');
     list.className = 'bin-words';
-    for (const w of binWords) {
-      const el = wordEl(w);
-      el.addEventListener('dragstart', e => startDrag(e, { id: w.id, from: null }));
-      el.addEventListener('click', () => addWord(w.id));
-      if (before && !before.has(w.id)) {
-        el.classList.add('entering');
-        el.style.animationDelay = `${(k++ * step).toFixed(3)}s`;
-      }
-      list.append(el);
-    }
-    section.append(list);
+    const row = { list, ids: binWords.map(w => w.id) };
+    list.addEventListener('scroll', () => onTrayScroll(row), { passive: true });
+    list.addEventListener('wheel', e => onTrayWheel(e, list), { passive: false });
+    section.append(label, list);
     palette.append(section);
+    trayRows.push(row);
   }
+  trayRows.forEach(layoutRow);
+}
+
+// one copy of a row's words; home marks the copy the row rests on
+function traySet(row, home) {
+  const since = (performance.now() - enterAt) / 1000;
+  return row.ids.map(id => {
+    const el = wordEl(words[id]);
+    el.addEventListener('dragstart', e => startDrag(e, { id, from: null }));
+    el.addEventListener('click', () => addWord(id));
+    if (morphing.has(id)) el.style.visibility = 'hidden';
+    // a relayout part way through keeps a word's pop-in where it had got to
+    const wait = enterDelays.get(id) - since;
+    if (wait > -0.35) {
+      el.classList.add('entering');
+      el.style.animationDelay = `${wait.toFixed(3)}s`;
+    }
+    if (home) trayHome.set(id, el);
+    return el;
+  });
+}
+
+const mod = (a, n) => ((a % n) + n) % n;
+// how far into its set a row is scrolled; a pixel short of home counts as home, as scrollLeft is rounded
+const intoSet = (row, left) => mod(left - row.homeLeft + 1, row.setW) - 1;
+
+// lays the row out for the window's width, keeping where it was scrolled to
+function layoutRow(row) {
+  const { list } = row;
+  const was = row.setW ? intoSet(row, list.scrollLeft) : null;
+  list.replaceChildren(...traySet(row, true));
+  list.classList.remove('fits');
+  row.setW = 0;
+  const view = list.clientWidth;
+  // from the durations, as the words may be mid pop-in, scaled down
+  const pps = parseFloat(document.documentElement.style.getPropertyValue('--pps')) || 0;
+  const width = row.ids.reduce((t, id) => t + words[id].d * pps, 0) + (row.ids.length - 1) * TRAY_GAP;
+  // fits, or hidden: no need to loop, and the words start under the label
+  if (!view || width + 2 * TRAY_INSET <= view) return list.classList.add('fits');
+  const setW = width + TRAY_GAP;
+  const side = Math.ceil(2 * view / setW) + 1;  // copies either side of home: room for a hard fling
+  for (let k = 0; k < side; k++) {
+    list.prepend(...traySet(row, false));
+    list.append(...traySet(row, false));
+  }
+  row.setW = setW;
+  // scrolled to here, the home copy's first word is under the label, the copy before peeking in at the left
+  row.homeLeft = Math.round(side * setW - TRAY_INSET);
+  list.scrollLeft = row.homeLeft + (was == null ? 0 : was * setW / (row.lastSetW || setW));
+  row.lastSetW = setW;
+}
+
+// Once the row settles, it jumps back to the same place in its home copy, which looks the same, so a
+// fling can carry on as far as it likes. Near either end it jumps straight away.
+function onTrayScroll(row) {
+  if (!row.setW) return;
+  const { list } = row;
+  const recentre = () => {
+    const to = row.homeLeft + intoSet(row, list.scrollLeft);
+    if (Math.abs(to - list.scrollLeft) > 1) list.scrollLeft = to;
+  };
+  clearTimeout(row.settle);
+  const max = list.scrollWidth - list.clientWidth;
+  if (list.scrollLeft < row.setW / 2 || list.scrollLeft > max - row.setW / 2) return recentre();
+  row.settle = setTimeout(recentre, 150);
+}
+
+// a mouse wheel scrolls a row sideways; a sideways swipe already does
+function onTrayWheel(e, list) {
+  if (Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return;
+  e.preventDefault();
+  list.scrollLeft += e.deltaY * (e.deltaMode === 1 ? 16 : 1);
+}
+
+// Going from work to writing, the tray grows up out of the strip, and each word in the strip moves to
+// its place in its row, taking its size there. The strip = stripNow(), taken before it was hidden.
+function morphTray(strip) {
+  const palette = $('#palette');
+  palette.animate([{ height: `${strip.height}px` }, { height: `${palette.offsetHeight}px` }],
+    { duration: MORPH_MS, easing: 'cubic-bezier(.3, .7, .2, 1)' });
+  const gap = Math.min(40, MORPH_SPREAD / strip.chips.length);
+  // newest first, from the right
+  [...strip.chips].reverse().forEach(({ text, key, rect }, k) => {
+    const id = takesOf(text)[0];
+    if (!trayHome.has(id)) return;
+    const el = chip(text, key);
+    el.classList.add('flying');
+    Object.assign(el.style, { left: `${rect.left}px`, top: `${rect.top}px`, width: `${rect.width}px`, overflow: 'hidden', textAlign: 'center' });
+    document.body.append(el);
+    const t0 = performance.now() + k * gap;
+    const frame = now => {
+      const t = Math.max(0, Math.min(1, (now - t0) / MORPH_MS)), e = 1 - (1 - t) ** 3;
+      const target = trayHome.get(id);  // a resize on the way lays the tray out again
+      if (target) {
+        const to = target.getBoundingClientRect(), box = target.parentElement.getBoundingClientRect();
+        el.style.left = `${rect.left + (to.left - rect.left) * e}px`;
+        el.style.top = `${rect.top + (to.top - rect.top) * e}px`;
+        el.style.width = `${rect.width + (to.width - rect.width) * e}px`;
+        el.style.padding = `0 ${8 - 7 * e}px`;  // .chip's padding to .word's
+        // a place scrolled out of view: fade on the way
+        el.style.opacity = to.right > box.left && to.left < box.right ? 1 : 1 - e;
+      }
+      if (t < 1 && target) return requestAnimationFrame(frame);
+      el.remove();
+      morphing.delete(id);
+      $('#palette').querySelectorAll(`[data-id="${CSS.escape(id)}"]`).forEach(w => w.style.visibility = '');
+    };
+    requestAnimationFrame(frame);
+  });
 }
 
 // dropping a placed word back on the palette removes it
@@ -1030,7 +1176,7 @@ function onPaletteDrop(e) {
 
 function buildLines() {
   const container = $('#lines');
-  for (let i = 0; i < N_LINES; i++) {
+  for (let i = 0; i < MAX_LINES; i++) {
     const line = document.createElement('div');
     line.className = 'line';
     const marker = document.createElement('div');
@@ -1044,6 +1190,25 @@ function buildLines() {
     lineEls.push(line); markerEls.push(marker); playheadEls.push(playhead);
   }
 }
+
+// the lines showing, and the button that shows or hides the other two
+function showLines() {
+  lineEls.forEach((el, i) => el.hidden = i >= nLines);
+  for (let i = 0; i < MAX_LINES; i++) renderLine(i);
+  const more = nLines < MAX_LINES;
+  $('#more').textContent = more ? '+' : '−';
+  $('#more').title = more ? 'add two lines' : 'remove the last two lines, and their words';
+}
+
+// Two more lines, or back to two. Removing lines throws their words away; if the word added last was
+// in them, the last word of the last line left takes its place.
+$('#more').addEventListener('click', () => {
+  nLines = nLines < MAX_LINES ? MAX_LINES : MIN_LINES;
+  for (let i = nLines; i < MAX_LINES; i++) lines[i] = [];
+  if (last?.[0] >= nLines) last = [nLines - 1, lines[nLines - 1].length - 1];
+  showLines();
+  save();
+});
 
 // a placed word is removed by clicking it or dragging it out
 function renderLine(i) {
@@ -1086,7 +1251,7 @@ function addWord(id) {
   const room = i => lineDur(i) + words[id].d <= LINE_DUR + 1e-6;
   let i = last ? last[0] : 0, idx = last ? last[1] + 1 : lines[0].length;
   if (!room(i)) {
-    i = (i + 1) % N_LINES;
+    i = (i + 1) % nLines;
     idx = lines[i].length;
     if (!room(i)) return;
   }
@@ -1160,7 +1325,7 @@ function onLineDrop(e, i) {
 
 function save() {
   try {
-    localStorage.setItem(STORE_KEY, JSON.stringify({ phase, step, task, start, results, lines, last, trackOn }));
+    localStorage.setItem(STORE_KEY, JSON.stringify({ phase, step, task, start, results, lines, nLines, last, trackOn }));
   } catch {}
 }
 // returns false when there's nothing usable saved, so a new game is dealt
@@ -1182,12 +1347,13 @@ function restore() {
       results[key] = { points: +r.points || 0, total: +r.total || 0, words: texts(r.words),
         tracks: [].concat(r.tracks ?? []).filter(t => TRACKS.some(([n]) => n === t)), notes: [].concat(r.notes ?? []).map(String) };
     }
-    [].concat(s.lines ?? []).slice(0, N_LINES).forEach((l, i) => {
+    nLines = s.nLines === MAX_LINES ? MAX_LINES : MIN_LINES;
+    [].concat(s.lines ?? []).slice(0, nLines).forEach((l, i) => {
       lines[i] = ids(l);
       while (lineDur(i) > LINE_DUR + 1e-6) lines[i].pop();
     });
     const [li, lk] = [].concat(s.last ?? []).map(Number);
-    last = lines[li] && lk >= -1 && lk < lines[li].length ? [li, lk] : null;
+    last = li < nLines && lk >= -1 && lk < lines[li].length ? [li, lk] : null;
     trackOn = {};
     for (const [name] of TRACKS) trackOn[name] = !!s.trackOn?.[name];
     landed = Object.fromEntries(Object.entries(results).map(([key, r]) => [key, r.points]));
@@ -1228,7 +1394,7 @@ document.addEventListener('pointerdown', () => { if (ctx.state !== 'running') ct
 // From work on, the tracks loop, line by line; when writing, the lines play over them.
 const looping = () => MUSIC.includes(phase) && !submitting;
 let nextTime = null;   // audio-clock time the next line starts
-let slot = 0;          // lines since the loop started; slot % N_LINES is the line
+let slot = 0;          // lines since the loop started; slot % nLines is the line
 let scheduled = [];    // [{ line, t0, voice }] for the playhead and tracks unlocked mid-line
 
 // Line i from t0: the tracks unlocked, over bars 2i+1..2i+2 of their first 4, and with voice, the line's
@@ -1256,7 +1422,7 @@ function tick() {
   if (nextTime === null) nextTime = ctx.currentTime + 0.05;
   while (nextTime < ctx.currentTime + LOOKAHEAD) {
     const t0 = Math.max(nextTime, ctx.currentTime + 0.01);
-    playLine(slot % N_LINES, t0, phase === 'write');
+    playLine(slot % nLines, t0, phase === 'write');
     slot++;
     nextTime = t0 + LINE_DUR;
   }

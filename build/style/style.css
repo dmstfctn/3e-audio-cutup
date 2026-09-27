@@ -1,11 +1,12 @@
-/* --top: the header, from work on; --strip: the words won, during work */
-:root { --top: 0px; --strip: 0px; }
+/* --top: the header, from work on; --strip: the words won, during work and the debrief;
+   --tray: the tray's height, set from the page as it changes */
+:root { --top: 0px; --strip: 0px; --tray: 0px; }
 body.with-header { --top: 45px; }
 body.with-strip { --strip: 58px; }
 body { font: 16px "Times New Roman", Times, serif; margin: 16px; }
 
 /* the story's screens: text and button centred on the page, the text shown a line at a time */
-#screen { position: fixed; inset: var(--top) 0 0 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; padding: 16px; text-align: center; }
+#screen { position: fixed; inset: var(--top) 0 var(--strip) 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; padding: 16px; text-align: center; }
 #screen-text { max-width: 32em; }
 #screen-text:empty { display: none; }
 #screen-text .new { animation: line-in .4s ease-out; }
@@ -23,12 +24,17 @@ body { font: 16px "Times New Roman", Times, serif; margin: 16px; }
           background: lightgray; color: black; font: inherit; white-space: nowrap; cursor: pointer; user-select: none; }
 .toggle[aria-pressed="false"] { opacity: .4; }  /* off */
 
-#game { padding-top: var(--top); }
-#transport { display: flex; gap: 8px; align-items: center; margin-bottom: 16px; min-height: 2em; }
+/* the lines centred between the header and the tray */
+#game { box-sizing: border-box; min-height: calc(100svh - 32px); padding-top: var(--top); padding-bottom: var(--tray);
+        display: flex; flex-direction: column; justify-content: center; }
+#status { margin-bottom: 16px; }
+#status:empty { display: none; }
 /* in the top bar, centred whatever the toggles and counter either side of it */
 #submit { position: absolute; left: 50%; transform: translateX(-50%); }
+/* plain bold text: submit, and the + / − under the lines that adds or removes two */
+#submit, #more { background: none; border: 0; padding: 0; font: bold 16px Arial, sans-serif; color: black; cursor: pointer; }
+#more { align-self: center; margin-top: 8px; font-size: 20px; }
 #submit[hidden] { display: none; }
-#footer { display: flex; justify-content: flex-end; margin-top: 16px; }
 
 #lines { border: 1px solid black; padding: 8px; display: flex; flex-direction: column; gap: 8px; }
 .line {
@@ -38,23 +44,43 @@ body { font: 16px "Times New Roman", Times, serif; margin: 16px; }
     linear-gradient(to right, black 1px, transparent 1px) calc(var(--beat) * 4px) 0 / calc(var(--beat) * 4px) 100% no-repeat,
     repeating-linear-gradient(to right, transparent 0 calc(var(--beat) * 1px - 1px), #ccc calc(var(--beat) * 1px - 1px) calc(var(--beat) * 1px));
 }
+.line[hidden] { display: none; }
 .marker { position: absolute; top: -4px; bottom: -4px; width: 2px; margin-left: -1px; background: black; display: none; pointer-events: none; }
 .playhead { position: absolute; top: 0; bottom: 0; width: 1px; background: red; display: none; pointer-events: none; }
 
-#palette { border: 1px solid black; padding: 8px; margin-top: 16px; }
-.bin { margin-bottom: 8px; }
-.bin-words { display: flex; flex-wrap: wrap; gap: 2px; margin-top: 4px; }
+/* the tray, fixed to the bottom: a row per section, its label above and its words scrolling sideways
+   under it, round and round. Rows sit at the bottom, so while the tray grows out of the strip they
+   come into view from the bottom up. */
+#palette { position: fixed; left: 0; right: 0; bottom: 0; z-index: 5; box-sizing: border-box; background: white;
+           border-top: 1px solid black; display: flex; flex-direction: column; justify-content: flex-end; overflow: hidden; }
+.bin { flex: none; padding: 8px 0; }
+.bin:nth-child(even) { background: #ccc; }
+.bin + .bin { border-top: 1px solid black; }
+.bin:last-child { padding-bottom: calc(8px + 1em); }  /* half a word's height more below the last row */
+.bin-label { font: 12px Arial, sans-serif; text-transform: uppercase; padding: 0 16px 4px; }
+.bin-words { display: flex; gap: 4px; overflow-x: auto; overflow-y: hidden;
+             overscroll-behavior-x: contain; scrollbar-width: none; }
+.bin-words::-webkit-scrollbar { display: none; }
+.bin-words.fits { padding: 0 16px; }  /* a row that doesn't loop starts under its label (TRAY_INSET) */
 
 .word {
   box-sizing: border-box; flex: none; height: 2em; line-height: calc(2em - 2px);
   width: calc(var(--d) * var(--pps) * 1px);
-  border: 1px solid black; padding: 0 1px; overflow: hidden; white-space: nowrap; text-align: center;
+  border: 1px solid black; padding: 0 1px; background: white; overflow: hidden; white-space: nowrap; text-align: center;
   cursor: pointer; user-select: none;
 }
 
-/* words won at work drop into the tray one after another (delay set per word) */
+/* a word's colour by its bin: nouns red, verbs green, adjectives blue, yeahs yellow, pronouns and glue
+   dark grey, pauses white; always black text */
+.word[data-bin="noun"], .chip[data-bin="noun"] { background: #ff7b7b; }
+.word[data-bin="verb"], .chip[data-bin="verb"] { background: #74d68f; }
+.word[data-bin="adjective"], .chip[data-bin="adjective"] { background: #7fb6ff; }
+.word[data-bin="yeah"], .chip[data-bin="yeah"] { background: #ffd84a; }
+.word[data-bin="pronoun"], .word[data-bin="glue"], .chip[data-bin="pronoun"], .chip[data-bin="glue"] { background: #999; }
+
+/* words won at work pop into the tray one after another (delay set per word) */
 .word.entering { animation: enter 0.35s ease-out backwards; }
-@keyframes enter { from { opacity: 0; transform: translateY(-0.75em) scale(0.6); } }
+@keyframes enter { from { opacity: 0; transform: scale(0.6); } }
 
 /* the games cover the page between the header and the words strip */
 #minigame { position: fixed; top: var(--top); bottom: var(--strip); left: 0; right: 0; z-index: 10; background: white; display: flex; flex-direction: column; }
@@ -71,7 +97,7 @@ body:has(#minigame:not([hidden])), body:has(#show:not([hidden])) { overflow: hid
 #strip { position: fixed; left: 0; right: 0; bottom: 0; height: var(--strip); z-index: 12; box-sizing: border-box; background: white;
          border-top: 1px solid black; padding: 0 16px; display: flex; justify-content: flex-end; align-items: center; gap: 4px; overflow: hidden; }
 #strip[hidden] { display: none; }
-.chip { flex: none; box-sizing: border-box; height: 2em; line-height: calc(2em - 2px); padding: 0 8px; border: 1px solid black; white-space: nowrap; }
+.chip { flex: none; box-sizing: border-box; height: 2em; line-height: calc(2em - 2px); padding: 0 8px; border: 1px solid black; background: white; white-space: nowrap; }
 /* a word, track or point on its way to the strip, the tracks or the counter */
 .flying { position: fixed; z-index: 13; margin: 0; pointer-events: none; }
 /* the points counter and each +1: bare text, white with a black outline */

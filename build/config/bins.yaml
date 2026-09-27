@@ -13,13 +13,6 @@
 # - Quote words YAML would read as something else: "true", "null", "~", "1".
 
 # the preprocess script has no yeah bin, so keep these listed
-yeah:
-  - yeah
-  - yeah!
-  - yeh
-  - yeh!
-  - yehh
-
 noun:
   - angels
   - banana-fish
@@ -154,3 +147,10 @@ glue:
   - to
   - with
   - there
+
+yeah:
+  - yeah
+  - yeah!
+  - yeh
+  - yeh!
+  - yehh
