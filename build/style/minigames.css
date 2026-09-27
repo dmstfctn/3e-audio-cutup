@@ -1,0 +1,54 @@
+/* the minigames (javascript/minigames.js) */
+.mg-root { position: absolute; inset: 0; overflow: hidden; }
+.mg-bar { position: absolute; top: 0; left: 0; width: 100%; height: 5px; background: black; transform-origin: left center; z-index: 2; }
+.mg-round { position: absolute; top: 12px; right: 16px; color: #777; z-index: 2; }
+.mg-center { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; padding: 24px 0; box-sizing: border-box; }
+.mg-prompt { font-size: clamp(20px, 2.6vw, 30px); margin: 0; min-height: 1.4em; }
+.mg-overlay { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+/* shapes are invisible until revealed, whatever colours the SVG file gave them */
+.mg-overlay g * { fill: transparent; stroke: none; stroke-width: 3; vector-effect: non-scaling-stroke; }
+.mg-overlay g.ok * { fill: rgb(26 158 75 / .35); stroke: #1a9e4b; }
+
+/* the room left for a photo, which is sized to fit it whole */
+.mg-fitbox { flex: 1; min-height: 0; align-self: stretch; margin: 0 16px; display: flex; align-items: center; justify-content: center; }
+.mg-find { position: relative; line-height: 0; cursor: crosshair; user-select: none; touch-action: none; }
+.mg-find .mg-photo { display: block; }
+.mg-miss { position: absolute; width: 18px; height: 18px; margin: -9px 0 0 -9px; border-radius: 50%; border: 3px solid #d23c3c; pointer-events: none; animation: mg-fade .6s forwards; }
+@keyframes mg-fade { to { opacity: 0; transform: scale(1.8); } }
+
+.mg-opts { display: flex; gap: 16px; justify-content: center; }
+.mg-opt { width: min(30vw, 380px); aspect-ratio: 4 / 3; padding: 0; border: 0; background: none; cursor: pointer; }
+.mg-opt img { width: 100%; height: 100%; object-fit: contain; display: block; }
+.mg-opt:hover:not(:disabled) { box-shadow: 0 0 0 3px #bbb; }
+.mg-opt:disabled { cursor: default; }
+.mg-opt.ok { box-shadow: 0 0 0 5px #1a9e4b; }
+.mg-opt.bad { box-shadow: 0 0 0 5px #d23c3c; }
+.mg-caption { max-width: min(90vw, 900px); text-align: center; font-size: clamp(20px, 2.6vw, 30px); min-height: 1.4em; margin: 0; }
+
+/* 4 × 3 portrait (3:4) cells make a square grid, so its width is capped at the height left over
+   under the prompt (cq units: the play area's size, which the page's bars cut down) */
+.mg-center:has(.mg-pairs) { container-type: size; }
+.mg-pairs { width: min(92cqw, 960px, 100cqh - 120px); display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; user-select: none; }
+.mg-cell { position: relative; aspect-ratio: 3 / 4; padding: 0; border: 0; background: none; cursor: pointer; }
+.mg-cell:disabled { cursor: default; }
+/* the whole photo, centred in its cell; the outline hugs the photo, not the cell */
+.mg-cell img { position: absolute; inset: 0; margin: auto; max-width: 100%; max-height: 100%; display: block; transition: box-shadow .15s, transform .35s ease-in; }
+.mg-cell:hover:not(:disabled) img { box-shadow: 0 0 0 3px #bbb; }
+.mg-cell.ok img, .mg-cell.ok:hover img { box-shadow: 0 0 0 5px #1a9e4b; }
+.mg-cell.bad img, .mg-cell.bad:hover img { box-shadow: 0 0 0 5px #d23c3c; }
+.mg-cell.gone img { transform: scale(0); }
+.mg-cell.out { visibility: hidden; }
+/* narrow screens: 3 × 4, a 9:16 grid */
+@media (max-width: 640px) {
+  .mg-pairs { width: min(92cqw, (100cqh - 120px) * 9 / 16); grid-template-columns: repeat(3, 1fr); gap: 10px; }
+}
+
+.mg-hud { white-space: nowrap; border: 1px solid black; padding: 4px 12px 8px; font-size: clamp(16px, 2vw, 22px); min-width: 14em; }
+.mg-hud .mg-prompt { font-size: inherit; }
+.mg-count { color: #777; margin-left: 12px; font-variant-numeric: tabular-nums; }
+.mg-count:empty { display: none; }
+/* progress over this photo; a notch where each word is won */
+.mg-progress { position: relative; height: 8px; margin-top: 6px; border: 1px solid black; }
+.mg-fill { height: 100%; width: 0; background: #1a9e4b; transition: width .2s; }
+.mg-notch { position: absolute; top: -5px; bottom: -5px; width: 7px; margin-left: -4px; border: 1px solid black; background: white; box-sizing: border-box; }
+.mg-notch.passed { background: black; }

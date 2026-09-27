@@ -1,0 +1,86 @@
+/* --top: the tracks bar, from work on; --strip: the words won, during work */
+:root { --top: 0px; --strip: 0px; }
+body.with-tracks { --top: 45px; }
+body.with-strip { --strip: 58px; }
+body { font: 16px "Times New Roman", Times, serif; margin: 16px; }
+
+/* the story's screens: text and button centred on the page, the text shown a line at a time */
+#screen { position: fixed; inset: var(--top) 0 0 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; padding: 16px; text-align: center; }
+#screen-text { max-width: 32em; }
+#screen-text:empty { display: none; }
+#screen-text .new { animation: line-in .4s ease-out; }
+@keyframes line-in { from { opacity: 0; } }
+#screen.dark { background: black; color: white; }  /* the intro */
+#screen[hidden], #game[hidden] { display: none; }
+
+/* the tracks unlocked, always on top from work on; each one toggles */
+#tracks { position: fixed; top: 0; left: 0; right: 0; height: var(--top); z-index: 12; box-sizing: border-box; background: white;
+          border-bottom: 1px solid black; display: flex; justify-content: center; align-items: center; gap: 8px; }
+#tracks:empty { border-bottom: 0; }
+#tracks[hidden] { display: none; }
+#tracks button[aria-pressed="true"] { background: black; color: white; }
+#tracks button.new { animation: track-in 1.2s ease-out; }
+@keyframes track-in { 0% { transform: scale(0); } 30% { transform: scale(1.4); } 60% { transform: scale(1); } }
+
+#game { padding-top: var(--top); }
+#transport { display: flex; gap: 8px; align-items: center; margin-bottom: 16px; min-height: 2em; }
+#submit { margin-left: auto; }
+#submit[hidden] { display: none; }
+#footer { display: flex; justify-content: flex-end; margin-top: 16px; }
+
+#lines { border: 1px solid black; padding: 8px; display: flex; flex-direction: column; gap: 8px; }
+.line {
+  position: relative; display: flex; height: 2em; border: 1px solid black;
+  /* beat ticks: 8 beats per line, bar line after 4 */
+  background:
+    linear-gradient(to right, black 1px, transparent 1px) calc(var(--beat) * 4px) 0 / calc(var(--beat) * 4px) 100% no-repeat,
+    repeating-linear-gradient(to right, transparent 0 calc(var(--beat) * 1px - 1px), #ccc calc(var(--beat) * 1px - 1px) calc(var(--beat) * 1px));
+}
+.marker { position: absolute; top: -4px; bottom: -4px; width: 2px; margin-left: -1px; background: black; display: none; pointer-events: none; }
+.playhead { position: absolute; top: 0; bottom: 0; width: 1px; background: red; display: none; pointer-events: none; }
+
+#palette { border: 1px solid black; padding: 8px; margin-top: 16px; }
+.bin { margin-bottom: 8px; }
+.bin-words { display: flex; flex-wrap: wrap; gap: 2px; margin-top: 4px; }
+
+.word {
+  box-sizing: border-box; flex: none; height: 2em; line-height: calc(2em - 2px);
+  width: calc(var(--d) * var(--pps) * 1px);
+  border: 1px solid black; padding: 0 1px; overflow: hidden; white-space: nowrap; text-align: center;
+  cursor: pointer; user-select: none;
+}
+
+/* words won at work drop into the tray one after another (delay set per word) */
+.word.entering { animation: enter 0.35s ease-out backwards; }
+@keyframes enter { from { opacity: 0; transform: translateY(-0.75em) scale(0.6); } }
+
+/* the games cover the page between the tracks bar and the words strip */
+#minigame { position: fixed; top: var(--top); bottom: var(--strip); left: 0; right: 0; z-index: 10; background: white; display: flex; flex-direction: column; }
+#minigame[hidden], #mg-card[hidden], #mg-retry[hidden] { display: none; }
+body:has(#minigame:not([hidden])), body:has(#show:not([hidden])) { overflow: hidden; }  /* the page underneath doesn't scroll */
+#mg-top { padding: 8px 16px; border-bottom: 1px solid black; display: flex; gap: 16px; }
+#mg-task { color: #777; }
+#mg-body { position: relative; flex: 1; overflow: hidden; }
+#mg-card { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; padding: 16px; text-align: center; }
+#mg-card p { margin: 0; max-width: 32em; white-space: pre-line; }
+#mg-buttons { display: flex; gap: 8px; }
+
+/* the words won at work, newest on the right, the oldest pushed off the left */
+#strip { position: fixed; left: 0; right: 0; bottom: 0; height: var(--strip); z-index: 12; box-sizing: border-box; background: white;
+         border-top: 1px solid black; padding: 0 16px; display: flex; justify-content: flex-end; align-items: center; gap: 4px; overflow: hidden; }
+#strip[hidden] { display: none; }
+.chip { flex: none; box-sizing: border-box; height: 2em; line-height: calc(2em - 2px); padding: 0 8px; border: 1px solid black; white-space: nowrap; }
+.chip.flying { position: fixed; z-index: 13; margin: 0; pointer-events: none; }
+
+/* a message over the page, which still shows through */
+#notice { position: fixed; inset: 0; z-index: 9; background: rgb(255 255 255 / .7); display: flex; align-items: center; justify-content: center; }
+#notice[hidden] { display: none; }
+#notice > div { background: white; border: 1px solid black; padding: 16px 24px; display: flex; flex-direction: column; align-items: center; gap: 16px; }
+#notice p { margin: 0; font-size: 24px; text-align: center; white-space: pre-line; }
+
+/* submit: the lines on their own, centred, lit word by word as they play */
+#show { position: fixed; inset: var(--top) 0 0 0; z-index: 11; background: white; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 32px; padding: 16px; text-align: center; }
+#show[hidden], #show-back[hidden] { display: none; }
+#show-lines { display: flex; flex-direction: column; gap: 16px; font-size: clamp(22px, 4vw, 40px); }
+#show-lines span { color: #bbb; transition: color .1s; }
+#show-lines span.said { color: black; }

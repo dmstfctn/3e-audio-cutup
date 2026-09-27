@@ -1,0 +1,707 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Cutup prototype 02</title>
+<link rel="icon" href="data:,">
+<style>
+  body { font: 16px "Times New Roman", Times, serif; margin: 16px; }
+  #transport { display: flex; gap: 8px; align-items: center; margin-bottom: 16px; }
+  #next { margin-left: auto; }
+
+  #picture { display: block; max-width: 100%; max-height: 40vh; border: 1px solid black; margin-bottom: 16px; }
+  #picture[hidden] { display: none; }
+
+  #lines { position: relative; border: 1px solid black; padding: 8px; display: flex; flex-direction: column; gap: 8px; }
+  .row { display: flex; gap: 8px; align-items: stretch; }
+  .row[hidden], .handle[hidden] { display: none; }
+  .row button { width: 4em; }
+  .handle { width: 1.5em; border: 1px solid black; display: flex; align-items: center; justify-content: center; cursor: grab; user-select: none; }
+  #row-marker { position: absolute; left: 8px; right: 8px; height: 2px; margin-top: -1px; background: black; display: none; pointer-events: none; }
+  .line {
+    flex: 1; position: relative; display: flex; height: 2em; border: 1px solid black;
+    /* beat ticks: 8 beats per line, bar line after 4 */
+    background:
+      linear-gradient(to right, black 1px, transparent 1px) calc(var(--beat) * 4px) 0 / calc(var(--beat) * 4px) 100% no-repeat,
+      repeating-linear-gradient(to right, transparent 0 calc(var(--beat) * 1px - 1px), #ccc calc(var(--beat) * 1px - 1px) calc(var(--beat) * 1px));
+  }
+  /* the line this stage is about; a shadow, so the width (and px-per-second) matches the others */
+  .line.current { box-shadow: 0 0 0 1px black; }
+  .line.off { opacity: 0.4; }
+  .marker { position: absolute; top: -4px; bottom: -4px; width: 2px; margin-left: -1px; background: black; display: none; pointer-events: none; }
+  .playhead { position: absolute; top: 0; bottom: 0; width: 1px; background: red; display: none; pointer-events: none; }
+
+  #palette { border: 1px solid black; padding: 8px; margin-top: 16px; }
+  .bin { margin-bottom: 8px; }
+  .bin-words { display: flex; flex-wrap: wrap; gap: 2px; margin-top: 4px; }
+
+  .word {
+    box-sizing: border-box; flex: none; height: 2em; line-height: calc(2em - 2px);
+    width: calc(var(--d) * var(--pps) * 1px);
+    border: 1px solid black; padding: 0 1px; overflow: hidden; white-space: nowrap; text-align: center;
+    cursor: grab; user-select: none;
+  }
+</style>
+</head>
+<body>
+
+<div id="transport">
+  <button id="play" disabled>play</button>
+  <button id="restart" disabled>restart</button>
+  <span id="status">loading…</span>
+  <button id="next" disabled>next line</button>
+</div>
+
+<img id="picture" alt="" hidden>
+<div id="lines"></div>
+<div id="palette"></div>
+
+<script src="lib/js-yaml.min.js"></script>
+<script>
+const BPM = 143.59;
+const BEATS_PER_LINE = 8;                       // 2 bars of 4/4
+const LINE_DUR = BEATS_PER_LINE * 60 / BPM;     // 3.343s
+const N_LINES = 4;
+const PAD = 0.03;                               // seconds around each word's aligned bounds
+const FADE = 0.008;                             // seconds of fade in/out on each word
+const LOOKAHEAD = 0.15;                         // how far ahead lines are scheduled
+// Capabilities are revealed a stage at a time. deal = how many random words of each bin
+// the palette shows (null = every word, as in prototype-01).
+const STAGES = [
+  { track: 'audio/track-metronome.wav', lines: 1, image: true, deal: { noun: 5, verb: 5, adjective: 5, yeah: 3 } },
+  { track: 'audio/track-drums.wav', lines: 2, image: true, deal: { noun: 10, verb: 10, adjective: 10, yeah: 6 } },
+  { track: 'audio/track-full.wav', lines: 4, image: false, deal: null },
+];
+const DEALT_BINS = Object.keys(STAGES[0].deal);  // a few more each stage, keeping the earlier ones
+// yeah has only 5 spellings, so its deal counts recordings, trying each spelling before repeating one
+const BY_RECORDING = ['yeah'];
+const UNIQUE_BINS = ['pronoun', 'glue'];            // one recording of each distinct word
+const OPEN_BINS = ['rest'];                         // everything, from the start
+// a static host can't list a folder, so the images are named here
+const IMAGES = Array.from({ length: 11 }, (_, i) => `images/${i + 1}.png`);
+const BIN_ORDER = ['rest', 'yeah', 'noun', 'verb', 'describer', 'pronoun', 'glue', 'other'];
+const BIN_COLORS = {
+  rest: 'white', yeah: 'gold', noun: 'lightskyblue', verb: 'lightsalmon', describer: 'palegreen',
+  pronoun: 'plum', glue: 'lightgray', other: 'khaki',
+};
+// handed out in order to bins that only exist in bins.yaml
+const EXTRA_COLORS = ['lightpink', 'aquamarine', 'peachpuff', 'lightsteelblue', 'wheat', 'thistle', 'palegoldenrod', 'paleturquoise'];
+const BIN_LABELS = { rest: 'pause' };
+// silent blocks: 1/32, 1/16, 1/8 and 1/4 notes, one ~ per 1/32
+const RESTS = [['r32', '~', 1 / 8], ['r16', '~~', 1 / 4], ['r8', '~~~~', 1 / 2], ['r4', '~~~~~~~~', 1]];
+const STORE_KEY = 'cutup-prototype-02';
+
+const ctx = new AudioContext();
+let trackBufs = [], wordsBuf;
+let words = {};  // id -> { id, text, bin, a, d }; rests have no audio (a = null)
+let binOrder = [...BIN_ORDER];  // palette sections: pauses, bins.yaml's order, then any bins it leaves out
+
+// state: lines[i] is an array of word ids in play order
+let stage = 0;
+let order = {};    // bin -> every recording in a random order, which tops up each stage's deal
+let images = [];   // image per stage
+let imagePool = IMAGES;  // images a game can show: the ones tags.yaml lists
+let tags = {};     // image file -> bin -> word texts tagged in images/tags.yaml
+let rearranged = false;  // the player has moved a line this stage, so the newest line is no longer marked
+const lines = Array.from({ length: N_LINES }, () => []);
+const lineOn = Array(N_LINES).fill(true);
+
+const $ = s => document.querySelector(s);
+const rowEls = [], handleEls = [], lineEls = [], markerEls = [], playheadEls = [], toggleEls = [];
+const nLines = () => STAGES[stage].lines;
+const lastStage = () => stage === STAGES.length - 1;
+const imageStages = () => STAGES.filter(s => s.image).length;
+// the newest line, which this stage asks the player to fill; none once everything is open
+const focusLine = () => lastStage() ? -1 : nLines() - 1;
+
+// ---------- loading ----------
+
+async function load() {
+  const decode = url => fetch(url).then(r => r.arrayBuffer()).then(b => ctx.decodeAudioData(b));
+  try {
+    const [manifest, voice, ...tracks] = await Promise.all([
+      fetch('audio/words.json').then(r => r.json()),
+      decode('audio/words.wav'),
+      ...STAGES.map(s => decode(s.track)),  // all up front, so a stage change never waits
+    ]);
+    trackBufs = tracks;
+    wordsBuf = voice;
+    for (const w of manifest.words) {
+      const a = Math.max(0, w.start - PAD);
+      const b = Math.min(voice.duration, w.end + PAD);
+      words[w.id] = { id: w.id, text: w.word.toLowerCase(), raw: w.raw.toLowerCase(), bin: w.bin, a, d: b - a };
+    }
+    await applyBinOverrides();
+    await loadTags();
+    for (const [id, text, beats] of RESTS) {
+      words[id] = { id, text, bin: 'rest', a: null, d: beats * 60 / BPM };
+    }
+  } catch (e) {
+    $('#status').textContent = 'could not load audio — serve this folder, e.g. `python3 -m http.server` in build/, then open http://localhost:8000/prototype-02.html';
+    throw e;
+  }
+  if (!restore()) newGame();
+  buildLines();
+  $('#palette').addEventListener('dragover', onPaletteDragOver);
+  $('#palette').addEventListener('drop', onPaletteDrop);
+  new ResizeObserver(sizeToWindow).observe(lineEls[0]);
+  showStage();
+  $('#status').textContent = warnings.join(' · ');
+  $('#play').disabled = false;
+  $('#restart').disabled = false;
+}
+
+// bins.yaml maps bin -> [words] and moves every occurrence of each word (ignoring case)
+// into that bin; words it doesn't list keep the bin from words.json.
+// An entry written with the transcript's punctuation ("yeh!") only matches that spelling,
+// shows it, and beats the plain entry ("yeh"), which covers the rest.
+const warnings = [];
+async function applyBinOverrides() {
+  let doc = {};
+  try {
+    const r = await fetch('audio/bins.yaml', { cache: 'no-cache' });  // pick up edits on reload
+    if (r.ok) doc = jsyaml.load(await r.text()) || {};  // no file: use the tagger's bins
+    if (typeof doc !== 'object' || Array.isArray(doc)) throw new Error('expected bin names with lists of words');
+  } catch (e) {
+    warnings.push(`bins.yaml ignored, could not read it: ${e.message}`);
+    doc = {};
+  }
+  const all = Object.values(words);
+  const texts = new Set(all.map(w => w.text));
+  const punctuated = new Set(all.filter(w => w.raw !== w.text).map(w => w.raw));
+  const textBins = {}, rawBins = {}, unknown = [], twice = [];
+  const yamlOrder = [];
+  for (const [bin, list] of Object.entries(doc)) {
+    if (bin === 'rest') { warnings.push('bins.yaml: "rest" is reserved for pauses'); continue; }
+    yamlOrder.push(bin);
+    for (const item of [].concat(list ?? [])) {  // a lone word works as well as a list
+      const entry = String(item).toLowerCase().trim();
+      const bins = punctuated.has(entry) ? rawBins : texts.has(entry) ? textBins : null;
+      if (!bins) { unknown.push(entry); continue; }
+      if (bins[entry]) twice.push(`${entry} (${bins[entry]}, ${bin})`);
+      bins[entry] = bin;
+    }
+  }
+  for (const w of all) {
+    if (rawBins[w.raw]) { w.bin = rawBins[w.raw]; w.text = w.raw; }
+    else if (textBins[w.text]) w.bin = textBins[w.text];
+  }
+  if (unknown.length) warnings.push(`bins.yaml: not in the recording: ${unknown.join(', ')}`);
+  if (twice.length) warnings.push(`bins.yaml: listed twice, last one used: ${twice.join(', ')}`);
+  // bins from words.json that bins.yaml doesn't mention still get a section, after its bins
+  binOrder = [...new Set(['rest', ...yamlOrder, ...BIN_ORDER, ...all.map(w => w.bin)])];
+  binOrder.filter(b => !BIN_COLORS[b]).forEach((b, i) => BIN_COLORS[b] = EXTRA_COLORS[i % EXTRA_COLORS.length]);
+}
+
+// images/tags.yaml maps image -> bin -> [words] that the palette always offers with that image.
+// Words match as in bins.yaml. A word counts in the bin it's really in; tagging it under
+// another bin only warns. Tags in bins the palette shows in full (pronoun, glue) change nothing.
+// Only the images it lists come up, unless it lists too few for the stages, then all of them do.
+async function loadTags() {
+  let doc;
+  try {
+    const r = await fetch('images/tags.yaml', { cache: 'no-cache' });  // pick up edits on reload
+    if (!r.ok) { warnings.push('no images/tags.yaml: using every image, with random words'); return; }
+    doc = jsyaml.load(await r.text()) || {};
+    if (typeof doc !== 'object' || Array.isArray(doc)) throw new Error('expected image names with bins of words');
+  } catch (e) {
+    warnings.push(`tags.yaml ignored, could not read it: ${e.message}`);
+    return;
+  }
+  const all = Object.values(words);
+  const noImage = [], unknown = [], misfiled = [], listed = [];
+  for (const [image, bins] of Object.entries(doc)) {
+    if (!IMAGES.includes(`images/${image}`)) { noImage.push(image); continue; }
+    listed.push(`images/${image}`);  // listed with no words: shown, with random words
+    if (bins === null) continue;
+    if (typeof bins !== 'object' || Array.isArray(bins)) { warnings.push(`tags.yaml: ${image} needs bin names with lists of words`); continue; }
+    for (const [bin, list] of Object.entries(bins)) {
+      for (const item of [].concat(list ?? [])) {
+        const entry = String(item).toLowerCase().trim();
+        // the shown spelling first, so "yeh!" finds the split-off word rather than any "yeh"
+        const w = all.find(w => w.text === entry) ?? all.find(w => w.raw === entry);
+        if (!w) { unknown.push(`${entry} (${image})`); continue; }
+        if (w.bin !== bin) misfiled.push(`${w.text} is ${w.bin}, not ${bin} (${image})`);
+        const texts = (tags[image] ??= {})[w.bin] ??= [];
+        if (!texts.includes(w.text)) texts.push(w.text);
+      }
+    }
+  }
+  if (noImage.length) warnings.push(`tags.yaml: no such image: ${noImage.join(', ')}`);
+  if (listed.length >= imageStages()) imagePool = listed;
+  else warnings.push(`tags.yaml lists ${listed.length} image(s), a game needs ${imageStages()}: using every image`);
+  if (unknown.length) warnings.push(`tags.yaml: not in the recording: ${unknown.join(', ')}`);
+  if (misfiled.length) warnings.push(`tags.yaml: in another bin, shown there: ${misfiled.join(', ')}`);
+}
+
+// ---------- stages ----------
+
+function shuffle(a) {
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+// Every recording in the bin, shuffled, one recording of each word per round: the first round
+// is the words in a random order, each with a random recording. Only this order is saved, and the
+// deal is worked out from it on each load, so tags.yaml edits show on reload.
+function randomOrder(bin) {
+  const byText = {};
+  for (const w of Object.values(words)) if (w.bin === bin) (byText[w.text] ??= []).push(w.id);
+  const groups = shuffle(Object.values(byText)).map(shuffle);
+  const ids = [], total = groups.flat().length;
+  for (let r = 0; ids.length < total; r++) for (const g of groups) if (r < g.length) ids.push(g[r]);
+  return ids;
+}
+
+// What each dealt bin offers at stage s. Each stage keeps the earlier words, adds its image's
+// tagged words (all of them, even past the stage's count), then tops up from the random order.
+function dealtWords(s) {
+  const out = {};
+  for (const bin of DEALT_BINS) {
+    // a word shows once; yeah counts recordings, so its spellings can repeat
+    const key = id => BY_RECORDING.includes(bin) ? id : words[id].text;
+    const ids = [], seen = new Set();
+    const add = id => { if (!seen.has(key(id))) { seen.add(key(id)); ids.push(id); } };
+    for (let k = 0; k <= s; k++) {
+      const image = images[k]?.split('/').pop();
+      for (const text of tags[image]?.[bin] ?? []) {
+        // a tagged word uses its recording that comes first in the random order
+        if (!ids.some(id => words[id].text === text)) add(order[bin].find(id => words[id].text === text));
+      }
+      for (const id of order[bin]) {
+        if (ids.length >= STAGES[k].deal[bin]) break;
+        add(id);
+      }
+    }
+    out[bin] = ids;
+  }
+  return out;
+}
+
+function newGame() {
+  stage = 0;
+  rearranged = false;
+  order = {};
+  for (const bin of DEALT_BINS) order[bin] = randomOrder(bin);
+  images = shuffle([...imagePool]).slice(0, imageStages());  // no picture twice
+  lines.forEach(l => l.length = 0);
+  lineOn.fill(true);
+  save();
+}
+
+// what the palette offers at this stage
+function paletteWords() {
+  const all = Object.values(words);
+  const n = STAGES[stage].deal;
+  if (n === null) return all;
+  const seen = new Set();
+  const unique = all.filter(w => UNIQUE_BINS.includes(w.bin) && !seen.has(w.text) && seen.add(w.text));
+  return [
+    ...all.filter(w => OPEN_BINS.includes(w.bin)),
+    ...unique,
+    ...Object.values(dealtWords(stage)).flat().map(id => words[id]),
+  ];
+}
+
+function showStage() {
+  const s = STAGES[stage];
+  const pic = $('#picture');
+  pic.hidden = !s.image;
+  if (s.image) pic.src = images[stage];
+  rowEls.forEach((row, i) => row.hidden = i >= s.lines);
+  handleEls.forEach(h => h.hidden = s.lines < 2);  // nothing to rearrange with one line
+  for (let i = 0; i < N_LINES; i++) renderLine(i);
+  buildPalette();
+  updateNext();
+}
+
+// moving on needs at least one spoken word (not just pauses) in the first line
+function updateNext() {
+  $('#next').hidden = lastStage();
+  $('#next').disabled = lastStage() || !lines[0].some(id => words[id].a !== null);
+}
+
+$('#next').addEventListener('click', () => {
+  if (lastStage()) return;
+  rearranged = false;
+  stage++;  // playback carries on: the new track and line join from the next line scheduled
+  save();
+  showStage();
+});
+
+$('#restart').addEventListener('click', () => {
+  if (!confirm('Start again from the first line? This deals new words and clears your lines.')) return;
+  if (playing) togglePlay();
+  cursor = -1;
+  newGame();
+  showStage();
+});
+
+// ---------- layout ----------
+
+function sizeToWindow() {
+  // one line (2 bars) spans the line box, so px-per-second follows from its width
+  const pps = lineEls[0].clientWidth / LINE_DUR;
+  document.documentElement.style.setProperty('--pps', pps);
+  document.documentElement.style.setProperty('--beat', pps * 60 / BPM);
+}
+
+function wordEl(w) {
+  const el = document.createElement('div');
+  el.className = 'word';
+  el.style.background = BIN_COLORS[w.bin];
+  el.textContent = w.text;
+  el.title = w.bin === 'rest' ? `pause (${w.d.toFixed(2)}s)` : `${w.text} (${w.bin}, ${w.d.toFixed(2)}s)`;
+  el.style.setProperty('--d', w.d);
+  el.draggable = true;
+  if (w.a !== null) el.addEventListener('click', () => preview(w));
+  return el;
+}
+
+function buildPalette() {
+  const palette = $('#palette');
+  palette.replaceChildren();
+  const offered = paletteWords();
+  for (const bin of binOrder) {
+    const binWords = offered.filter(w => w.bin === bin);
+    // pauses stay shortest to longest; words go alphabetically
+    if (bin !== 'rest') binWords.sort((a, b) => a.text.localeCompare(b.text));
+    if (!binWords.length) continue;
+    const section = document.createElement('div');
+    section.className = 'bin';
+    section.textContent = bin === 'rest' ? BIN_LABELS.rest : `${bin} (${binWords.length})`;
+    const list = document.createElement('div');
+    list.className = 'bin-words';
+    for (const w of binWords) {
+      const el = wordEl(w);
+      el.addEventListener('dragstart', e => startDrag(e, { id: w.id, from: null }));
+      list.append(el);
+    }
+    section.append(list);
+    palette.append(section);
+  }
+}
+
+// dropping a placed word back on the palette removes it
+function onPaletteDragOver(e) { if (dragging && dragging.from !== null) e.preventDefault(); }
+function onPaletteDrop(e) {
+  e.preventDefault();
+  if (dragging && dragging.from !== null) removeAt(dragging.from, dragging.index);
+}
+
+function buildLines() {
+  const container = $('#lines');
+  const rowMarker = document.createElement('div');
+  rowMarker.id = 'row-marker';
+  container.append(rowMarker);
+  container.addEventListener('dragover', onRowDragOver);
+  container.addEventListener('dragleave', e => { if (!container.contains(e.relatedTarget)) rowMarker.style.display = 'none'; });
+  container.addEventListener('drop', onRowDrop);
+  for (let i = 0; i < N_LINES; i++) {
+    const row = document.createElement('div');
+    row.className = 'row';
+    const handle = document.createElement('div');
+    handle.className = 'handle';
+    handle.textContent = '≡';
+    handle.title = 'drag to move this line';
+    handle.draggable = true;
+    handle.addEventListener('dragstart', e => {
+      rowDrag = i;
+      if (!rearranged) { rearranged = true; lineEls.forEach(l => l.classList.remove('current')); save(); }
+      e.dataTransfer.setData('text/plain', `line ${i + 1}`);
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setDragImage(row, 0, row.clientHeight / 2);
+    });
+    const toggle = document.createElement('button');
+    toggle.addEventListener('click', () => { lineOn[i] = !lineOn[i]; renderLine(i); save(); });
+    const line = document.createElement('div');
+    line.className = 'line';
+    const marker = document.createElement('div');
+    marker.className = 'marker';
+    const playhead = document.createElement('div');
+    playhead.className = 'playhead';
+    line.addEventListener('dragover', e => onLineDragOver(e, i));
+    line.addEventListener('dragleave', e => { if (!line.contains(e.relatedTarget)) marker.style.display = 'none'; });
+    line.addEventListener('drop', e => onLineDrop(e, i));
+    const clear = document.createElement('button');
+    clear.textContent = 'clear';
+    clear.addEventListener('click', () => { lines[i] = []; renderLine(i); save(); });
+    row.append(handle, toggle, line, clear);
+    container.append(row);
+    rowEls.push(row); handleEls.push(handle); lineEls.push(line); markerEls.push(marker); playheadEls.push(playhead); toggleEls.push(toggle);
+  }
+}
+
+function renderLine(i) {
+  const line = lineEls[i];
+  line.replaceChildren(markerEls[i], playheadEls[i]);
+  lines[i].forEach((id, index) => {
+    const el = wordEl(words[id]);
+    el.addEventListener('dragstart', e => startDrag(e, { id, from: i, index }));
+    // dragged out of the lines and dropped nowhere: remove it
+    // (a refused drop onto a full line leaves it where it was)
+    el.addEventListener('dragend', e => {
+      if (e.dataTransfer.dropEffect === 'none' && !overLines && lines[i][index] === id) removeAt(i, index);
+    });
+    line.append(el);
+  });
+  line.classList.toggle('off', !lineOn[i]);
+  line.classList.toggle('current', i === focusLine() && !rearranged);
+  toggleEls[i].textContent = lineOn[i] ? 'on' : 'off';
+  updateNext();
+}
+
+// ---------- drag and drop ----------
+
+let dragging = null;  // { id, from: lineIndex|null, index }
+let overLines = false;  // whether the pointer was last over the lines region
+document.addEventListener('dragover', e => { overLines = !!e.target.closest?.('#lines'); });
+
+function startDrag(e, info) {
+  dragging = info;
+  e.dataTransfer.setData('text/plain', words[info.id].text);
+  e.dataTransfer.effectAllowed = info.from === null ? 'copy' : 'move';
+}
+document.addEventListener('dragend', () => {
+  dragging = null;
+  rowDrag = null;
+  markerEls.forEach(m => m.style.display = 'none');
+  $('#row-marker').style.display = 'none';
+});
+
+// ---------- rearranging lines ----------
+
+let rowDrag = null;  // index of the line being moved by its handle
+
+// insertion index = number of visible rows whose midpoint is above the pointer
+function rowInsertIndex(clientY) {
+  const rows = rowEls.slice(0, nLines());
+  const idx = rows.findIndex(row => { const r = row.getBoundingClientRect(); return clientY < r.top + r.height / 2; });
+  return idx === -1 ? rows.length : idx;
+}
+
+function onRowDragOver(e) {
+  if (rowDrag === null) return;
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  // the marker sits in the gap above row idx, or below the last row
+  const idx = rowInsertIndex(e.clientY);
+  const last = rowEls[nLines() - 1];
+  const marker = $('#row-marker');
+  marker.style.top = (idx < nLines() ? rowEls[idx].offsetTop - 4 : last.offsetTop + last.offsetHeight + 4) + 'px';
+  marker.style.display = 'block';
+}
+
+function onRowDrop(e) {
+  if (rowDrag === null) return;
+  e.preventDefault();
+  $('#row-marker').style.display = 'none';
+  let to = rowInsertIndex(e.clientY);
+  if (rowDrag < to) to--;
+  moveLine(rowDrag, to);
+}
+
+// words and on/off travel with the line; the music stays put, so a moved line
+// plays over the bars of its new position
+function moveLine(from, to) {
+  if (from === to) return;
+  lines.splice(to, 0, ...lines.splice(from, 1));
+  lineOn.splice(to, 0, ...lineOn.splice(from, 1));
+  for (let i = 0; i < N_LINES; i++) renderLine(i);
+  save();
+}
+
+const lineDur = i => lines[i].reduce((t, id) => t + words[id].d, 0);
+
+function fits(i) {
+  const own = dragging.from === i ? words[dragging.id].d : 0;
+  return lineDur(i) - own + words[dragging.id].d <= LINE_DUR + 1e-6;
+}
+
+// insertion index = number of placed words whose midpoint is left of the pointer
+function insertIndex(i, clientX) {
+  const els = [...lineEls[i].querySelectorAll('.word')];
+  const idx = els.findIndex(el => { const r = el.getBoundingClientRect(); return clientX < r.left + r.width / 2; });
+  return idx === -1 ? els.length : idx;
+}
+
+function onLineDragOver(e, i) {
+  if (!dragging || !fits(i)) return;  // not preventing default = drop refused
+  e.preventDefault();
+  e.dataTransfer.dropEffect = dragging.from === null ? 'copy' : 'move';
+  const idx = insertIndex(i, e.clientX);
+  const ids = lines[i].slice(0, idx);
+  markerEls[i].style.left = ids.reduce((t, id) => t + words[id].d, 0) / LINE_DUR * lineEls[i].clientWidth + 'px';
+  markerEls[i].style.display = 'block';
+}
+
+function onLineDrop(e, i) {
+  e.preventDefault();
+  markerEls[i].style.display = 'none';
+  if (!dragging || !fits(i)) return;
+  let idx = insertIndex(i, e.clientX);
+  if (dragging.from !== null) {
+    lines[dragging.from].splice(dragging.index, 1);
+    if (dragging.from === i && dragging.index < idx) idx--;
+    if (dragging.from !== i) renderLine(dragging.from);
+  }
+  lines[i].splice(idx, 0, dragging.id);
+  renderLine(i);
+  save();
+}
+
+function removeAt(i, index) {
+  lines[i].splice(index, 1);
+  renderLine(i);
+  save();
+}
+
+// ---------- persistence (per browser, convenience only) ----------
+
+function save() {
+  try { localStorage.setItem(STORE_KEY, JSON.stringify({ stage, rearranged, order, images, lines, lineOn })); } catch {}
+}
+// returns false when there's nothing usable saved, so a new game is dealt
+function restore() {
+  try {
+    const s = JSON.parse(localStorage.getItem(STORE_KEY));
+    if (!s || !Array.isArray(s.images)) return false;
+    stage = Math.min(Math.max(0, s.stage | 0), STAGES.length - 1);
+    // words.json or bins.yaml may have changed since: drop ids that no longer exist or changed bin,
+    // and put any new ones after the saved order (a save from before orders were kept gets a new one)
+    order = {};
+    for (const bin of DEALT_BINS) {
+      const kept = (s.order?.[bin] ?? []).filter(id => words[id]?.bin === bin);
+      order[bin] = [...kept, ...randomOrder(bin).filter(id => !kept.includes(id))];
+    }
+    // tags.yaml may have changed since: swap out pictures it no longer lists
+    images = s.images.slice(0, imageStages());
+    for (let k = 0; k < imageStages(); k++) {
+      if (!imagePool.includes(images[k])) images[k] = shuffle(imagePool.filter(i => !images.includes(i)))[0];
+    }
+    rearranged = !!s.rearranged;
+    s.lines.slice(0, N_LINES).forEach((ids, i) => {
+      lines[i] = ids.filter(id => words[id]);
+      while (lineDur(i) > LINE_DUR + 1e-6) lines[i].pop();
+    });
+    s.lineOn.slice(0, N_LINES).forEach((on, i) => lineOn[i] = !!on);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+// ---------- audio ----------
+
+const live = new Set();  // scheduled sources, so pause can stop them
+
+function playSlice(buffer, when, offset, duration, fade) {
+  const src = ctx.createBufferSource();
+  src.buffer = buffer;
+  let node = src;
+  if (fade) {
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0, when);
+    g.gain.linearRampToValueAtTime(1, when + fade);
+    g.gain.setValueAtTime(1, when + duration - fade);
+    g.gain.linearRampToValueAtTime(0, when + duration);
+    src.connect(g);
+    node = g;
+  }
+  node.connect(ctx.destination);
+  src.start(when, offset, duration);
+  live.add(src);
+  src.onended = () => live.delete(src);
+}
+
+function preview(w) {
+  if (ctx.state !== 'running') ctx.resume();
+  playSlice(wordsBuf, ctx.currentTime + 0.01, w.a, w.d, FADE);
+}
+
+let playing = false;
+let nextTime = null;   // audio-clock time the next line starts
+let cursor = -1;       // index of the last line scheduled
+let scheduled = [];    // [{ line, t0 }] for the playhead
+
+// loops over the lines this stage has revealed
+function nextActiveLine() {
+  const n = nLines();
+  for (let k = 1; k <= n; k++) {
+    const i = (cursor + k) % n;
+    if (lineOn[i]) return i;
+  }
+  return -1;
+}
+
+// Schedules whole lines slightly ahead of time; toggles, edits and stage changes apply from the next line.
+function tick() {
+  if (!playing) return;
+  if (nextTime === null) nextTime = ctx.currentTime + 0.05;
+  while (nextTime < ctx.currentTime + LOOKAHEAD) {
+    const i = nextActiveLine();
+    if (i === -1) { nextTime = null; return; }   // nothing on: wait for a line to be switched on
+    const t0 = Math.max(nextTime, ctx.currentTime + 0.01);
+    // the stage's track follows the lines: line i plays over bars 2i+1..2i+2
+    playSlice(trackBufs[stage], t0, i * LINE_DUR, LINE_DUR, 0);
+    let t = t0;
+    for (const id of lines[i]) {
+      const w = words[id];
+      if (w.a !== null) playSlice(wordsBuf, t, w.a, w.d, FADE);
+      t += w.d;
+    }
+    scheduled.push({ line: i, t0 });
+    cursor = i;
+    nextTime = t0 + LINE_DUR;
+  }
+}
+setInterval(tick, 25);
+
+function stopAll() {
+  for (const src of live) { try { src.stop(); } catch {} }
+  live.clear();
+}
+
+async function togglePlay() {
+  if (playing) {
+    playing = false;
+    stopAll();
+    // resume from the start of the line that was playing
+    const now = ctx.currentTime;
+    const current = scheduled.find(s => s.t0 <= now && now < s.t0 + LINE_DUR);
+    cursor = current ? (current.line - 1 + nLines()) % nLines() : -1;
+    scheduled = [];
+    nextTime = null;
+    $('#play').textContent = 'play';
+  } else {
+    await ctx.resume();
+    playing = true;
+    $('#play').textContent = 'pause';
+    tick();
+  }
+}
+$('#play').addEventListener('click', togglePlay);
+
+function drawPlayhead() {
+  const now = ctx.currentTime;
+  scheduled = scheduled.filter(s => s.t0 + LINE_DUR > now);
+  const current = playing && scheduled.find(s => s.t0 <= now);
+  playheadEls.forEach((el, i) => {
+    if (current && current.line === i) {
+      el.style.left = (now - current.t0) / LINE_DUR * lineEls[i].clientWidth + 'px';
+      el.style.display = 'block';
+    } else {
+      el.style.display = 'none';
+    }
+  });
+  requestAnimationFrame(drawPlayhead);
+}
+requestAnimationFrame(drawPlayhead);
+
+load();
+</script>
+</body>
+</html>

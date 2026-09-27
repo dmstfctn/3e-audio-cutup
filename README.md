@@ -1,6 +1,6 @@
 # cutup-proto
 
-A browser game where players drag words cut from a recorded performance into four 2-bar lines over a 144 bpm beat. A Python script splits the recording into words, with timings and part-of-speech tags, and the prototypes in `build/` use that data.
+A browser game where players cut words from a recorded performance into 2-bar lines over a 144 bpm beat. A Python script splits the recording into words, with timings and part-of-speech tags, and the game in `build/` uses that data. The prototypes it grew from are in `prototype/`.
 
 ## Layout
 
@@ -8,17 +8,39 @@ A browser game where players drag words cut from a recorded performance into fou
 source/       original recording (.wav) and transcript (.txt, one spoken line per line)
 preprocess/   word alignment + tagging script
 data/         preprocess output (manifest.json kept; audio + clips regenerable)
-build/        static site: prototypes + the audio/data they load (lib/ holds js-yaml)
+build/        the game: a static site with everything it loads
+prototype/    the prototypes (01–09) and tools, with the audio and data they load
 ```
 
-## Run the prototypes
+## Run the game
 
 ```
 cd build
 python3 -m http.server
 ```
 
-Open http://localhost:8000. The pages must be served, because opening the HTML file directly (`file://`) can't load the audio.
+Open http://localhost:8000. The page must be served, because opening the HTML file directly (`file://`) can't load the audio.
+
+The game started as a copy of prototype-09 (see [Two lines, live rewards](#two-lines-live-rewards-prototype-09)), and is changed in place from here on. `build/` holds everything it needs, some of it copied from `prototype/`, so the two can change separately.
+
+- `build/index.html`: the page
+- `build/config/`: what to edit to change the content. Each file's comments explain it.
+  - `games.yaml`: the games' photos, shapes, words, settings and unlocks, and the tracks
+  - `story.yaml`: the screens of text, the first stage's line and words, and the words given for writing
+  - `bins.yaml`: word category fixes (see [Fix word categories](#fix-word-categories))
+- `build/javascript/`: `main.js` runs the page, `minigames.js` the games, and `lib/` holds js-yaml
+- `build/style/`: the page's styles (`style.css`) and the games' (`minigames.css`)
+- `build/audio/`: the cut-up recording (`words.wav`, `words.json`) and the tracks
+- `build/images/`: the photos and their shapes
+
+## Run the prototypes
+
+```
+cd prototype
+python3 -m http.server
+```
+
+Open http://localhost:8000 for the list of prototypes and tools.
 
 ## Set up preprocessing
 
@@ -42,18 +64,20 @@ cp data/audio.wav build/audio/words.wav
 cp data/manifest.json build/audio/words.json
 ```
 
+Copy them to `prototype/audio/` as well to update the prototypes.
+
 The script prints the words in each category and a list of words with low alignment confidence. Listen to those in `data/clips/`. A low score usually means the transcript doesn't match what's said at that point.
 
 Options:
 
 - `--clips`: write one .wav per word to `data/clips/` for auditioning
 - `--separate`: isolate vocals with Demucs before aligning (for speech over music; `pip install demucs` first)
-- `--pad`, `--fade`: clip padding and fade in seconds (defaults 0.03, 0.008). The prototype sets its own padding (`PAD`) and fade (`FADE`).
+- `--pad`, `--fade`: clip padding and fade in seconds (defaults 0.03, 0.008). The game sets its own padding (`PAD`) and fade (`FADE`).
 - `--wav`, `--transcript`: use files other than the ones in `source/`
 
 ## Fix word categories
 
-The preprocess script guesses each word's category (`bin`) from its part of speech, and gets some wrong. Corrections go in `build/audio/bins.yaml`. The prototypes load it and apply it over `words.json`, so it survives re-running preprocessing, and anyone can edit it without the Python setup.
+The preprocess script guesses each word's category (`bin`) from its part of speech, and gets some wrong. Corrections go in `build/config/bins.yaml` (and `prototype/audio/bins.yaml` for the prototypes). The game loads it and applies it over `words.json`, so it survives re-running preprocessing, and anyone can edit it without the Python setup.
 
 ```yaml
 noun:
@@ -68,13 +92,13 @@ yeah:
 - Each word listed moves to that bin everywhere it appears. Matching ignores case.
 - Words that aren't listed keep the bin the script gave them.
 - A new bin name makes a new palette section with its own colour.
-- Reload the page to see edits. Problems (a word that isn't in the recording, a word listed under two bins, a YAML syntax error) show next to the play button.
+- Reload the page to see edits. Problems (a word that isn't in the recording, a word listed under two bins, a YAML syntax error) show above the lines (next to the play button in the prototypes).
 
 The script's bins are `noun`, `verb`, `describer`, `pronoun`, `glue` and `other`. The `yeah` bin only exists in `bins.yaml`.
 
 ## Tag words to images (prototype-02)
 
-In prototype-02's first two stages the palette deals a few random nouns, verbs, adjectives and yeahs to go with an image. `build/images/tags.yaml` sets words that always come up with a given image:
+In prototype-02's first two stages the palette deals a few random nouns, verbs, adjectives and yeahs to go with an image. `prototype/images/tags.yaml` sets words that always come up with a given image:
 
 ```yaml
 1.png:
@@ -93,7 +117,7 @@ In prototype-02's first two stages the palette deals a few random nouns, verbs, 
 
 ## Couplets (prototype-03)
 
-Prototype-03 opens with the first line of a couplet from `build/words/lines.txt`, with one word switched for another from the same bin. The next step brings in the second line, cut short at the `/`, and the player finishes it from the tray. Write each couplet as two lines, with a blank line between couplets:
+Prototype-03 opens with the first line of a couplet from `prototype/words/lines.txt`, with one word switched for another from the same bin. The next step brings in the second line, cut short at the `/`, and the player finishes it from the tray. Write each couplet as two lines, with a blank line between couplets:
 
 ```
 A market with vegetables and fruits for sale.
@@ -112,7 +136,7 @@ a treasure is just a / prison to a coin
 
 ## First lines and starting tray (prototype-04)
 
-Prototype-04 opens with one line from `build/words/first-lines.txt`, one line per line of the file, and a blank second line comes next. The tray starts with the words in `build/words/tray.yaml`, grouped by bin:
+Prototype-04 opens with one line from `prototype/words/first-lines.txt`, one line per line of the file, and a blank second line comes next. The tray starts with the words in `prototype/words/tray.yaml`, grouped by bin:
 
 ```yaml
 noun:
@@ -135,8 +159,8 @@ Prototype-05 plays like prototype-04, but each stage after the first two opens w
 - Find It and Caption Match each add a round of words (5 nouns, verbs and adjectives, 3 yeahs). Find Them All adds every word.
 - The games box at the top right lists the games played so far. A lost game can be played again there to win its words. A won game can be replayed, but it adds nothing.
 - The music stops while a game is played. Press play again after it.
-- The game code is in `build/minigames/minigames.js`, and the rules text is in `GAMES` in `prototype-05.html`.
-- The games' data is in `build/minigames/*.json`, copied from the 3e-coco-games pages. After rebuilding the games there, copy it again:
+- The game code is in `prototype/minigames/minigames.js`, and the rules text is in `GAMES` in `prototype-05.html`.
+- The games' data is in `prototype/minigames/*.json`, copied from the 3e-coco-games pages. After rebuilding the games there, copy it again:
 
   ```
   python3 preprocess/import_minigames.py ../3e-coco-games
@@ -146,7 +170,7 @@ Prototype-05 plays like prototype-04, but each stage after the first two opens w
 
 ## Minigame content (prototype-06)
 
-Prototype-06 plays like prototype-05, but the games use set photos from `build/images/`, and each one wins set words. Only Find It plays automatically, before the 4-line stage. Caption Match and Find Them All are unlocked by the 6-line and 8-line stages: the lines come straight away, and a notice offers **play** or **continue writing**. An unlocked game stays in the games box until it's played. All of it is in `build/minigames/games.yaml`, which explains itself in its comments. For each game it holds:
+Prototype-06 plays like prototype-05, but the games use set photos from `prototype/images/`, and each one wins set words. Only Find It plays automatically, before the 4-line stage. Caption Match and Find Them All are unlocked by the 6-line and 8-line stages: the lines come straight away, and a notice offers **play** or **continue writing**. An unlocked game stays in the games box until it's played. All of it is in `prototype/minigames/games.yaml`, which explains itself in its comments. For each game it holds:
 
 - the photos, what to find in each one (or, for Caption Match, the caption and the two decoy photos), and an optional prompt
 - the words each photo wins, grouped by bin as in `tray.yaml`
@@ -160,7 +184,7 @@ How the words are won:
 
 The games box shows the words each game has won out of all the words it has. Any game can be replayed to win more.
 
-The shapes to find are drawn in an SVG per photo, `build/images/<photo name>.svg` (`1.svg` for `1.jpg`), at the photo's pixel size:
+The shapes to find are drawn in an SVG per photo, `prototype/images/<photo name>.svg` (`1.svg` for `1.jpg`), at the photo's pixel size:
 
 - A shape's `id` is the thing it marks. For several of one thing, add `_` and anything else: `fruits_1`, `fruits_2`.
 - Case is ignored. `<polygon>`, `<path>`, `<rect>`, `<circle>` and `<ellipse>` all work, and a group (`<g>`) with an id counts as one shape.
@@ -180,7 +204,7 @@ Prototype-07 uses prototype-06's games and content. It's a one-shot game in six 
 5. **Debrief:** screens of text after work.
 6. **Writing:** the 4 lines as the player left them, the first stage's words, everything won, and a set list of words, every yeah and pauses of several lengths. The metronome plays. Buttons at the top switch to any track unlocked. **submit** shows the lines on their own, centred, and plays them once.
 
-All the text, the first line, the first stage's words and time limit, and the words given for writing are in `build/words/story-07.yaml`. The file's comments explain it. Words match as in `tray.yaml`, and a word that isn't in the recording or is listed under the wrong bin shows a warning next to the play button. Reload the page to see edits. The first line and first words apply from the next new game (restart).
+All the text, the first line, the first stage's words and time limit, and the words given for writing are in `prototype/words/story-07.yaml`. The file's comments explain it. Words match as in `tray.yaml`, and a word that isn't in the recording or is listed under the wrong bin shows a warning next to the play button. Reload the page to see edits. The first line and first words apply from the next new game (restart).
 
 Points and words:
 
@@ -188,7 +212,7 @@ Points and words:
 - **Find Them All:** one point per shape found. Each photo's bar wins its words as in prototype-06. A photo with `reach: 15` in `games.yaml` finds every shape within 15 of the photo's pixels on each click. This is for photos with many small shapes, like the rain in `12.jpg`.
 - **Caption Match:** one point per round matched, which wins that round's words.
 
-The tracks a score unlocks are set in `build/minigames/games.yaml`, under each game's `unlocks`, with the tracks under `tracks` at the top. Each unlock is given when the score is more than its `above`:
+The tracks a score unlocks are set in `prototype/minigames/games.yaml`, under each game's `unlocks`, with the tracks under `tracks` at the top. Each unlock is given when the score is more than its `above`:
 
 ```yaml
 find-all:
@@ -205,18 +229,36 @@ Prototype-08 is prototype-07 with a fourth game, Pair It, from [3e-coco-games](.
 
 - **Pair It:** every pair's photos are shuffled into one grid, with one timer for all of them. Click a photo, then the one with the same energy. A match shrinks away and wins the pair's words, and a wrong pair flashes red. One point per pair matched.
 - The first stage shows all 4 lines, but only the first can be used. The others open for writing.
-- The pairs, the words they win, the prompt, the timer and the rules card are under `pair-it` in `build/minigames/games.yaml`. It can have `unlocks` like the other games. Prototypes 06 and 07 ignore it.
-- The photos are in `build/images/pair-it/`, copied from `3e-coco-games/game-prototypes/same-energy/`.
-- The story is in `build/words/story-08.yaml`, a copy of `story-07.yaml` to start with.
-- The game code is in `build/minigames/minigames-08.js`, which is `minigames-07.js` with Pair It added.
+- The pairs, the words they win, the prompt, the timer and the rules card are under `pair-it` in `prototype/minigames/games.yaml`. It can have `unlocks` like the other games. Prototypes 06 and 07 ignore it.
+- The photos are in `prototype/images/pair-it/`, copied from `3e-coco-games/game-prototypes/same-energy/`.
+- The story is in `prototype/words/story-08.yaml`, a copy of `story-07.yaml` to start with.
+- The game code is in `prototype/minigames/minigames-08.js`, which is `minigames-07.js` with Pair It added.
+
+## Two lines, live rewards (prototype-09)
+
+Prototype-09 plays in the same six parts as prototype-08, with these changes:
+
+- **Screens:** the text shows a line at a time. The button says **next** until the last line, then shows the screen's own button. The **next** label is `next` in `prototype/words/story-09.yaml`.
+- **Lines:** there are 2 lines, with no on/off, clear or move buttons. Clicking a tray word adds it after the word added last. If it doesn't fit there, it goes at the end of the other line. Clicking a word in a line removes it, and dragging still rearranges words. Pointing at a word plays it.
+- **Every recording:** the tray shows every recording of each word, so "a" shows 20 times. A word won wins all its recordings. The first line always uses the first recording of each word.
+- **First stage:** both lines are open, and it's silent. The time limit still applies, but no timer shows.
+- **Tracks:** nothing plays until a track is unlocked. From work on, the tracks unlocked show as toggles at the top of the page, and any mix of them can be on. The full track has the others in it, so while it's on, the others are muted. The lines loop the first 4 bars of the tracks. When writing, the lines play over whatever's on, or on their own if nothing is.
+- **Games:** each game starts without a rules card. Words won fly from the click to a strip at the bottom of the page, and a track unlocked appears at the top and comes on. The summary after each game still lists what was won. A retry clears that game's words from the strip.
+  - **Find It:** a miss shows a red ring, and the player keeps looking until time runs out. Finding one thing unlocks the metronome.
+  - **Pair It:** matching one pair unlocks the drums.
+  - **Find Them All:** the whole photo shows, with no zoom. The first thing found wins the thing's own word and unlocks the full track. The other words come at the notches on the bar, as before.
+  - **Caption Match:** the caption shows at the top as `select the image that shows: "…"`, set by `prompt` under `caption-match`. It unlocks nothing.
+
+`games.yaml` is shared, so 09's changes go in keys that only 09 reads, and 06–08 play as before:
+
+- `unlocks-09` sets a game's unlocks for 09. Where a game has none, 09 uses `unlocks`.
+- `reach-09` sets a photo's reach for 09. `12.jpg` has `reach-09: 30`, because the rain is smaller on the whole photo.
+
+The story is in `prototype/words/story-09.yaml`, and the games are in `prototype/minigames/minigames-09.js`.
 
 ## Tools
 
-- `build/tools-test-find-all-svg.html`: drop a photo and its shapes (.svg) on the page to check them before they go in `games.yaml`. It outlines every shape over the photo, lists the things the ids mark with their counts, and warns when the SVG's proportions don't match the photo's or its name isn't the one the game looks for. Choose a thing and press **play** to try it in Find Them All, with the seconds, zoom, tolerance, reach and number of words set on the page. When the page is served, these start from `games.yaml`, including the photo's own entry if it has one. Drop a new .svg at any time to try an edit with the same photo.
-
-## Add a prototype
-
-Copy `build/prototype-01.html` to `build/prototype-02.html` and add a link to it in `build/index.html`.
+- `prototype/tools-test-find-all-svg.html`: drop a photo and its shapes (.svg) on the page to check them before they go in `games.yaml`. It outlines every shape over the photo, lists the things the ids mark with their counts, and warns when the SVG's proportions don't match the photo's or its name isn't the one the game looks for. Choose a thing and press **play** to try it in Find Them All, as the game plays it (the whole photo, not zoomed in), with the seconds, tolerance, reach and number of words set on the page. When the page is served, these start from `games.yaml`, including the photo's own entry if it has one. Drop a new .svg at any time to try an edit with the same photo.
 
 ## Deploy
 

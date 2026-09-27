@@ -8,7 +8,7 @@ __pycache__/
 
 # Regenerable preprocessing output (re-run preprocess/preprocess.py).
 # manifest.json is kept so alignment/tag changes show up in diffs;
-# the audio the game needs is copied into build/audio/.
+# the audio the game needs is copied into build/audio/ (and prototype/audio/).
 data/audio.wav
 data/clips/
 data/demucs/

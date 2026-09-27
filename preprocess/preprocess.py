@@ -32,7 +32,7 @@ import soundfile as sf
 ROOT = Path(__file__).resolve().parent.parent
 
 # spaCy UPOS tag -> bin shown to the player. Corrections, and bins spaCy can't
-# know about (e.g. "yeah"), go in build/audio/bins.yaml, which the prototypes apply.
+# know about (e.g. "yeah"), go in build/config/bins.yaml, which the game applies.
 BINS = {
     "NOUN": "noun", "PROPN": "noun",
     "VERB": "verb", "AUX": "verb",

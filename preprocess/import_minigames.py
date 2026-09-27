@@ -1,4 +1,4 @@
-"""Copies the minigame data out of the 3e-coco-games pages into build/minigames/.
+"""Copies the minigame data out of the 3e-coco-games pages into prototype/minigames/.
 
 3e-coco-games/analysis/build_games.py bakes each game's data into its page between
 /*@data*/ and /*@end*/. Rerun this after rebuilding the games there.
@@ -13,7 +13,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-# build/minigames/<key>.json <- game-prototypes/<page>
+# prototype/minigames/<key>.json <- game-prototypes/<page>
 GAMES = {
     'find': 'game3-find.html',
     'caption-match': 'game1-caption-match.html',
@@ -23,7 +23,7 @@ GAMES = {
 
 def main():
     coco = Path(sys.argv[1]) if len(sys.argv) > 1 else ROOT.parent / '3e-coco-games'
-    out = ROOT / 'build' / 'minigames'
+    out = ROOT / 'prototype' / 'minigames'
     out.mkdir(exist_ok=True)
     for key, page in GAMES.items():
         html = (coco / 'game-prototypes' / page).read_text(encoding='utf-8')

@@ -2,27 +2,56 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Cutup prototypes</title>
+<title>Cutup</title>
 <link rel="icon" href="data:,">
-<style>
-  body { font: 16px "Times New Roman", Times, serif; margin: 16px; }
-</style>
+<link rel="stylesheet" href="style/style.css">
+<link rel="stylesheet" href="style/minigames.css">
 </head>
 <body>
-<ul>
-  <li><a href="prototype-01.html">prototype-01</a></li>
-  <li><a href="prototype-02.html">prototype-02</a></li>
-  <li><a href="prototype-03.html">prototype-03</a></li>
-  <li><a href="prototype-04.html">prototype-04</a></li>
-  <li><a href="prototype-05.html">prototype-05</a></li>
-  <li><a href="prototype-06.html">prototype-06</a></li>
-  <li><a href="prototype-07.html">prototype-07</a></li>
-  <li><a href="prototype-08.html">prototype-08</a></li>
-</ul>
-<p>tools</p>
-<ul>
-  <li><a href="tools-test-find-all-svg.html">test find-all shapes</a>: drop a photo and its .svg to check the shapes and play them</li>
-</ul>
+
+<div id="tracks" hidden></div>
+
+<div id="screen" class="dark">
+  <div id="screen-text"></div>
+  <button id="screen-go" disabled>loading…</button>
+</div>
+
+<div id="game" hidden>
+  <div id="transport">
+    <span id="status"></span>
+    <button id="submit" hidden>submit</button>
+  </div>
+  <div id="lines"></div>
+  <div id="palette"></div>
+  <div id="footer"><button id="restart">restart</button></div>
+</div>
+
+<div id="notice" hidden>
+  <div>
+    <p id="notice-text"></p>
+    <button id="notice-go"></button>
+  </div>
+</div>
+
+<div id="minigame" hidden>
+  <div id="mg-top"><b id="mg-title"></b><span id="mg-task"></span></div>
+  <div id="mg-body">
+    <div id="mg-card">
+      <p id="mg-text"></p>
+      <div id="mg-buttons"><button id="mg-retry">retry</button><button id="mg-go"></button></div>
+    </div>
+  </div>
+</div>
+
+<div id="strip" hidden></div>
+
+<div id="show" hidden>
+  <div id="show-lines"></div>
+  <button id="show-back" hidden>back to writing</button>
+</div>
+
+<script src="javascript/lib/js-yaml.min.js"></script>
+<script src="javascript/minigames.js"></script>
+<script src="javascript/main.js"></script>
 </body>
 </html>

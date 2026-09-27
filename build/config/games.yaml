@@ -1,0 +1,181 @@
+# Minigame content: which photos each game uses, what's found or matched in
+# them, the words they reward, the game settings, the tracks, and what each
+# game's score unlocks.
+#
+# - Photos are in images/. Name them as there (1.jpg, 2.png…).
+# - Shapes for find and find-all are in images/<photo name>.svg (1.svg for
+#   1.jpg), drawn at the photo's pixel size. A shape's id is the thing it marks:
+#   "bread", or "fruits_1", "fruits_2"… for several of one thing. Case is ignored,
+#   and anything after a _ is ignored. <polygon>, <path>, <rect>, <circle>,
+#   <ellipse> and <g> (a group counts as one shape) all work.
+# - rewards: the words a photo can win, grouped by bin as in config/story.yaml.
+#   Words match as in config/bins.yaml; a word listed under the wrong bin shows
+#   in its real bin, with a warning.
+# - The thing to find always counts as one of the photo's words, listed or not.
+# - prompt (optional): the text shown instead of "find: fruits". The thing's
+#   name is shown in bold wherever it appears in the prompt.
+# - Problems (a missing .svg, a word not in the recording, a thing with no
+#   shape) show as warnings above the lines, and that photo or thing is left out.
+# - Reload the page to see edits.
+#
+# - Words are given the moment they're won, and fly to the strip at the bottom.
+# - unlocks: what a game's score unlocks beyond words. Each one is given the
+#   moment the score is MORE than its `above` percentage of the game's points
+#   (find it: one per thing found; pair it: one per pair matched; find them
+#   all: one per shape found; caption match: one per round matched), so
+#   `above: 0%` is given for the first point. An unlock can give:
+#     track: a track name from `tracks` below. It comes on when unlocked, and
+#            the player can toggle it at the top of the page.
+#     text:  what the summary says about it. Leave it out to have one written.
+#   Yeahs and pauses aren't unlocks: writing gives them all (config/story.yaml).
+#   Retrying a game throws away its unlocks and works them out again.
+# - reach (find-all photos, optional): a click finds every shape within this
+#   many of the photo's own pixels, instead of only the nearest one within
+#   tolerance. For photos with many small shapes. One click can find several.
+
+# The tracks, each unlocked by a game. The lines loop their first 4 bars.
+tracks:
+  metronome: audio/track-metronome.wav
+  drums: audio/track-drums.wav
+  full: audio/track-full.wav
+
+# Find It: one photo and one thing per play, every thing in every photo once.
+# A click that misses leaves the time running. Finding a thing wins its word
+# and a share of the photo's other words (not the other things to find): the
+# photo's things share them out, and a thing's share is all of it for finding
+# it in up to half the time, down to none a second before the end.
+find:
+  title: find it
+  seconds: 5
+  tolerance: 10       # on-screen pixels of slack around each shape
+  unlocks:            # one thing found
+    - above: 0%
+      track: metronome
+  photos:
+    1.jpg:
+      find:
+        long:
+        bread:
+      rewards:
+        noun: [hot-dog, table, depth, bread]
+        adjective: [long, deep, shining, stale]
+    2.jpg:
+      find:
+        laying:
+        floor:
+      rewards:
+        noun: [bathroom, floor, fear]
+        verb: [laying, sleep]
+    4.jpg:
+      find:
+        rich:
+        lucozade:
+      rewards:
+        noun: [lucozade, bombay]
+        adjective: [behind, together, rich]
+    6.jpg:
+      find:
+        sits:
+        feast:
+      rewards:
+        noun: [umbrella, chair, feast]
+        verb: [sits]
+        adjective: [hot]
+
+# Pair It: every pair's photos in one grid, played once. Click two photos with
+# the same energy to match them and win the pair's words. prompt is the line
+# shown over the grid.
+pair-it:
+  title: pair it
+  prompt: click two photos with the same energy
+  seconds: 15
+  unlocks:            # one pair matched
+    - above: 0%
+      track: drums
+  pairs:
+    - photos: [pair-it/A1.jpg, pair-it/A2.jpg]
+      rewards:
+        verb: [awaken]
+    - photos: [pair-it/B1.jpg, pair-it/B2.jpg]
+      rewards:
+        adjective: [together]
+    - photos: [pair-it/C1.jpg, pair-it/C2.jpg]
+      rewards:
+        noun: [angels]
+    - photos: [pair-it/D1.jpg, pair-it/D2.jpg]
+      rewards:
+        adjective: [real]
+    - photos: [pair-it/E1.jpg, pair-it/E2.jpg]
+      rewards:
+        verb: [say]
+    - photos: [pair-it/F1.jpg, pair-it/F2.jpg]
+      rewards:
+        adjective: [unruly]
+
+# Find Them All: every photo once, whole. A bar shows the count found, with a
+# notch where each word is won: the thing's own word at the first found, then
+# the others in the order listed, spread along the bar (with 10 to find and 5
+# words, at 1, 4, 6, 8 and 10).
+find-all:
+  title: find them all
+  seconds: 15
+  unlocks:            # one shape found
+    - above: 0%
+      track: full
+  tolerance: 10
+  photos:
+    3.jpg:
+      find: fruits
+      rewards:
+        noun: [market, fruits, sale, growntology]
+        adjective: [sustainable, renewable]
+    5.jpg:
+      find: white
+      rewards:
+        noun: [piece, geometries]
+        adjective: [smooth, white, fine, minimal, blank]
+    11.jpg:
+      find: green
+      rewards:
+        noun: [banana-fish, woman, phone-box]
+        adjective: [happy, green]
+        verb: [connected]
+    8.jpg:
+      find: ecology
+      rewards:
+        noun: [blessings, cloth, vegetables, ecology]
+        adjective: [much, alone]
+    12.jpg:
+      find: rain
+      reach: 30         # a click finds every drop within 30 of the photo's pixels
+      rewards:
+        noun: [barclays, bike-lane, P12, SL, rain, crack, person]
+        adjective: [colourless]
+
+# Caption Match: every round is played each time, in a random order. Pick the
+# photo the caption describes from it and its decoys to win all its words.
+# prompt is the line over the photos; {caption} is the round's caption.
+caption-match:
+  title: caption match
+  prompt: 'select the image that shows: "{caption}"'
+  seconds: [6, 4, 3]  # per round, in the order played; the last repeats if there are more rounds
+  unlocks: []         # nothing
+  rounds:
+    - photo: 9.png
+      caption: holding it furiously
+      decoys: [15.png, 16.png]
+      rewards:
+        noun: [dog]
+        verb: [holding]
+        adjective: [furiously]
+    - photo: 7.png
+      caption: blowing paper
+      decoys: [13.png, 14.png]
+      rewards:
+        verb: [made, hides]
+        adjective: [poor, counterfeit]
+    - photo: 10.png
+      caption: Treasures from the Stone Age
+      decoys: [17.jpg, 18.png]
+      rewards:
+        noun: [stone, time, treasure]
