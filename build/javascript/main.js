@@ -1082,13 +1082,13 @@ const intoSet = (row, left) => mod(left - row.homeLeft + 1, row.setW) - 1;
 function layoutRow(row) {
   const { list } = row;
   const was = row.setW ? intoSet(row, list.scrollLeft) : null;
-  list.replaceChildren(...traySet(row, true));
+  const home = traySet(row, true);
+  list.replaceChildren(...home);
   list.classList.remove('fits');
   row.setW = 0;
   const view = list.clientWidth;
-  // from the durations, as the words may be mid pop-in, scaled down
-  const pps = parseFloat(document.documentElement.style.getPropertyValue('--pps')) || 0;
-  const width = row.ids.reduce((t, id) => t + words[id].d * pps, 0) + (row.ids.length - 1) * TRAY_GAP;
+  // measured, as a tray word can be wider than its duration to fit its text (a pop-in's scale doesn't count)
+  const width = home.reduce((t, el) => t + el.offsetWidth, 0) + (row.ids.length - 1) * TRAY_GAP;
   // fits, or hidden: no need to loop, and the words start under the label
   if (!view || width + 2 * TRAY_INSET <= view) return list.classList.add('fits');
   const setW = width + TRAY_GAP;

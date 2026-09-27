@@ -70,6 +70,13 @@ body { font: 16px "Times New Roman", Times, serif; margin: 16px; }
   cursor: pointer; user-select: none;
 }
 
+/* in the tray a word is at least as wide as its text, so it can be read; in the lines it's its duration */
+#palette .word { min-width: max-content; padding: 0 4px; }
+/* narrow screens: smaller text in the tray, where words are narrow; the box keeps its height */
+@media (max-width: 640px) {
+  #palette .word { font-size: 12px; height: 32px; line-height: 30px; }
+}
+
 /* a word's colour by its bin: nouns red, verbs green, adjectives blue, yeahs yellow, pronouns and glue
    dark grey, pauses white; always black text */
 .word[data-bin="noun"], .chip[data-bin="noun"] { background: #ff7b7b; }
