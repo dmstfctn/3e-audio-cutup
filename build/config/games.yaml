@@ -116,10 +116,10 @@ pair-it:
       rewards:
         adjective: [unruly]
 
-# Find Them All: every photo once, whole. A bar shows the count found, with a
-# notch where each word is won: the thing's own word at the first found, then
-# the others in the order listed, spread along the bar (with 10 to find and 5
-# words, at 1, 4, 6, 8 and 10).
+# Find Them All: every photo once, whole, with the count found next to the
+# prompt. The thing's own word is won at the first found, then the others in
+# the order listed, spread evenly up to finding them all (with 10 to find and
+# 5 words, at 1, 4, 6, 8 and 10).
 find-all:
   title: find them all
   seconds: 15

@@ -86,8 +86,6 @@ body { font: 16px "Times New Roman", Times, serif; margin: 16px; }
 #minigame { position: fixed; top: var(--top); bottom: var(--strip); left: 0; right: 0; z-index: 10; background: white; display: flex; flex-direction: column; }
 #minigame[hidden], #mg-card[hidden], #mg-retry[hidden] { display: none; }
 body:has(#minigame:not([hidden])), body:has(#show:not([hidden])) { overflow: hidden; }  /* the page underneath doesn't scroll */
-#mg-top { padding: 8px 16px; border-bottom: 1px solid black; display: flex; gap: 16px; }
-#mg-task { color: #777; }
 #mg-body { position: relative; flex: 1; overflow: hidden; }
 #mg-card { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; padding: 16px; text-align: center; }
 #mg-card p { margin: 0; max-width: 32em; white-space: pre-line; }
@@ -111,7 +109,8 @@ body:has(#minigame:not([hidden])), body:has(#show:not([hidden])) { overflow: hid
 
 /* submit: the lines on their own, centred, lit word by word as they play */
 #show { position: fixed; inset: var(--top) 0 0 0; z-index: 11; background: white; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 32px; padding: 16px; text-align: center; }
-#show[hidden], #show-back[hidden] { display: none; }
+#show[hidden] { display: none; }
+#show-buttons { display: flex; gap: 8px; }
 #show-lines { display: flex; flex-direction: column; gap: 16px; font-size: clamp(22px, 4vw, 40px); }
 #show-lines span { color: #bbb; transition: color .1s; }
 #show-lines span.said { color: black; }

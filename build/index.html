@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Cutup</title>
 <link rel="icon" href="data:,">
 <link rel="stylesheet" href="style/style.css">
@@ -35,7 +36,6 @@
 </div>
 
 <div id="minigame" hidden>
-  <div id="mg-top"><b id="mg-title"></b><span id="mg-task"></span></div>
   <div id="mg-body">
     <div id="mg-card">
       <p id="mg-text"></p>
@@ -48,7 +48,7 @@
 
 <div id="show" hidden>
   <div id="show-lines"></div>
-  <button id="show-back" hidden>back to writing</button>
+  <div id="show-buttons"><button id="show-back">back to writing</button><button id="show-restart">restart</button></div>
 </div>
 
 <script src="javascript/lib/js-yaml.min.js"></script>

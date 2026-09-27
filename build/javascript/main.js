@@ -36,10 +36,10 @@ const GAME_ORDER = ['find', 'pair-it', 'find-all', 'caption-match'];
 // each thing found, pair or round matched, or shape found is worth.
 // What a score unlocks beyond the words is under each game's unlocks, and the tracks under tracks.
 const GAME_DEFAULTS = {
-  'find': { title: 'find it', seconds: 5, tolerance: 10, points: 1 },
-  'pair-it': { title: 'pair it', seconds: 15, prompt: 'click two photos with the same energy', points: 1 },
-  'caption-match': { title: 'caption match', seconds: [6, 4, 3], prompt: 'select the image that shows: "{caption}"', points: 1 },
-  'find-all': { title: 'find them all', seconds: 15, tolerance: 10, points: 1 },
+  'find': { seconds: 5, tolerance: 10, points: 1 },
+  'pair-it': { seconds: 15, prompt: 'click two photos with the same energy', points: 1 },
+  'caption-match': { seconds: [6, 4, 3], prompt: 'select the image that shows: "{caption}"', points: 1 },
+  'find-all': { seconds: 15, tolerance: 10, points: 1 },
 };
 // tracks that have the others in them: while one is on, the others are muted
 const SOLO_TRACKS = ['full'];
@@ -635,13 +635,10 @@ function timeUp() {
 let mounted = null;  // the game being played, so it can be torn down
 
 // find-all: the counts at which each of a photo's words is won: the thing's own word at the first
-// found, the rest one step per word along the bar
+// found, the rest spread evenly up to finding them all
 const steps = item => item.rewards.map((_, k) => k ? Math.ceil((k + 1) * item.shapes.length / item.rewards.length) : 1);
-const gameTitle = key => GAMES[key]?.title ?? GAME_DEFAULTS[key].title;
 
-function showGame(key) {
-  $('#mg-title').textContent = gameTitle(key);
-  $('#mg-task').textContent = `task ${task + 1} / ${GAME_ORDER.length}`;
+function showGame() {
   $('#minigame').hidden = false;
 }
 
@@ -651,7 +648,7 @@ function openTask() {
   if (results[key]) return showSummary(key);
   if (typeof MINIGAMES !== 'undefined' && GAMES[key]) return startRun(key);
   // a game that can't be played counts as played for nothing, so work carries on
-  showGame(key);
+  showGame();
   $('#mg-text').textContent = typeof MINIGAMES === 'undefined' ? 'couldn\'t load this game (no javascript/minigames.js).'
     : 'this game has nothing to play: see the warnings above the lines.';
   $('#mg-retry').hidden = true;
@@ -668,15 +665,14 @@ function planRun(key) {
   const photo = name => `images/${name}`;
   if (key === 'find') {
     const all = shuffle(G.items.flatMap(item => item.targets.map(t => ({ item, t }))));
-    return all.map(({ item, t }, k) => ({ item, t, data: { photo: photo(item.photo), viewBox: item.viewBox,
+    return all.map(({ item, t }) => ({ item, t, data: { photo: photo(item.photo), viewBox: item.viewBox,
       shapes: t.shapes.map(s => s.el), target: t.target, prompt: t.prompt ?? `find: ${t.target}`,
-      seconds: +G.seconds, tolerance: +G.tolerance, round: [k, all.length] } }));
+      seconds: +G.seconds, tolerance: +G.tolerance } }));
   }
   if (key === 'find-all') {
-    const items = G.items;
-    return items.map((item, k) => ({ item, data: { photo: photo(item.photo), viewBox: item.viewBox, shapes: item.shapes,
-      target: item.target, prompt: item.prompt ?? `find all: ${item.target}`, seconds: +G.seconds,
-      tolerance: +G.tolerance, reach: item.reach, found: [], steps: steps(item), round: [k, items.length] } }));
+    return G.items.map(item => ({ item, steps: steps(item), data: { photo: photo(item.photo), viewBox: item.viewBox,
+      shapes: item.shapes, target: item.target, prompt: item.prompt ?? `find all: ${item.target}`, seconds: +G.seconds,
+      tolerance: +G.tolerance, reach: item.reach, found: [] } }));
   }
   if (key === 'pair-it') {
     return [{ pairs: G.items, data: { pairs: G.items.map(p => p.photos.map(photo)), prompt: String(G.prompt), seconds: +G.seconds } }];
@@ -702,7 +698,7 @@ function startRun(key) {
   dropPoints(key);
   const plays = planRun(key);
   run = { key, plays, points: 0, total: totalOf(key, plays), words: [], tracks: [], notes: [], given: new Set(), state: new Map() };
-  showGame(key);
+  showGame();
   $('#mg-card').hidden = true;
   const next = k => {
     const upcoming = plays[k + 1]?.data.photo;
@@ -729,7 +725,7 @@ function quickness(taken, seconds) {
 
 // A win in play k of the run: its points, its words (flown to the strip from the click) and any unlock it passes.
 // find: a thing found wins its own word, and a share of its photo's other words (the photo's things share
-// them out) scaled by how quick it was found (see quickness). find-all: each photo's bar wins its words.
+// them out) scaled by how quick it was found (see quickness). find-all: a photo's words come at its steps.
 // pair-it and caption-match: a pair or round matched wins its words.
 function progress(k, ev) {
   const p = run.plays[k];
@@ -749,7 +745,7 @@ function progress(k, ev) {
     run.points += each * ev.found.length;
     const n = (run.state.get(k) ?? 0) + ev.found.length;
     run.state.set(k, n);
-    won = p.item.rewards.slice(0, p.data.steps.filter(x => x <= n).length);
+    won = p.item.rewards.slice(0, p.steps.filter(x => x <= n).length);
   } else if (run.key === 'pair-it') {
     run.points += each;
     won = p.pairs[ev.pair].rewards;
@@ -777,7 +773,7 @@ function progress(k, ev) {
 // what the run won, with a retry (which throws it away and plays again) and the way on
 function showSummary(key) {
   const r = results[key];
-  showGame(key);
+  showGame();
   $('#mg-text').textContent = [
     r.words.length ? `you unlocked ${r.words.length} word${r.words.length === 1 ? '' : 's'}: ${r.words.join(', ')}` : 'you unlocked no words.',
     `you gained ${r.points} / ${r.total} points`,
@@ -936,7 +932,6 @@ $('#submit').addEventListener('click', async () => {
   const cues = [];  // [span, time it's said]
   const box = $('#show-lines');
   box.replaceChildren();
-  $('#show-back').hidden = true;
   $('#show').hidden = false;
   await ctx.resume();
   let t = ctx.currentTime + 0.3;
@@ -958,8 +953,7 @@ $('#submit').addEventListener('click', async () => {
     if (me !== showing) return;
     const now = ctx.currentTime;
     for (const [span, at] of cues) span.classList.toggle('said', now >= at);
-    if (now >= end) $('#show-back').hidden = false;
-    else requestAnimationFrame(light);
+    if (now < end) requestAnimationFrame(light);
   };
   light();
 });
@@ -972,7 +966,9 @@ $('#show-back').addEventListener('click', () => {
   $('#submit').hidden = false;
 });
 
-// a new game from the top, clearing the lines and everything the games won: run restart() in the console
+$('#show-restart').addEventListener('click', () => restart());
+
+// a new game from the top, clearing the lines and everything the games won
 function restart() {
   mounted?.destroy();
   mounted = null;

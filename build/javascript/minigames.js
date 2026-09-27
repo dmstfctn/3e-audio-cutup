@@ -5,13 +5,11 @@
 //   find:          data { photo, viewBox, shapes: [el], target, prompt, seconds, tolerance }
 //                  -> onProgress({ seconds, x, y }) when it's found
 //                  -> onComplete({ found: bool, seconds })
-//   find-all:      data { photo, viewBox, shapes: [{ key, el }], target, prompt, seconds, tolerance,
-//                  found: [key], steps: [count] }
+//   find-all:      data { photo, viewBox, shapes: [{ key, el }], target, prompt, seconds, tolerance, found: [key] }
 //                  -> onProgress({ found: [key], x, y }) with the keys each click finds
 //                  -> onComplete({ found: [key], seconds })
-//                  found comes in as the keys already found and goes out with the new ones added;
-//                  steps are the counts that each win a word, for the progress bar; reach (optional),
-//                  in the photo's pixels, makes a click find every shape that near instead of the nearest one
+//                  found comes in as the keys already found and goes out with the new ones added; reach
+//                  (optional), in the photo's pixels, makes a click find every shape that near instead of the nearest one
 //   caption-match: data { rounds: [{ prompt, caption, answer, options: [photo], seconds }] }
 //                  -> onProgress({ round, x, y }) for each round matched
 //                  -> onComplete({ matched: [round index] })
@@ -20,7 +18,6 @@
 //                  -> onProgress({ pair, x, y }) for each pair matched
 //                  -> onComplete({ matched: [pair index], seconds })
 // x, y: where on screen the click that won it was, for the words to fly from.
-// find and find-all also take round: [index, count] when the page plays several back to back.
 // seconds: how long the player took, from the timer starting to the click that found it (find) or
 // the last one (find-all); the whole time if the timer ran out.
 // onComplete fires once, after the last reveal. Shapes are SVG elements in the photo's pixel space.
@@ -28,6 +25,7 @@ const MINIGAMES = (() => {
   'use strict';
 
   const SVG_NS = 'http://www.w3.org/2000/svg';
+  const REVEAL_MS = 1000;  // how long the end of a play shows before the game moves on
   const shuffle = a => {
     for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
     return a;
@@ -97,19 +95,18 @@ const MINIGAMES = (() => {
     m.addEventListener('animationend', () => m.remove());
   }
 
-  // ---------- shared frame: timer bar, round counter, and everything destroy() has to undo ----------
+  // ---------- shared frame: timer bar, and everything destroy() has to undo ----------
 
   function frame(container, html) {
     const root = document.createElement('div');
     root.className = 'mg-root';
-    root.innerHTML = `<div class="mg-bar"></div><div class="mg-round"></div>${html}`;
+    root.innerHTML = `<div class="mg-bar"></div>${html}`;
     container.append(root);
     const g = {
       dead: false,
       $: s => root.querySelector(s),
       root,
       bar: frac => { root.firstChild.style.transform = `scaleX(${Math.max(0, frac)})`; },
-      round: (i, n) => { g.$('.mg-round').textContent = n > 1 ? `${i + 1} / ${n}` : ''; },
     };
     let raf = null, started = null, stopped = null;
     const timeouts = new Set(), cleanups = [];
@@ -162,7 +159,6 @@ const MINIGAMES = (() => {
   // Click the named thing within data.seconds. Any of its shapes counts; a miss leaves the time running.
 
   function findIt(container, data, done, progress) {
-    const REVEAL_MS = 1000;
     const g = frame(container, `
       <div class="mg-center">
         <p class="mg-prompt">loading…</p>
@@ -176,7 +172,6 @@ const MINIGAMES = (() => {
     const photo = g.$('.mg-photo'), overlay = g.$('.mg-overlay'), find = g.$('.mg-find'), prompt = g.$('.mg-prompt');
     const shapes = drawShapes(overlay, data.viewBox, data.shapes);
     g.bar(1);
-    if (data.round) g.round(...data.round);
 
     preload(data.photo).then(() => {
       if (g.dead) return;
@@ -194,8 +189,8 @@ const MINIGAMES = (() => {
     }
 
     find.addEventListener('pointerdown', e => {
-      if (!g.running()) return;
-      const hit = shapes.filter(s => hitDistance(s, e.clientX, e.clientY, data.tolerance) < Infinity);
+      if (!g.running() || e.button > 0) return;
+      const hit =shapes.filter(s => hitDistance(s, e.clientX, e.clientY, data.tolerance) < Infinity);
       if (!hit.length) return missAt(find, e);
       g.stop();
       hit.forEach(s => s.classList.add('ok'));
@@ -209,13 +204,12 @@ const MINIGAMES = (() => {
   // Pick the photo a caption describes from it and its decoys, each round with its own time.
 
   function captionMatch(container, data, done, progress) {
-    const REVEAL_MS = 900;
     const g = frame(container, `
       <div class="mg-center">
-        <p class="mg-caption">loading…</p>
-        <div class="mg-opts"></div>
+        <p class="mg-prompt">loading…</p>
+        <div class="mg-fitbox"><div class="mg-opts"></div></div>
       </div>`);
-    const opts = g.$('.mg-opts'), caption = g.$('.mg-caption');
+    const opts = g.$('.mg-opts'), caption = g.$('.mg-prompt');
     const rounds = data.rounds;
     const matched = [];
     let idx = 0;
@@ -223,7 +217,6 @@ const MINIGAMES = (() => {
     // the timer starts once the photos have loaded, so it never runs over blank boxes
     async function playRound() {
       const r = rounds[idx];
-      g.round(idx, rounds.length);
       opts.replaceChildren();
       caption.textContent = 'loading…';
       g.bar(1);
@@ -244,13 +237,13 @@ const MINIGAMES = (() => {
       g.countdown(r.seconds, () => finish(null));
     }
 
-    // the answer goes green, a wrong pick red; a time-out only shows the answer
+    // the answer goes green, a wrong pick red; a time-out shows nothing, as in find it
     function finish(chosen, e) {
       g.stop();
       const r = rounds[idx];
       for (const b of opts.children) {
         b.disabled = true;
-        if (b.dataset.src === r.answer) b.classList.add('ok');
+        if (chosen && b.dataset.src === r.answer) b.classList.add('ok');
         else if (b.dataset.src === chosen) b.classList.add('bad');
       }
       if (chosen === r.answer) {
@@ -260,9 +253,9 @@ const MINIGAMES = (() => {
       g.later(() => { idx++; idx < rounds.length ? playRound() : done({ matched }); }, REVEAL_MS);
     }
 
-    opts.addEventListener('click', e => {
+    opts.addEventListener('pointerdown', e => {
       const b = e.target.closest('.mg-opt');
-      if (b && !b.disabled && g.running()) finish(b.dataset.src, e);
+      if (b && !b.disabled && g.running() && e.button <= 0) finish(b.dataset.src, e);
     });
     playRound();
     return g;
@@ -273,11 +266,11 @@ const MINIGAMES = (() => {
   // shrinks away, leaving its gap; a wrong pair flashes red. Clicking the picked photo again drops it.
 
   function pairIt(container, data, done, progress) {
-    const BAD_MS = 1000, SHRINK_MS = 350, REVEAL_MS = 900;
+    const BAD_MS = 1000, SHRINK_MS = 350;
     const g = frame(container, `
       <div class="mg-center">
         <p class="mg-prompt">loading…</p>
-        <div class="mg-pairs"></div>
+        <div class="mg-fitbox"><div class="mg-pairs"></div></div>
       </div>`);
     const grid = g.$('.mg-pairs'), prompt = g.$('.mg-prompt');
     const matched = [];
@@ -308,7 +301,7 @@ const MINIGAMES = (() => {
     function end() {
       g.stop();
       clearBad();
-      if (picked) picked.classList.remove('ok');
+      if (picked) picked.classList.remove('picked');
       grid.querySelectorAll('.mg-cell').forEach(c => c.disabled = true);
       prompt.replaceChildren(...(matched.length < data.pairs.length
         ? ["time's up: ", bold(`${matched.length} / ${data.pairs.length}`), ' paired']
@@ -322,19 +315,18 @@ const MINIGAMES = (() => {
       if (!c || c.disabled || !g.running() || e.button > 0) return;
       e.preventDefault();
       clearBad();  // a click during the red flash is a new first pick
-      if (c === picked) { c.classList.remove('ok'); picked = null; return; }
-      if (!picked) { c.classList.add('ok'); picked = c; return; }
+      if (c === picked) { c.classList.remove('picked'); picked = null; return; }
+      if (!picked) { c.classList.add('picked'); picked = c; return; }
       const pair = [picked, c];
       picked = null;
+      pair[0].classList.remove('picked');
       if (pair[0].dataset.pair === c.dataset.pair) {
-        c.classList.add('ok');
-        pair.forEach(p => { p.disabled = true; p.classList.add('gone'); });
+        pair.forEach(p => { p.disabled = true; p.classList.add('ok', 'gone'); });
         g.later(() => pair.forEach(p => p.classList.add('out')), SHRINK_MS);  // the gap stays
         matched.push(Number(c.dataset.pair));
         progress({ pair: Number(c.dataset.pair), x: e.clientX, y: e.clientY });
         if (matched.length === data.pairs.length) { g.stop(); g.later(end, SHRINK_MS + 150); }
       } else {
-        pair[0].classList.remove('ok');
         pair.forEach(p => p.classList.add('bad'));
         bad = pair;
         g.later(() => { if (bad[0] === pair[0]) clearBad(); }, BAD_MS);
@@ -348,11 +340,9 @@ const MINIGAMES = (() => {
   // plays start found.
 
   function findAll(container, data, done, progress) {
-    const REVEAL_MS = 1500;           // how long the final count shows before the result
     const g = frame(container, `
       <div class="mg-center">
-        <div class="mg-hud"><span class="mg-prompt">loading…</span><span class="mg-count"></span>
-          <div class="mg-progress"><div class="mg-fill"></div></div></div>
+        <p class="mg-prompt"><span class="mg-say">loading…</span><span class="mg-count"></span></p>
         <div class="mg-fitbox">
           <div class="mg-find">
             <img class="mg-photo" alt="" draggable="false">
@@ -361,28 +351,13 @@ const MINIGAMES = (() => {
         </div>
       </div>`);
     const photo = g.$('.mg-photo'), overlay = g.$('.mg-overlay'), find = g.$('.mg-find');
-    const prompt = g.$('.mg-prompt'), count = g.$('.mg-count'), progressBar = g.$('.mg-progress');
+    const prompt = g.$('.mg-say'), count = g.$('.mg-count');
     const shapes = drawShapes(overlay, data.viewBox, data.shapes.map(s => s.el));
     const n = shapes.length;
     const found = new Set(data.shapes.flatMap((s, k) => data.found.includes(s.key) ? [k] : []));
     found.forEach(k => shapes[k].classList.add('ok'));
-    if (data.round) g.round(...data.round);
     g.bar(1);
-
-    // one notch per word, at the count that wins it; notches passed are filled
-    const notches = data.steps.map(step => {
-      const d = document.createElement('div');
-      d.className = 'mg-notch';
-      d.style.left = `${step / n * 100}%`;
-      progressBar.append(d);
-      return d;
-    });
-    function updateCount() {
-      count.textContent = `${found.size} / ${n}`;
-      g.$('.mg-fill').style.width = `${found.size / n * 100}%`;
-      notches.forEach((d, k) => d.classList.toggle('passed', found.size >= data.steps[k]));
-    }
-    updateCount();
+    const updateCount = () => { count.textContent = `${found.size} / ${n}`; };
 
     // the shapes a click finds: the nearest one not found yet within tol screen pixels, or with data.reach,
     // every one not found yet within reach of the photo's pixels
@@ -421,6 +396,7 @@ const MINIGAMES = (() => {
       photo.src = data.photo;
       g.fit(g.$('.mg-fitbox'), photo, ...viewSize(data.viewBox));
       prompt.replaceChildren(...promptNodes(data.prompt, data.target));
+      updateCount();
       g.countdown(data.seconds, end);
     });
 
