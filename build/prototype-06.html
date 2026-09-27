@@ -371,6 +371,7 @@ async function loadGames() {
   const shapesOf = photo => shapeFiles[photo] ??= loadShapes(photo).catch(e => { problems.push(e.message); return null; });
 
   for (const [key, g] of Object.entries(doc)) {
+    if (key === 'tracks' || key === 'pair-it') continue;  // tracks: prototype-07's and 08's; pair-it: 08's
     if (!GAME_DEFAULTS[key]) { problems.push(`unknown game "${key}"`); continue; }
     if (typeof g !== 'object' || !g) { problems.push(`${key}: expected its settings and photos`); continue; }
     const game = { ...settings(key, g), items: [] };

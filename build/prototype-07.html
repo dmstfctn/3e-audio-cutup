@@ -1,0 +1,1284 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Cutup prototype 07</title>
+<link rel="icon" href="data:,">
+<style>
+  body { font: 16px "Times New Roman", Times, serif; margin: 16px; }
+  #screen p { white-space: pre-line; margin: 0 0 16px; }
+  #screen p:empty { display: none; }
+  #screen[hidden], #game[hidden] { display: none; }
+
+  #transport { display: flex; gap: 8px; align-items: center; margin-bottom: 16px; }
+  #timer { font-variant-numeric: tabular-nums; font-size: 24px; margin-left: auto; }
+  #submit { margin-left: auto; }
+  #timer[hidden], #submit[hidden], #tracks[hidden] { display: none; }
+  /* the tracks unlocked, to choose from while writing */
+  #tracks { display: flex; justify-content: center; gap: 8px; margin-bottom: 16px; }
+  #tracks button[aria-pressed="true"] { background: black; color: white; }
+  #footer { display: flex; justify-content: flex-end; margin-top: 16px; }
+
+  #lines { position: relative; border: 1px solid black; padding: 8px; display: flex; flex-direction: column; gap: 8px; }
+  .row { display: flex; gap: 8px; align-items: stretch; }
+  .row button { width: 4em; }
+  .handle { width: 1.5em; border: 1px solid black; display: flex; align-items: center; justify-content: center; cursor: grab; user-select: none; }
+  #row-marker { position: absolute; left: 8px; right: 8px; height: 2px; margin-top: -1px; background: black; display: none; pointer-events: none; }
+  .line {
+    flex: 1; position: relative; display: flex; height: 2em; border: 1px solid black;
+    /* beat ticks: 8 beats per line, bar line after 4 */
+    background:
+      linear-gradient(to right, black 1px, transparent 1px) calc(var(--beat) * 4px) 0 / calc(var(--beat) * 4px) 100% no-repeat,
+      repeating-linear-gradient(to right, transparent 0 calc(var(--beat) * 1px - 1px), #ccc calc(var(--beat) * 1px - 1px) calc(var(--beat) * 1px));
+  }
+  .line.off { opacity: 0.4; }
+  .marker { position: absolute; top: -4px; bottom: -4px; width: 2px; margin-left: -1px; background: black; display: none; pointer-events: none; }
+  .playhead { position: absolute; top: 0; bottom: 0; width: 1px; background: red; display: none; pointer-events: none; }
+
+  #palette { border: 1px solid black; padding: 8px; margin-top: 16px; }
+  .bin { margin-bottom: 8px; }
+  .bin-words { display: flex; flex-wrap: wrap; gap: 2px; margin-top: 4px; }
+
+  .word {
+    box-sizing: border-box; flex: none; height: 2em; line-height: calc(2em - 2px);
+    width: calc(var(--d) * var(--pps) * 1px);
+    border: 1px solid black; padding: 0 1px; overflow: hidden; white-space: nowrap; text-align: center;
+    cursor: grab; user-select: none;
+  }
+
+  /* words won at work drop into the tray one after another (delay set per word) */
+  .word.entering { animation: enter 0.35s ease-out backwards; }
+  @keyframes enter { from { opacity: 0; transform: translateY(-0.75em) scale(0.6); } }
+
+  /* the games cover the page while they're played */
+  #minigame { position: fixed; inset: 0; z-index: 10; background: white; display: flex; flex-direction: column; }
+  #minigame[hidden], #mg-card[hidden], #mg-retry[hidden] { display: none; }
+  body:has(#minigame:not([hidden])), body:has(#show:not([hidden])) { overflow: hidden; }  /* the page underneath doesn't scroll */
+  #mg-top { padding: 8px 16px; border-bottom: 1px solid black; display: flex; gap: 16px; }
+  #mg-task { color: #777; }
+  #mg-body { position: relative; flex: 1; overflow: hidden; }
+  #mg-card { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; padding: 16px; text-align: center; }
+  #mg-card p { margin: 0; max-width: 32em; white-space: pre-line; }
+  #mg-score { font-size: 48px; }
+  #mg-score:empty { display: none; }
+  #mg-buttons { display: flex; gap: 8px; }
+
+  /* a message over the page, which still shows through */
+  #notice { position: fixed; inset: 0; z-index: 9; background: rgb(255 255 255 / .7); display: flex; align-items: center; justify-content: center; }
+  #notice[hidden] { display: none; }
+  #notice > div { background: white; border: 1px solid black; padding: 16px 24px; display: flex; flex-direction: column; align-items: center; gap: 16px; }
+  #notice p { margin: 0; font-size: 24px; text-align: center; white-space: pre-line; }
+
+  /* submit: the lines on their own, centred, lit word by word as they play */
+  #show { position: fixed; inset: 0; z-index: 11; background: white; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 32px; padding: 16px; text-align: center; }
+  #show[hidden], #show-back[hidden] { display: none; }
+  #show-lines { display: flex; flex-direction: column; gap: 16px; font-size: clamp(22px, 4vw, 40px); }
+  #show-lines span { color: #bbb; transition: color .1s; }
+  #show-lines span.said { color: black; }
+</style>
+</head>
+<body>
+
+<div id="screen">
+  <p id="screen-text"></p>
+  <button id="screen-go" disabled>loading…</button>
+</div>
+
+<div id="game" hidden>
+  <div id="tracks" hidden></div>
+  <div id="transport">
+    <button id="play">play</button>
+    <button id="from-start">play from start</button>
+    <span id="status"></span>
+    <span id="timer" hidden></span>
+    <button id="submit" hidden>submit</button>
+  </div>
+  <div id="lines"></div>
+  <div id="palette"></div>
+  <div id="footer"><button id="restart">restart</button></div>
+</div>
+
+<div id="notice" hidden>
+  <div>
+    <p id="notice-text"></p>
+    <button id="notice-go"></button>
+  </div>
+</div>
+
+<div id="minigame" hidden>
+  <div id="mg-top"><b id="mg-title"></b><span id="mg-task"></span></div>
+  <div id="mg-body">
+    <div id="mg-card">
+      <p id="mg-score"></p>
+      <p id="mg-text"></p>
+      <div id="mg-buttons"><button id="mg-retry">retry</button><button id="mg-go"></button></div>
+    </div>
+  </div>
+</div>
+
+<div id="show" hidden>
+  <div id="show-lines"></div>
+  <button id="show-back" hidden>back to writing</button>
+</div>
+
+<script src="lib/js-yaml.min.js"></script>
+<script src="minigames/minigames-07.js"></script>
+<script>
+const BPM = 143.59;
+const BEATS_PER_LINE = 8;                       // 2 bars of 4/4
+const LINE_DUR = BEATS_PER_LINE * 60 / BPM;     // 3.343s
+const N_LINES = 4;
+const TRACK_LINES = 4;                          // the tracks are 8 bars; more lines loop them
+const PAD = 0.03;                               // seconds around each word's aligned bounds
+const FADE = 0.008;                             // seconds of fade in/out on each word
+const LOOKAHEAD = 0.15;                         // how far ahead lines are scheduled
+const ENTER_SPREAD = 1.2;                       // seconds over which the words won drop into the tray
+// The game runs through these phases. Their texts, the first stage's line and words, and the words
+// given for writing come from words/story-07.yaml (see its comments).
+//   intro:   screens of text; the last one's button starts the first stage
+//   first:   the lines, the first filled in, with a few words, over the first track, for first.seconds;
+//            then the time-up notice sends the player on
+//   brief:   screens of text before work
+//   work:    the games in GAME_ORDER, each played through once, with a summary after that offers a retry
+//   debrief: screens of text after work
+//   write:   the lines as the first stage left them, its words, what the games won, the write words, and
+//            the tracks unlocked; submit plays the lines once on their own
+const PHASES = ['intro', 'first', 'brief', 'work', 'debrief', 'write'];
+const SCREENS = ['intro', 'brief', 'debrief'];  // the phases that are screens of text
+const GAME_ORDER = ['find', 'find-all', 'caption-match'];
+// Minigames (minigames/minigames-07.js). Their photos, shapes, words and settings come from
+// minigames/games.yaml; these are the settings a game gets when games.yaml leaves one out.
+// What a score unlocks beyond the words is under each game's unlocks, and the tracks under tracks.
+const GAME_DEFAULTS = {
+  'find': { title: 'find it', seconds: 5, tolerance: 10,
+    rules: 'click the thing named in the photo.\n{seconds} seconds.\nfind it to win new words.' },
+  'caption-match': { title: 'caption match', seconds: [6, 4, 3],
+    rules: 'click the photo the caption describes.\n{rounds} rounds.\neach one you match wins its words.' },
+  'find-all': { title: 'find them all', seconds: 15, zoom: 3, tolerance: 10,
+    rules: 'click every one of the things named.\nthe photo is zoomed in: drag to look around.\n{seconds} seconds.' },
+};
+const BIN_ORDER = ['rest', 'yeah', 'noun', 'verb', 'describer', 'pronoun', 'glue', 'other'];
+const BIN_COLORS = {
+  rest: 'white', yeah: 'gold', noun: 'lightskyblue', verb: 'lightsalmon', describer: 'palegreen',
+  pronoun: 'plum', glue: 'lightgray', other: 'khaki',
+};
+// handed out in order to bins that only exist in bins.yaml
+const EXTRA_COLORS = ['lightpink', 'aquamarine', 'peachpuff', 'lightsteelblue', 'wheat', 'thistle', 'palegoldenrod', 'paleturquoise'];
+const BIN_LABELS = { rest: 'pause' };
+const STORE_KEY = 'cutup-prototype-07';
+
+const ctx = new AudioContext();
+let trackBufs = {}, wordsBuf;  // track url -> buffer
+let words = {};  // id -> { id, text, bin, a, d }; pauses have no audio (a = null)
+let binOrder = [...BIN_ORDER];  // palette sections: pauses, bins.yaml's order, then any bins it leaves out
+let GAMES = {};       // game key -> its content and settings from games.yaml; a key missing can't be played
+// games.yaml: tracks as [name, url], the first playing to begin with, and game key -> its unlocks [{ above, track, text }]
+let TRACKS = [['metronome', 'audio/track-metronome.wav'], ['drums', 'audio/track-drums.wav'], ['full', 'audio/track-full.wav']];
+let REWARDS = {};
+// words/story-07.yaml, filled in by loadStory; screens are [{ text, button }], words are texts
+let STORY = null;
+
+// state: lines[i] is an array of word ids in play order
+let phase = 'intro';
+let step = 0;      // the screen showing, in a phase of screens
+let task = 0;      // index in GAME_ORDER of the game being played at work
+let track = null;  // the name of the track chosen while writing; null = the first
+let start = [];    // ids of the words the first stage gives: the first line's, then the rest of first.words
+// game key -> the result of its last run: { points, total, words: [ids], tracks, notes: [text] }
+let results = {};
+const lines = Array.from({ length: N_LINES }, () => []);
+const lineOn = Array(N_LINES).fill(true);
+
+const $ = s => document.querySelector(s);
+const rowEls = [], lineEls = [], markerEls = [], playheadEls = [], toggleEls = [];
+const pick = a => a[Math.floor(Math.random() * a.length)];
+
+// ---------- loading ----------
+
+async function load() {
+  const decode = url => fetch(url).then(r => r.arrayBuffer()).then(b => ctx.decodeAudioData(b));
+  try {
+    const [doc, story] = await Promise.all([readGames(), readYaml('words/story-07.yaml')]);
+    loadUnlocks(doc);  // first: it says which tracks to load
+    const [manifest, voice, ...tracks] = await Promise.all([
+      fetch('audio/words.json').then(r => r.json()),
+      decode('audio/words.wav'),
+      // all up front, so an unlocked track never waits; one that won't load is left silent
+      ...TRACKS.map(([name, url]) => decode(url).catch(() => { warnings.push(`track ${name} (${url}) didn't load`); return null; })),
+    ]);
+    TRACKS.forEach(([, url], k) => { if (tracks[k]) trackBufs[url] = tracks[k]; });
+    wordsBuf = voice;
+    for (const w of manifest.words) {
+      const a = Math.max(0, w.start - PAD);
+      const b = Math.min(voice.duration, w.end + PAD);
+      words[w.id] = { id: w.id, text: w.word.toLowerCase(), raw: w.raw.toLowerCase(), bin: w.bin, line: w.line, a, d: b - a };
+    }
+    await applyBinOverrides();
+    loadStory(story);
+    await loadGames(doc);
+  } catch (e) {
+    $('#screen-text').textContent = 'could not load — serve this folder, e.g. `python3 -m http.server` in build/, then open http://localhost:8000/prototype-07.html';
+    $('#screen-go').textContent = 'couldn\'t load';
+    throw e;
+  }
+  if (!restore()) newGame();
+  buildLines();
+  $('#palette').addEventListener('dragover', onPaletteDragOver);
+  $('#palette').addEventListener('drop', onPaletteDrop);
+  new ResizeObserver(sizeToWindow).observe(lineEls[0]);
+  $('#status').textContent = warnings.join(' · ');
+  showScreen();
+  showPhase();
+  if (phase === 'first') startTimer();  // a reload gives the whole time again
+  if (phase === 'work') openTask();
+}
+
+// bins.yaml maps bin -> [words] and moves every occurrence of each word (ignoring case)
+// into that bin; words it doesn't list keep the bin from words.json.
+// An entry written with the transcript's punctuation ("yeh!") only matches that spelling,
+// shows it, and beats the plain entry ("yeh"), which covers the rest.
+const warnings = [];
+async function applyBinOverrides() {
+  let doc = {};
+  try {
+    const r = await fetch('audio/bins.yaml', { cache: 'no-cache' });  // pick up edits on reload
+    if (r.ok) doc = jsyaml.load(await r.text()) || {};  // no file: use the tagger's bins
+    if (typeof doc !== 'object' || Array.isArray(doc)) throw new Error('expected bin names with lists of words');
+  } catch (e) {
+    warnings.push(`bins.yaml ignored, could not read it: ${e.message}`);
+    doc = {};
+  }
+  const all = Object.values(words);
+  const texts = new Set(all.map(w => w.text));
+  const punctuated = new Set(all.filter(w => w.raw !== w.text).map(w => w.raw));
+  const textBins = {}, rawBins = {}, unknown = [], twice = [];
+  const yamlOrder = [];
+  for (const [bin, list] of Object.entries(doc)) {
+    if (bin === 'rest') { warnings.push('bins.yaml: "rest" is reserved for pauses'); continue; }
+    yamlOrder.push(bin);
+    for (const item of [].concat(list ?? [])) {  // a lone word works as well as a list
+      const entry = String(item).toLowerCase().trim();
+      const bins = punctuated.has(entry) ? rawBins : texts.has(entry) ? textBins : null;
+      if (!bins) { unknown.push(entry); continue; }
+      if (bins[entry]) twice.push(`${entry} (${bins[entry]}, ${bin})`);
+      bins[entry] = bin;
+    }
+  }
+  for (const w of all) {
+    if (rawBins[w.raw]) { w.bin = rawBins[w.raw]; w.text = w.raw; }
+    else if (textBins[w.text]) w.bin = textBins[w.text];
+  }
+  if (unknown.length) warnings.push(`bins.yaml: not in the recording: ${unknown.join(', ')}`);
+  if (twice.length) warnings.push(`bins.yaml: listed twice, last one used: ${twice.join(', ')}`);
+  // bins from words.json that bins.yaml doesn't mention still get a section, after its bins
+  binOrder = [...new Set(['rest', ...yamlOrder, ...BIN_ORDER, ...all.map(w => w.bin)])];
+  binOrder.filter(b => !BIN_COLORS[b]).forEach((b, i) => BIN_COLORS[b] = EXTRA_COLORS[i % EXTRA_COLORS.length]);
+}
+
+// Matches a word as bins.yaml does: the shown spelling first, so "yeh!" finds the split-off
+// word rather than any "yeh", then the transcript's. Apostrophes are ignored, so that’s = thats.
+function findWord(token) {
+  const bare = s => s.replace(/['’]/g, '');
+  const all = Object.values(words).filter(w => w.bin !== 'rest');
+  return all.find(w => bare(w.text) === bare(token)) ?? all.find(w => bare(w.raw) === bare(token));
+}
+
+// a YAML file of names and their settings, or null if it can't be read (with a warning)
+async function readYaml(file, missing = `no ${file}`) {
+  try {
+    const r = await fetch(file, { cache: 'no-cache' });  // pick up edits on reload
+    if (!r.ok) { warnings.push(missing); return null; }
+    const doc = jsyaml.load(await r.text()) || {};
+    if (typeof doc !== 'object' || Array.isArray(doc)) throw new Error('expected names with their settings');
+    return doc;
+  } catch (e) {
+    warnings.push(`${file} ignored, could not read it: ${e.message}`);
+    return null;
+  }
+}
+const readGames = () => readYaml('minigames/games.yaml', 'no minigames/games.yaml: the games can\'t be played');
+
+// words/story-07.yaml: the screens of text, the first stage's line and words, and the words given for
+// writing (see the file's comments). Anything missing or wrong gets a stand-in, with a warning.
+function loadStory(doc) {
+  const problems = [], unknown = new Set(), misfiled = new Set();
+  const list = v => [].concat(v ?? []).map(x => String(x).trim()).filter(Boolean);  // a lone item works as well as a list
+  doc ??= {};
+  const screen = (where, s) => {
+    if (!s || typeof s !== 'object') { problems.push(`${where}: expected a text and a button`); s = {}; }
+    return { text: String(s.text ?? '').trim(), button: String(s.button ?? 'continue') };
+  };
+  const screens = key => {
+    const out = [].concat(doc[key] ?? []).map((s, k) => screen(`${key} ${k + 1}`, s));
+    if (!out.length) { problems.push(`${key}: no screens`); out.push(screen(key, {})); }
+    return out;
+  };
+  // texts of the words listed by bin; a word counts as in its bin if any recording of it is
+  const byBin = (where, bins) => {
+    if (bins != null && (typeof bins !== 'object' || Array.isArray(bins))) { problems.push(`${where}: expected bin names with lists of words`); return []; }
+    const texts = [];
+    for (const [bin, items] of Object.entries(bins ?? {})) for (const item of list(items)) {
+      const w = findWord(item.toLowerCase());
+      if (!w) { unknown.add(item); continue; }
+      if (!Object.values(words).some(v => v.text === w.text && v.bin === bin)) misfiled.add(`${w.text} is ${w.bin}, not ${bin}`);
+      if (!texts.includes(w.text)) texts.push(w.text);
+    }
+    return texts;
+  };
+  const first = doc.first ?? {};
+  const seconds = Number(first.seconds ?? 15);
+  if (!(seconds > 0)) problems.push('first: seconds should be a number');
+  // the line's words, in order, repeats kept; punctuation around a word is ignored
+  const line = String(first.line ?? '').split(/\s+/).map(t => t.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, '')).filter(Boolean)
+    .flatMap(t => { const w = findWord(t.toLowerCase()); if (!w) unknown.add(t); return w ? [w.text] : []; });
+  const write = doc.write ?? {};
+  const pauses = [].concat(write.pauses ?? []).map(Number).filter(b => {
+    if (b > 0 && b <= BEATS_PER_LINE) return true;
+    problems.push(`write: pause ${b} should be a number of beats up to ${BEATS_PER_LINE}`);
+    return false;
+  });
+  let yeahs = [];
+  if (String(write.yeahs).toLowerCase() === 'all') yeahs = yeahTexts();
+  else yeahs = byBin('write yeahs', { yeah: write.yeahs });
+  STORY = {
+    intro: screens('intro'),
+    first: { seconds: seconds > 0 ? seconds : 15, line, words: byBin('first', first.words),
+      timeUp: screen('first time-up', first['time-up']) },
+    brief: screens('brief'),
+    lastButton: String(doc.work?.['last-button'] ?? 'finish work'),
+    debrief: screens('debrief'),
+    write: { words: [...byBin('write', write.words), ...yeahs], pauses },
+  };
+  if (problems.length) warnings.push(`story-07.yaml: ${problems.join('; ')}`);
+  if (unknown.size) warnings.push(`story-07.yaml: not in the recording: ${[...unknown].join(', ')}`);
+  if (misfiled.size) warnings.push(`story-07.yaml: in another bin, shown there: ${[...misfiled].join(', ')}`);
+}
+
+// games.yaml's tracks, and each game's unlocks: what its score wins beyond words (see the file's comments).
+// An unlock with a problem is left out, with a warning.
+function loadUnlocks(doc) {
+  if (!doc) return;
+  const problems = [];
+  const percent = v => { const n = parseFloat(String(v)); return Number.isFinite(n) ? n : null; };  // 25% or 25
+  if (doc.tracks != null) {
+    if (typeof doc.tracks === 'object' && !Array.isArray(doc.tracks) && Object.keys(doc.tracks).length) {
+      TRACKS = Object.entries(doc.tracks).map(([name, url]) => [name, String(url)]);
+    } else problems.push('tracks: expected names with their files');
+  }
+  for (const key of GAME_ORDER) {
+    REWARDS[key] = [];
+    for (const [k, r] of [].concat(doc[key]?.unlocks ?? []).entries()) {
+      const where = `${key} unlock ${k + 1}`;
+      if (!r || typeof r !== 'object') { problems.push(`${where}: expected above: and what it gives`); continue; }
+      const out = { above: percent(r.above) };
+      if (out.above == null) { problems.push(`${where}: above should be a percentage, e.g. 50%`); continue; }
+      if (r.track != null) {
+        if (TRACKS.some(([name]) => name === String(r.track))) out.track = String(r.track);
+        else problems.push(`${where}: no track called ${r.track} in tracks`);
+      }
+      // writing gives every yeah and pause (story-07.yaml), so they're no longer unlocks
+      if (r.yeahs != null || r.rest != null) problems.push(`${where}: yeahs and rest aren't unlocks any more, see story-07.yaml's write`);
+      if (r.text != null) out.text = String(r.text);
+      REWARDS[key].push(out);
+    }
+  }
+  if (problems.length) warnings.push(`games.yaml: ${problems.join('; ')}`);
+}
+
+// minigames/games.yaml: each game's photos, what's found or matched in them, the words they win and
+// the game's settings (see the file's comments). A photo or thing with a problem is left out, with
+// a warning; a game with nothing left can't be played.
+async function loadGames(doc) {
+  if (!doc) return;
+  const problems = [], unknown = new Set(), misfiled = new Set();
+  const list = v => [].concat(v ?? []).map(x => String(x).trim()).filter(Boolean);  // a lone item works as well as a list
+  // a photo's words, from bin -> [words], in the order listed; first puts the thing found first
+  function rewards(where, bins, first = []) {
+    const texts = [];
+    const add = (item, bin) => {
+      const w = findWord(item.toLowerCase());
+      if (!w) return unknown.add(item);
+      if (bin && w.bin !== bin) misfiled.add(`${w.text} is ${w.bin}, not ${bin}`);
+      if (!texts.includes(w.text)) texts.push(w.text);
+    };
+    first.forEach(t => add(t));
+    if (bins != null && (typeof bins !== 'object' || Array.isArray(bins))) problems.push(`${where}: rewards needs bin names with lists of words`);
+    else for (const [bin, words] of Object.entries(bins ?? {})) list(words).forEach(t => add(t, bin));
+    return texts;
+  }
+  // rules-07, where games.yaml has it, is this prototype's rules card, since its games play differently
+  const settings = (key, g) => {
+    const s = { ...GAME_DEFAULTS[key] };
+    for (const k of Object.keys(s)) if (g[k] != null) s[k] = g[k];
+    if (g['rules-07'] != null) s.rules = g['rules-07'];
+    return s;
+  };
+
+  const shapeFiles = {};  // photo -> promise of its shapes, so each .svg loads once
+  const shapesOf = photo => shapeFiles[photo] ??= loadShapes(photo).catch(e => { problems.push(e.message); return null; });
+
+  for (const [key, g] of Object.entries(doc)) {
+    if (key === 'tracks') continue;  // read by loadUnlocks
+    if (key === 'pair-it') continue;  // prototype-08's
+    if (!GAME_DEFAULTS[key]) { problems.push(`unknown game "${key}"`); continue; }
+    if (typeof g !== 'object' || !g) { problems.push(`${key}: expected its settings and photos`); continue; }
+    const game = { ...settings(key, g), items: [] };
+    if (key === 'caption-match') {
+      for (const [k, r] of [].concat(g.rounds ?? []).entries()) {
+        const where = `caption-match round ${k + 1}`;
+        if (!r?.photo || !r.caption) { problems.push(`${where}: needs a photo and a caption`); continue; }
+        game.items.push({ photo: String(r.photo), caption: String(r.caption), decoys: list(r.decoys), rewards: rewards(where, r.rewards) });
+      }
+      game.seconds = list(game.seconds).map(Number);
+      if (!game.seconds.length || game.seconds.some(s => !(s > 0))) {
+        problems.push('caption-match: seconds should be numbers, e.g. [6, 4, 3]');
+        game.seconds = GAME_DEFAULTS['caption-match'].seconds;
+      }
+    } else {
+      for (const [photo, p] of Object.entries(g.photos ?? {})) {
+        const where = `${key} ${photo}`;
+        const shapes = await shapesOf(photo);
+        if (!shapes) continue;
+        const thing = t => {  // the shapes marking thing t, or null
+          const found = shapes.byTag[t.toLowerCase()];
+          if (!found) problems.push(`${where}: no shape with the id ${t} in ${svgName(photo)}`);
+          return found ?? null;
+        };
+        if (key === 'find') {
+          // find: a thing per line, with an optional prompt after it; or a list of things
+          const f = p?.find;
+          const pairs = f && typeof f === 'object' && !Array.isArray(f) ? Object.entries(f) : list(f).map(t => [t, null]);
+          const targets = pairs.map(([t, prompt]) => ({ target: String(t), prompt: prompt == null ? null : String(prompt), shapes: thing(String(t)) }))
+            .filter(t => t.shapes);
+          if (!pairs.length) problems.push(`${where}: nothing to find`);
+          if (!targets.length) continue;
+          game.items.push({ photo, viewBox: shapes.viewBox, targets,
+            rewards: rewards(where, p.rewards, targets.map(t => t.target)),
+            findWords: targets.map(t => findWord(t.target.toLowerCase())?.text).filter(Boolean) });
+        } else {
+          const target = p?.find == null ? '' : String(p.find);
+          if (!target) { problems.push(`${where}: nothing to find`); continue; }
+          const found = thing(target);
+          if (!found) continue;
+          // reach: a click finds every shape within this many of the photo's pixels
+          let reach = null;
+          if (p.reach != null) {
+            if (Number(p.reach) > 0) reach = Number(p.reach);
+            else problems.push(`${where}: reach should be a number of pixels, e.g. 5`);
+          }
+          game.items.push({ photo, viewBox: shapes.viewBox, target, prompt: p.prompt == null ? null : String(p.prompt),
+            shapes: found, reach, rewards: rewards(where, p.rewards, [target]) });
+        }
+      }
+    }
+    if (!game.items.length) { problems.push(`${key}: nothing playable, so it can't be played`); continue; }
+    game.rules = String(game.rules)
+      .replaceAll('{seconds}', [].concat(game.seconds).join(', '))
+      .replaceAll('{rounds}', game.items.length);
+    GAMES[key] = game;
+  }
+  for (const key of Object.keys(GAME_DEFAULTS)) if (!(key in doc)) problems.push(`no ${key} in it, so that game can't be played`);
+  if (problems.length) warnings.push(`games.yaml: ${problems.join('; ')}`);
+  if (unknown.size) warnings.push(`games.yaml: not in the recording: ${[...unknown].join(', ')}`);
+  if (misfiled.size) warnings.push(`games.yaml: in another bin, shown there: ${[...misfiled].join(', ')}`);
+}
+
+const svgName = photo => `${photo.replace(/\.[^.]+$/, '')}.svg`;
+
+// images/<photo>.svg: shapes drawn over the photo at its pixel size. A shape's id is the thing it
+// marks, and anything after a _ is ignored, so fruits_1 and fruits_2 are two fruits. A <g> with an
+// id is one shape. The shapes lose their ids and styles, so the game controls how they look.
+async function loadShapes(photo) {
+  const file = `images/${svgName(photo)}`;
+  const r = await fetch(file, { cache: 'no-cache' });
+  if (!r.ok) throw new Error(`no ${file}, so ${photo} is left out`);
+  const doc = new DOMParser().parseFromString(await r.text(), 'image/svg+xml');
+  const svg = doc.documentElement;
+  if (svg.nodeName !== 'svg' || doc.querySelector('parsererror')) throw new Error(`${file} isn't a readable SVG`);
+  const viewBox = svg.getAttribute('viewBox') ?? `0 0 ${parseFloat(svg.getAttribute('width'))} ${parseFloat(svg.getAttribute('height'))}`;
+  const tagOf = el => el.id.toLowerCase().split('_')[0];
+  const byTag = {}, seen = {};  // seen: id -> times used, so shapes sharing an id still get their own key
+  for (const el of svg.querySelectorAll('[id]')) {
+    if (el.closest('defs, clipPath, mask, style')) continue;
+    // a shape inside a group of the same thing belongs to the group
+    let up = el.parentElement, inGroup = false;
+    for (; up && up !== svg; up = up.parentElement) if (up.id && tagOf(up) === tagOf(el)) inGroup = true;
+    if (inGroup) continue;
+    const copy = el.cloneNode(true);
+    for (const n of [copy, ...copy.querySelectorAll('*')]) for (const a of ['id', 'class', 'style', 'fill', 'stroke']) n.removeAttribute(a);
+    const n = seen[el.id] = (seen[el.id] ?? 0) + 1;
+    (byTag[tagOf(el)] ??= []).push({ key: n > 1 ? `${el.id}#${n}` : el.id, el: copy });
+  }
+  return { viewBox, byTag };
+}
+
+// ---------- words ----------
+
+function shuffle(a) {
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+// a random recording of each word
+function recordings(texts) {
+  const byText = {};
+  for (const w of Object.values(words)) if (w.bin !== 'rest') (byText[w.text] ??= []).push(w.id);
+  return texts.filter(t => byText[t]).map(t => pick(byText[t]));
+}
+
+// a pause block this many beats long, made the first time it's needed; one ~ per 1/32 note
+function restId(beats) {
+  const id = `rest-${beats}`;
+  words[id] ??= { id, text: '~'.repeat(Math.max(1, Math.round(beats * 8))), bin: 'rest', a: null, d: beats * 60 / BPM };
+  return id;
+}
+// a saved id, remaking pauses, or null if the word's gone
+function known(id) {
+  const m = /^rest-(.+)$/.exec(id);
+  if (m && Number(m[1]) > 0) return restId(Number(m[1]));
+  return words[id] ? id : null;
+}
+const yeahTexts = () => [...new Set(Object.values(words).filter(w => w.bin === 'yeah').map(w => w.text))];
+
+// a new game: the first line filled in (cut to fit, with a warning), and the first stage's words
+function newGame() {
+  phase = 'intro';
+  step = 0;
+  task = 0;
+  track = null;
+  results = {};
+  lines.forEach(l => l.length = 0);
+  lineOn.fill(true);
+  lines[0] = recordings(STORY.first.line);
+  let cut = 0;
+  while (lineDur(0) > LINE_DUR + 1e-6) { lines[0].pop(); cut++; }
+  if (cut) {
+    warnings.push(`story-07.yaml: the first line is too long for 2 bars, ${cut} word${cut === 1 ? '' : 's'} cut`);
+    $('#status').textContent = warnings.join(' · ');
+  }
+  start = [...lines[0], ...recordings(STORY.first.words)];
+  save();
+}
+
+// every word id the player has: the first stage's, then when writing, what the games won
+function ownedIds() {
+  const ids = [...start];
+  if (phase === 'write') for (const key of GAME_ORDER) if (results[key]) ids.push(...results[key].words);
+  return ids;
+}
+
+// what writing adds: a recording of each of story-07.yaml's write words (picked once a page load), and its pauses
+let writePicks = null;
+const writeIds = () => [...(writePicks ??= recordings(STORY.write.words)), ...STORY.write.pauses.map(restId)];
+
+// what the palette offers: one recording of each word (pauses by length)
+function paletteWords() {
+  const out = [], seen = new Set();
+  const add = w => { const k = w.bin === 'rest' ? w.id : w.text; if (!seen.has(k)) { seen.add(k); out.push(w); } };
+  ownedIds().forEach(id => add(words[id]));
+  if (phase === 'write') writeIds().forEach(id => add(words[id]));
+  return out;
+}
+
+// the tracks the player can choose: the first, and when writing again the ones the games unlocked, in TRACKS order
+function unlockedTracks() {
+  const won = new Set(phase === 'write' ? Object.values(results).flatMap(r => r.tracks) : []);
+  return TRACKS.filter(([name], k) => k === 0 || won.has(name));
+}
+// the track that plays: [name, url]
+function trackUrl() {
+  const open = unlockedTracks();
+  return open.find(([name]) => name === track) ?? open[0];
+}
+
+// a button per track unlocked, when there's more than one; a change plays from the next line
+function renderTracks() {
+  const box = $('#tracks'), open = unlockedTracks();
+  box.replaceChildren(...open.map(([name]) => {
+    const b = document.createElement('button');
+    b.textContent = name;
+    b.setAttribute('aria-pressed', name === trackUrl()[0]);
+    b.addEventListener('click', () => { track = name; save(); renderTracks(); });
+    return b;
+  }));
+  box.hidden = phase !== 'write' || open.length < 2;
+}
+
+// ---------- phases ----------
+
+// In a phase of screens, shows the screen at step; its button shows the next, or after the last,
+// moves on to the next phase. Otherwise shows the cutup.
+function showScreen() {
+  const on = SCREENS.includes(phase);
+  $('#screen').hidden = !on;
+  $('#game').hidden = on;
+  if (!on) return;
+  const list = STORY[phase], s = list[Math.min(step, list.length - 1)];
+  $('#screen-text').textContent = s.text;
+  const go = $('#screen-go');
+  go.textContent = s.button;
+  go.disabled = false;
+  go.onclick = () => {
+    if (step < list.length - 1) { step++; save(); return showScreen(); }
+    enter(PHASES[PHASES.indexOf(phase) + 1]);
+  };
+}
+
+// moves the game on to phase next
+function enter(next) {
+  const before = next === 'write' ? new Set(paletteWords().map(w => w.id)) : null;  // so the words won drop in
+  phase = next;
+  step = 0;
+  if (next === 'work') { task = 0; results = {}; }
+  save();
+  if (SCREENS.includes(next) && playing) togglePlay();  // screens are quiet
+  showScreen();
+  if (next === 'work') return openTask();
+  if (SCREENS.includes(next)) return;
+  showPhase(before);
+  if (next === 'first') startTimer();
+  if (!playing) togglePlay();  // the lines open with the music going
+}
+
+// before = the tray's word ids before the phase changed, so the new ones can be animated in
+function showPhase(before = null) {
+  for (let i = 0; i < N_LINES; i++) renderLine(i);
+  buildPalette(before);
+  $('#timer').hidden = phase !== 'first';
+  $('#submit').hidden = phase !== 'write';
+  renderTracks();
+}
+
+// the first stage's countdown; when it's up, a notice sends the player on (the music plays on under it)
+let timer = null;
+function startTimer() {
+  clearInterval(timer);
+  const end = Date.now() + STORY.first.seconds * 1000;
+  const show = () => {
+    const left = Math.max(0, Math.ceil((end - Date.now()) / 1000));
+    $('#timer').textContent = `${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`;
+    if (left <= 0) { clearInterval(timer); timer = null; timeUp(); }
+  };
+  show();
+  timer = setInterval(show, 200);
+}
+
+function timeUp() {
+  $('#notice-text').textContent = STORY.first.timeUp.text;
+  $('#notice-go').textContent = STORY.first.timeUp.button;
+  $('#notice-go').onclick = () => {
+    $('#notice').hidden = true;
+    enter('brief');
+  };
+  $('#notice').hidden = false;
+}
+
+// ---------- work: the games, each once through with a summary ----------
+
+let mounted = null;  // the game being played, so it can be torn down
+
+// find-all: the counts at which each of a photo's words is won, one step per word
+const steps = item => item.rewards.map((_, k) => Math.ceil((k + 1) * item.shapes.length / item.rewards.length));
+const gameTitle = key => GAMES[key]?.title ?? GAME_DEFAULTS[key].title;
+
+// the task's summary if it's been played, otherwise its rules
+function openTask() {
+  const key = GAME_ORDER[task];
+  if (results[key]) showSummary(key); else showRules(key);
+}
+
+// Covers the page with the game's rules and a start button. The music stops.
+function showRules(key) {
+  if (playing) togglePlay();
+  $('#mg-title').textContent = gameTitle(key);
+  $('#mg-task').textContent = `task ${task + 1} / ${GAME_ORDER.length}`;
+  $('#mg-score').textContent = '';
+  $('#mg-retry').hidden = true;
+  $('#mg-card').hidden = false;
+  $('#minigame').hidden = false;
+  const go = $('#mg-go');
+  if (typeof MINIGAMES === 'undefined' || !GAMES[key]) {
+    // a game that can't be played counts as played for nothing, so work carries on
+    $('#mg-text').textContent = typeof MINIGAMES === 'undefined' ? 'couldn\'t load this game (no minigames/minigames-07.js).'
+      : 'this game has nothing to play: see the warnings next to the play button.';
+    go.textContent = 'next task';
+    go.onclick = () => { results[key] = score(key, [], []); save(); nextTask(); };
+    return;
+  }
+  $('#mg-text').textContent = GAMES[key].rules;
+  go.textContent = 'start';
+  go.onclick = () => startRun(key);
+}
+
+// Everything a run plays, in a random order, with the data each play needs:
+// find, every thing in every photo; find-all, every photo; caption-match, one play of every round.
+function planRun(key) {
+  const G = GAMES[key];
+  const photo = name => `images/${name}`;
+  if (key === 'find') {
+    const all = shuffle(G.items.flatMap(item => item.targets.map(t => ({ item, t }))));
+    return all.map(({ item, t }, k) => ({ item, t, data: { photo: photo(item.photo), viewBox: item.viewBox,
+      shapes: t.shapes.map(s => s.el), target: t.target, prompt: t.prompt ?? `find: ${t.target}`,
+      seconds: +G.seconds, tolerance: +G.tolerance, round: [k, all.length] } }));
+  }
+  if (key === 'find-all') {
+    const items = shuffle([...G.items]);
+    return items.map((item, k) => ({ item, data: { photo: photo(item.photo), viewBox: item.viewBox, shapes: item.shapes,
+      target: item.target, prompt: item.prompt ?? `find all: ${item.target}`, seconds: +G.seconds, zoom: +G.zoom,
+      tolerance: +G.tolerance, reach: item.reach, found: [], steps: steps(item), round: [k, items.length] } }));
+  }
+  const rounds = shuffle([...G.items]);
+  return [{ rounds, data: { rounds: rounds.map((r, k) => ({
+    caption: r.caption, answer: photo(r.photo), options: shuffle([r.photo, ...r.decoys].map(photo)),
+    seconds: G.seconds[Math.min(k, G.seconds.length - 1)] })) } }];
+}
+
+// plays the run's plays back to back, then scores the lot
+function startRun(key) {
+  const plays = planRun(key), outcomes = [];
+  $('#mg-card').hidden = true;
+  const next = k => {
+    const upcoming = plays[k + 1]?.data.photo;
+    if (upcoming) new Image().src = upcoming;
+    mounted = MINIGAMES[key].mount($('#mg-body'), plays[k].data, result => {
+      mounted?.destroy();
+      mounted = null;
+      outcomes.push(result);
+      if (k + 1 < plays.length) return next(k + 1);
+      results[key] = score(key, plays, outcomes);
+      save();
+      showSummary(key);
+    });
+  };
+  next(0);
+}
+
+// A run's points, the words it won (a random recording of each), and the unlocks its score wins.
+// find: a point per thing found; each wins its own word, and a share of the photo's other words (a share per thing)
+// scaled by how quick it was found (see quickness). find-all: a point per shape found; each photo's bar wins its
+// words. caption-match: a point per round matched, which wins its words.
+// 1 for taking up to half the time, down to 0 at a second before the end (or at the end, for a game under 2 seconds)
+function quickness(taken, seconds) {
+  const half = seconds / 2, none = Math.max(half, seconds - 1);
+  if (!(taken >= 0)) return 1;  // no time reported
+  return none > half ? Math.min(1, Math.max(0, (none - taken) / (none - half))) : +(taken <= half);
+}
+
+function score(key, plays, outcomes) {
+  let points = 0, total = 0;
+  const texts = [];
+  const add = ts => ts.forEach(t => t && !texts.includes(t) && texts.push(t));
+  if (key === 'find') {
+    total = plays.length;
+    for (const item of GAMES[key]?.items ?? []) {
+      const mine = plays.flatMap((p, k) => p.item === item ? [{ p, ...outcomes[k] }] : []);
+      const hit = mine.filter(x => x.found);
+      points += hit.length;
+      add(hit.map(x => findWord(x.p.t.target.toLowerCase())?.text));
+      const others = shuffle(item.rewards.filter(w => !item.findWords.includes(w)));
+      const shares = hit.reduce((t, x) => t + quickness(x.seconds, x.p.data.seconds), 0);
+      if (mine.length) add(others.slice(0, Math.round(others.length * shares / mine.length)));
+    }
+  } else if (key === 'find-all') {
+    plays.forEach((p, k) => {
+      const n = outcomes[k].found.length;
+      points += n;
+      total += p.item.shapes.length;
+      const won = Math.floor(n * p.item.rewards.length / p.item.shapes.length);
+      add(p.item.rewards.slice(0, won));
+    });
+  } else if (plays.length) {
+    total = plays[0].rounds.length;
+    points = outcomes[0].matched.length;
+    outcomes[0].matched.forEach(k => add(plays[0].rounds[k].rewards));
+  }
+  const result = { points, total, words: recordings(texts), tracks: [], notes: [] };
+  const percent = total ? points / total * 100 : 0;
+  for (const r of REWARDS[key] ?? []) {
+    if (!(percent > r.above)) continue;
+    if (r.track) result.tracks.push(r.track);
+    const note = r.text ?? (r.track ? `you unlocked the ${r.track} track.` : '');
+    if (note) result.notes.push(note);
+  }
+  return result;
+}
+
+// what the run won, with a retry (which throws it away and plays again) and the way on
+function showSummary(key) {
+  const r = results[key];
+  $('#mg-title').textContent = gameTitle(key);
+  $('#mg-task').textContent = `task ${task + 1} / ${GAME_ORDER.length}`;
+  $('#mg-score').textContent = '';
+  const texts = r.words.map(id => words[id].text);
+  $('#mg-text').textContent = [
+    texts.length ? `you unlocked ${texts.length} word${texts.length === 1 ? '' : 's'}: ${texts.join(', ')}` : 'you unlocked no words.',
+    `you gained ${r.points} / ${r.total} points`,
+    ...r.notes,
+  ].join('\n');
+  const retry = $('#mg-retry');
+  retry.hidden = !GAMES[key] || typeof MINIGAMES === 'undefined';
+  retry.onclick = () => { delete results[key]; save(); startRun(key); };
+  const go = $('#mg-go');
+  go.textContent = task < GAME_ORDER.length - 1 ? 'next task' : STORY.lastButton;
+  go.onclick = nextTask;
+  $('#mg-card').hidden = false;
+  $('#minigame').hidden = false;
+}
+
+// on to the next game, or after the last, the screens after work
+function nextTask() {
+  if (task < GAME_ORDER.length - 1) {
+    task++;
+    save();
+    return openTask();
+  }
+  $('#minigame').hidden = true;
+  enter('debrief');
+}
+
+// ---------- submit: the lines once through, on their own ----------
+
+let showing = 0;  // bumped to stop the lighting-up loop
+
+$('#submit').addEventListener('click', async () => {
+  if (playing) await togglePlay();
+  const order = [...Array(N_LINES).keys()].filter(i => lineOn[i]);
+  const cues = [];  // [span, time it's said]
+  const box = $('#show-lines');
+  box.replaceChildren();
+  $('#show-back').hidden = true;
+  $('#show').hidden = false;
+  await ctx.resume();
+  let t = ctx.currentTime + 0.3;
+  for (const i of order) {
+    const line = document.createElement('div');
+    for (const [id, at] of scheduleLine(i, t)) {
+      if (words[id].bin === 'rest') continue;
+      const span = document.createElement('span');
+      span.textContent = words[id].text;
+      line.append(span, ' ');
+      cues.push([span, at]);
+    }
+    line.append(' ');  // an empty line still takes its place
+    box.append(line);
+    t += LINE_DUR;
+  }
+  const end = t, me = ++showing;
+  const light = () => {
+    if (me !== showing) return;
+    const now = ctx.currentTime;
+    for (const [span, at] of cues) span.classList.toggle('said', now >= at);
+    if (now >= end) $('#show-back').hidden = false;
+    else requestAnimationFrame(light);
+  };
+  light();
+});
+
+$('#show-back').addEventListener('click', () => {
+  showing++;
+  stopAll();
+  $('#show').hidden = true;
+});
+
+$('#restart').addEventListener('click', () => {
+  if (!confirm('Start again from the top? This clears your lines and everything the games won.')) return;
+  if (playing) togglePlay();
+  cursor = -1;
+  clearInterval(timer);
+  timer = null;
+  $('#notice').hidden = true;
+  newGame();
+  showPhase();
+  showScreen();
+});
+
+// ---------- layout ----------
+
+function sizeToWindow() {
+  // one line (2 bars) spans the line box, so px-per-second follows from its width
+  const pps = lineEls[0].clientWidth / LINE_DUR;
+  if (!pps) return;  // hidden behind the intro
+  document.documentElement.style.setProperty('--pps', pps);
+  document.documentElement.style.setProperty('--beat', pps * 60 / BPM);
+}
+
+function wordEl(w) {
+  const el = document.createElement('div');
+  el.className = 'word';
+  el.style.background = BIN_COLORS[w.bin];
+  el.textContent = w.text;
+  el.title = w.bin === 'rest' ? `pause (${w.d.toFixed(2)}s)` : `${w.text} (${w.bin}, ${w.d.toFixed(2)}s)`;
+  el.style.setProperty('--d', w.d);
+  el.draggable = true;
+  if (w.a !== null) el.addEventListener('click', () => preview(w));
+  return el;
+}
+
+function buildPalette(before = null) {
+  const palette = $('#palette');
+  palette.replaceChildren();
+  const offered = paletteWords();
+  // new words drop in in tray order, spread over ENTER_SPREAD however many there are
+  const entering = before ? offered.filter(w => !before.has(w.id)).length : 0;
+  const step = entering && Math.min(0.06, ENTER_SPREAD / entering);
+  let k = 0;
+  for (const bin of binOrder) {
+    const binWords = offered.filter(w => w.bin === bin);
+    // pauses go shortest to longest; words go alphabetically
+    binWords.sort(bin === 'rest' ? (a, b) => a.d - b.d : (a, b) => a.text.localeCompare(b.text));
+    if (!binWords.length) continue;
+    const section = document.createElement('div');
+    section.className = 'bin';
+    section.textContent = bin === 'rest' ? BIN_LABELS.rest : `${bin} (${binWords.length})`;
+    const list = document.createElement('div');
+    list.className = 'bin-words';
+    for (const w of binWords) {
+      const el = wordEl(w);
+      el.addEventListener('dragstart', e => startDrag(e, { id: w.id, from: null }));
+      if (before && !before.has(w.id)) {
+        el.classList.add('entering');
+        el.style.animationDelay = `${(k++ * step).toFixed(3)}s`;
+      }
+      list.append(el);
+    }
+    section.append(list);
+    palette.append(section);
+  }
+}
+
+// dropping a placed word back on the palette removes it
+function onPaletteDragOver(e) { if (dragging && dragging.from !== null) e.preventDefault(); }
+function onPaletteDrop(e) {
+  e.preventDefault();
+  if (dragging && dragging.from !== null) removeAt(dragging.from, dragging.index);
+}
+
+function buildLines() {
+  const container = $('#lines');
+  const rowMarker = document.createElement('div');
+  rowMarker.id = 'row-marker';
+  container.append(rowMarker);
+  container.addEventListener('dragover', onRowDragOver);
+  container.addEventListener('dragleave', e => { if (!container.contains(e.relatedTarget)) rowMarker.style.display = 'none'; });
+  container.addEventListener('drop', onRowDrop);
+  for (let i = 0; i < N_LINES; i++) {
+    const row = document.createElement('div');
+    row.className = 'row';
+    const handle = document.createElement('div');
+    handle.className = 'handle';
+    handle.textContent = '≡';
+    handle.title = 'drag to move this line';
+    handle.draggable = true;
+    handle.addEventListener('dragstart', e => {
+      rowDrag = i;
+      e.dataTransfer.setData('text/plain', `line ${i + 1}`);
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setDragImage(row, 0, row.clientHeight / 2);
+    });
+    const toggle = document.createElement('button');
+    toggle.addEventListener('click', () => { lineOn[i] = !lineOn[i]; renderLine(i); save(); });
+    const line = document.createElement('div');
+    line.className = 'line';
+    const marker = document.createElement('div');
+    marker.className = 'marker';
+    const playhead = document.createElement('div');
+    playhead.className = 'playhead';
+    line.addEventListener('dragover', e => onLineDragOver(e, i));
+    line.addEventListener('dragleave', e => { if (!line.contains(e.relatedTarget)) marker.style.display = 'none'; });
+    line.addEventListener('drop', e => onLineDrop(e, i));
+    const clear = document.createElement('button');
+    clear.textContent = 'clear';
+    clear.addEventListener('click', () => { lines[i] = []; renderLine(i); save(); });
+    row.append(handle, toggle, line, clear);
+    container.append(row);
+    rowEls.push(row); lineEls.push(line); markerEls.push(marker); playheadEls.push(playhead); toggleEls.push(toggle);
+  }
+}
+
+function renderLine(i) {
+  const line = lineEls[i];
+  line.replaceChildren(markerEls[i], playheadEls[i]);
+  lines[i].forEach((id, index) => {
+    const el = wordEl(words[id]);
+    el.addEventListener('dragstart', e => startDrag(e, { id, from: i, index }));
+    // dragged out of the lines and dropped nowhere: remove it
+    // (a refused drop onto a full line leaves it where it was)
+    el.addEventListener('dragend', e => {
+      if (e.dataTransfer.dropEffect === 'none' && !overLines && lines[i][index] === id) removeAt(i, index);
+    });
+    line.append(el);
+  });
+  line.classList.toggle('off', !lineOn[i]);
+  toggleEls[i].textContent = lineOn[i] ? 'on' : 'off';
+}
+
+// ---------- drag and drop ----------
+
+let dragging = null;  // { id, from: lineIndex|null, index }
+let overLines = false;  // whether the pointer was last over the lines region
+document.addEventListener('dragover', e => { overLines = !!e.target.closest?.('#lines'); });
+
+function startDrag(e, info) {
+  dragging = info;
+  e.dataTransfer.setData('text/plain', words[info.id].text);
+  e.dataTransfer.effectAllowed = info.from === null ? 'copy' : 'move';
+}
+document.addEventListener('dragend', () => {
+  dragging = null;
+  rowDrag = null;
+  markerEls.forEach(m => m.style.display = 'none');
+  $('#row-marker').style.display = 'none';
+});
+
+// ---------- rearranging lines ----------
+
+let rowDrag = null;  // index of the line being moved by its handle
+
+// insertion index = number of visible rows whose midpoint is above the pointer
+function rowInsertIndex(clientY) {
+  const rows = rowEls.slice(0, N_LINES);
+  const idx = rows.findIndex(row => { const r = row.getBoundingClientRect(); return clientY < r.top + r.height / 2; });
+  return idx === -1 ? rows.length : idx;
+}
+
+function onRowDragOver(e) {
+  if (rowDrag === null) return;
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  // the marker sits in the gap above row idx, or below the last row
+  const idx = rowInsertIndex(e.clientY);
+  const last = rowEls[N_LINES - 1];
+  const marker = $('#row-marker');
+  marker.style.top = (idx < N_LINES ? rowEls[idx].offsetTop - 4 : last.offsetTop + last.offsetHeight + 4) + 'px';
+  marker.style.display = 'block';
+}
+
+function onRowDrop(e) {
+  if (rowDrag === null) return;
+  e.preventDefault();
+  $('#row-marker').style.display = 'none';
+  let to = rowInsertIndex(e.clientY);
+  if (rowDrag < to) to--;
+  moveLine(rowDrag, to);
+}
+
+// words and on/off travel with the line; the music stays put, so a moved line plays over the bars of its new position
+function moveLine(from, to) {
+  if (from === to) return;
+  for (const a of [lines, lineOn]) a.splice(to, 0, ...a.splice(from, 1));
+  for (let i = 0; i < N_LINES; i++) renderLine(i);
+  save();
+}
+
+const lineDur = i => lines[i].reduce((t, id) => t + words[id].d, 0);
+
+function fits(i) {
+  const own = dragging.from === i ? words[dragging.id].d : 0;
+  return lineDur(i) - own + words[dragging.id].d <= LINE_DUR + 1e-6;
+}
+
+// insertion index = number of placed words whose midpoint is left of the pointer
+function insertIndex(i, clientX) {
+  const els = [...lineEls[i].querySelectorAll('.word')];
+  const idx = els.findIndex(el => { const r = el.getBoundingClientRect(); return clientX < r.left + r.width / 2; });
+  return idx === -1 ? els.length : idx;
+}
+
+function onLineDragOver(e, i) {
+  if (!dragging || !fits(i)) return;  // not preventing default = drop refused
+  e.preventDefault();
+  e.dataTransfer.dropEffect = dragging.from === null ? 'copy' : 'move';
+  const idx = insertIndex(i, e.clientX);
+  const ids = lines[i].slice(0, idx);
+  markerEls[i].style.left = ids.reduce((t, id) => t + words[id].d, 0) / LINE_DUR * lineEls[i].clientWidth + 'px';
+  markerEls[i].style.display = 'block';
+}
+
+function onLineDrop(e, i) {
+  e.preventDefault();
+  markerEls[i].style.display = 'none';
+  if (!dragging || !fits(i)) return;
+  let idx = insertIndex(i, e.clientX);
+  if (dragging.from !== null) {
+    lines[dragging.from].splice(dragging.index, 1);
+    if (dragging.from === i && dragging.index < idx) idx--;
+    if (dragging.from !== i) renderLine(dragging.from);
+  }
+  lines[i].splice(idx, 0, dragging.id);
+  renderLine(i);
+  save();
+}
+
+function removeAt(i, index) {
+  lines[i].splice(index, 1);
+  renderLine(i);
+  save();
+}
+
+// ---------- persistence (per browser, convenience only) ----------
+
+function save() {
+  try {
+    localStorage.setItem(STORE_KEY, JSON.stringify({ phase, step, task, track, start, results, lines, lineOn }));
+  } catch {}
+}
+// returns false when there's nothing usable saved, so a new game is dealt
+function restore() {
+  try {
+    const s = JSON.parse(localStorage.getItem(STORE_KEY));
+    if (!PHASES.includes(s?.phase) || !Array.isArray(s.start)) return false;
+    // words.json may have changed since: words no longer in it are dropped
+    const ids = a => [].concat(a ?? []).map(known).filter(Boolean);
+    phase = s.phase;
+    step = SCREENS.includes(phase) ? Math.min(Math.max(0, s.step | 0), STORY[phase].length - 1) : 0;
+    task = Math.min(Math.max(0, s.task | 0), GAME_ORDER.length - 1);
+    track = typeof s.track === 'string' ? s.track : null;
+    start = ids(s.start);
+    results = {};
+    for (const key of GAME_ORDER) {
+      const r = s.results?.[key];
+      if (!r) continue;
+      results[key] = { points: +r.points || 0, total: +r.total || 0, words: ids(r.words),
+        tracks: [].concat(r.tracks ?? []).filter(t => TRACKS.some(([n]) => n === t)), notes: [].concat(r.notes ?? []).map(String) };
+    }
+    [].concat(s.lines ?? []).slice(0, N_LINES).forEach((l, i) => {
+      lines[i] = ids(l);
+      while (lineDur(i) > LINE_DUR + 1e-6) lines[i].pop();
+    });
+    [].concat(s.lineOn ?? []).slice(0, N_LINES).forEach((on, i) => lineOn[i] = !!on);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+// ---------- audio ----------
+
+const live = new Set();  // scheduled sources, so pause can stop them
+
+function playSlice(buffer, when, offset, duration, fade) {
+  const src = ctx.createBufferSource();
+  src.buffer = buffer;
+  let node = src;
+  if (fade) {
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0, when);
+    g.gain.linearRampToValueAtTime(1, when + fade);
+    g.gain.setValueAtTime(1, when + duration - fade);
+    g.gain.linearRampToValueAtTime(0, when + duration);
+    src.connect(g);
+    node = g;
+  }
+  node.connect(ctx.destination);
+  src.start(when, offset, duration);
+  live.add(src);
+  src.onended = () => live.delete(src);
+}
+
+function preview(w) {
+  if (ctx.state !== 'running') ctx.resume();
+  playSlice(wordsBuf, ctx.currentTime + 0.01, w.a, w.d, FADE);
+}
+
+let playing = false;
+let nextTime = null;   // audio-clock time the next line starts
+let cursor = -1;       // index of the last line scheduled
+let scheduled = [];    // [{ line, t0 }] for the playhead
+
+// loops over the lines this phase shows
+function nextActiveLine() {
+  const n = N_LINES;
+  for (let k = 1; k <= n; k++) {
+    const i = (cursor + k) % n;
+    if (lineOn[i]) return i;
+  }
+  return -1;
+}
+
+// The track follows the lines: line i plays over bars 2i+1..2i+2, looping after 8 bars.
+// Returns [id, time] for each word, for submit to light them up.
+function scheduleLine(i, t0) {
+  const buf = trackBufs[trackUrl()?.[1]];
+  if (buf) playSlice(buf, t0, (i % TRACK_LINES) * LINE_DUR, LINE_DUR, 0);
+  let t = t0;
+  const times = [];
+  for (const id of lines[i]) {
+    const w = words[id];
+    if (w.a !== null) playSlice(wordsBuf, t, w.a, w.d, FADE);
+    times.push([id, t]);
+    t += w.d;
+  }
+  scheduled.push({ line: i, t0 });
+  return times;
+}
+
+// Schedules whole lines slightly ahead of time; toggles and edits apply from the next line.
+function tick() {
+  if (!playing) return;
+  if (nextTime === null) nextTime = ctx.currentTime + 0.05;
+  while (nextTime < ctx.currentTime + LOOKAHEAD) {
+    const i = nextActiveLine();
+    if (i === -1) { nextTime = null; return; }   // nothing on: wait for a line to be switched on
+    const t0 = Math.max(nextTime, ctx.currentTime + 0.01);
+    scheduleLine(i, t0);
+    cursor = i;
+    nextTime = t0 + LINE_DUR;
+  }
+}
+setInterval(tick, 25);
+
+function stopAll() {
+  for (const src of live) { try { src.stop(); } catch {} }
+  live.clear();
+}
+
+async function togglePlay() {
+  if (playing) {
+    playing = false;
+    stopAll();
+    // resume from the start of the line that was playing
+    const now = ctx.currentTime;
+    const current = scheduled.find(s => s.t0 <= now && now < s.t0 + LINE_DUR);
+    cursor = current ? (current.line - 1 + N_LINES) % N_LINES : -1;
+    scheduled = [];
+    nextTime = null;
+    $('#play').textContent = 'play';
+  } else {
+    await ctx.resume();
+    playing = true;
+    $('#play').textContent = 'pause';
+    tick();
+  }
+}
+$('#play').addEventListener('click', togglePlay);
+
+// stops whatever is playing and starts again from the first line
+$('#from-start').addEventListener('click', async () => {
+  if (playing) await togglePlay();
+  cursor = -1;
+  await togglePlay();
+});
+
+function drawPlayhead() {
+  const now = ctx.currentTime;
+  scheduled = scheduled.filter(s => s.t0 + LINE_DUR > now);
+  const current = playing && scheduled.find(s => s.t0 <= now);
+  playheadEls.forEach((el, i) => {
+    if (current && current.line === i) {
+      el.style.left = (now - current.t0) / LINE_DUR * lineEls[i].clientWidth + 'px';
+      el.style.display = 'block';
+    } else {
+      el.style.display = 'none';
+    }
+  });
+  requestAnimationFrame(drawPlayhead);
+}
+requestAnimationFrame(drawPlayhead);
+
+load();
+</script>
+</body>
+</html>

@@ -169,6 +169,47 @@ The shapes to find are drawn in an SVG per photo, `build/images/<photo name>.svg
 
 A missing SVG, a thing with no shape, or a word that isn't in the recording shows a warning next to the play button, and that photo or thing is left out. Reload the page to see edits.
 
+## Story, work and unlocks (prototype-07)
+
+Prototype-07 uses prototype-06's games and content. It's a one-shot game in six parts:
+
+1. **Intro:** screens of text.
+2. **First line:** 4 lines over the metronome, with the first line filled in and a few words in the tray, for 15 seconds. Then a notice sends the player on.
+3. **Brief:** screens of text before work.
+4. **Work:** Find It, Find Them All, then Caption Match. Each is played once through: every thing in every photo, every photo, every round. After each one, a summary lists the words won, the points and any track unlocked, with **retry** (plays that game again and replaces its result) and **next task**. Once work is done it can't be played again.
+5. **Debrief:** screens of text after work.
+6. **Writing:** the 4 lines as the player left them, the first stage's words, everything won, and a set list of words, every yeah and pauses of several lengths. The metronome plays. Buttons at the top switch to any track unlocked. **submit** shows the lines on their own, centred, and plays them once.
+
+All the text, the first line, the first stage's words and time limit, and the words given for writing are in `build/words/story-07.yaml`. The file's comments explain it. Words match as in `tray.yaml`, and a word that isn't in the recording or is listed under the wrong bin shows a warning next to the play button. Reload the page to see edits. The first line and first words apply from the next new game (restart).
+
+Points and words:
+
+- **Find It:** one point per thing found. A thing found wins its own word and a share of its photo's other words (the photo's things share them out). The share is all of it for finding the thing in up to half the time, falling to none a second before the end.
+- **Find Them All:** one point per shape found. Each photo's bar wins its words as in prototype-06. A photo with `reach: 15` in `games.yaml` finds every shape within 15 of the photo's pixels on each click. This is for photos with many small shapes, like the rain in `12.jpg`.
+- **Caption Match:** one point per round matched, which wins that round's words.
+
+The tracks a score unlocks are set in `build/minigames/games.yaml`, under each game's `unlocks`, with the tracks under `tracks` at the top. Each unlock is given when the score is more than its `above`:
+
+```yaml
+find-all:
+  unlocks:
+    - above: 50%
+      track: drums     # from tracks
+```
+
+The Find Them All rules card comes from `rules-07` in `games.yaml`, because 06's wording talks about finds adding up across plays.
+
+## Pair It (prototype-08)
+
+Prototype-08 is prototype-07 with a fourth game, Pair It, from [3e-coco-games](../3e-coco-games)' game 11 (Same Energy). Work plays Find It, Pair It, Find Them All, then Caption Match.
+
+- **Pair It:** every pair's photos are shuffled into one grid, with one timer for all of them. Click a photo, then the one with the same energy. A match shrinks away and wins the pair's words, and a wrong pair flashes red. One point per pair matched.
+- The first stage shows all 4 lines, but only the first can be used. The others open for writing.
+- The pairs, the words they win, the prompt, the timer and the rules card are under `pair-it` in `build/minigames/games.yaml`. It can have `unlocks` like the other games. Prototypes 06 and 07 ignore it.
+- The photos are in `build/images/pair-it/`, copied from `3e-coco-games/game-prototypes/same-energy/`.
+- The story is in `build/words/story-08.yaml`, a copy of `story-07.yaml` to start with.
+- The game code is in `build/minigames/minigames-08.js`, which is `minigames-07.js` with Pair It added.
+
 ## Add a prototype
 
 Copy `build/prototype-01.html` to `build/prototype-02.html` and add a link to it in `build/index.html`.

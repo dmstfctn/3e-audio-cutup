@@ -1,5 +1,7 @@
-# Minigame content for prototype-06: which photos each game uses, what's found or
-# matched in them, the words they reward, and the game settings.
+# Minigame content for prototype-06, 07 and 08: which photos each game uses,
+# what's found or matched in them, the words they reward, and the game
+# settings; and for prototype-07 and 08, the tracks and what each game's score
+# unlocks. pair-it is only played in prototype-08.
 #
 # - Photos are in build/images/. Name them as there (1.jpg, 2.png…).
 # - Shapes for find and find-all are in build/images/<photo name>.svg (1.svg for
@@ -13,12 +15,38 @@
 # - The thing to find always counts as one of the photo's words, listed or not.
 # - prompt (optional): the text shown instead of "find: fruits". The thing's
 #   name is shown in bold wherever it appears in the prompt.
-# - rules: the card shown before the game. {seconds} and {rounds} are filled in
-#   from the settings below.
+# - rules: the card shown before the game. {seconds}, {rounds} and {pairs} are
+#   filled in from the settings below. rules-07, if there is one, is the card
+#   prototype-07 and 08 show instead, where every photo is played once each time
+#   through.
 # - Problems (a missing .svg, a word not in the recording, a thing with no
 #   shape) show next to the play button, and that photo or thing is left out.
 # - Reload the page to see edits. They apply to games in progress. Words
 #   already won stay won.
+#
+# Prototype-07 and 08 only:
+# - Find It's share of a photo's other words depends on how quick the thing
+#   is found: all of it in up to half the time, down to none a second before
+#   the end.
+# - unlocks: what a game's score unlocks beyond words. Each one is given when the
+#   score is MORE than its `above` percentage of the game's points (find it:
+#   one per thing found; pair it: one per pair matched; find them all: one
+#   per shape found; caption match: one per round matched). An unlock can give:
+#     track: a track name from `tracks` below. The player can choose any track
+#            unlocked while writing.
+#     text:  what the summary says about it. Leave it out to have one written.
+#   Yeahs and pauses aren't unlocks: writing gives them all (story-07.yaml,
+#   story-08.yaml).
+#   Retrying a game throws away its unlocks and works them out again.
+# - reach (find-all photos, optional): a click finds every shape within this
+#   many of the photo's own pixels, instead of only the nearest one within
+#   tolerance. For photos with many small shapes. One click can find several.
+
+# prototype-07's and 08's tracks. The first one plays to begin with and is always there.
+tracks:
+  metronome: audio/track-metronome.wav
+  drums: audio/track-drums.wav
+  full: audio/track-full.wav
 
 # Find It: one photo and one thing per play. Finding it wins the thing's word
 # and half of the photo's other words (not the other things to find). The
@@ -63,6 +91,40 @@ find:
         verb: [sits]
         adjective: [hot]
 
+# Pair It (prototype-08 only): every pair's photos in one grid, played once.
+# Click two photos with the same energy to match them and win the pair's
+# words. One point per pair matched. prompt is the line shown over the grid.
+pair-it:
+  title: pair it
+  rules: |
+    click two photos with the same energy.
+    {pairs} pairs, {seconds} seconds.
+    each pair you match wins its words.
+  prompt: click two photos with the same energy
+  seconds: 15
+  # unlocks:
+  #   - above: 50%
+  #     track: drums
+  pairs:
+    - photos: [pair-it/A1.jpg, pair-it/A2.jpg]
+      rewards:
+        verb: [awaken]
+    - photos: [pair-it/B1.jpg, pair-it/B2.jpg]
+      rewards:
+        adjective: [together]
+    - photos: [pair-it/C1.jpg, pair-it/C2.jpg]
+      rewards:
+        noun: [angels]
+    - photos: [pair-it/D1.jpg, pair-it/D2.jpg]
+      rewards:
+        adjective: [real]
+    - photos: [pair-it/E1.jpg, pair-it/E2.jpg]
+      rewards:
+        verb: [say]
+    - photos: [pair-it/F1.jpg, pair-it/F2.jpg]
+      rewards:
+        adjective: [unruly]
+
 # Find Them All: one photo per play, zoomed in. The count found adds up over
 # plays of the same photo. Words unlock as the count passes each step:
 # with 10 to find and 5 words, one word per 2 found. The thing's own word comes
@@ -76,7 +138,14 @@ find-all:
     the photo is zoomed in: drag to look around.
     {seconds} seconds. what you find adds up each time you play this photo,
     and each step on the bar wins a word.
+  rules-07: |
+    click every one of the things named.
+    the photos are zoomed in: drag to look around.
+    {seconds} seconds a photo. each step on the bar wins a word.
   seconds: 15
+  unlocks:
+    - above: 50%
+      track: drums
   zoom: 3             # the photo starts this many times the screen's width
   tolerance: 10
   photos:
@@ -103,6 +172,7 @@ find-all:
         adjective: [much, alone]
     12.jpg:
       find: rain
+      reach: 15         # prototype-07 and 08: a click finds every drop within 15 of the photo's pixels
       rewards:
         noun: [barclays, bike-lane, P12, SL, rain, crack, person]
         adjective: [colourless]
@@ -116,6 +186,9 @@ caption-match:
     {rounds} rounds, each quicker than the last.
     each one you match wins its words.
   seconds: [6, 4, 3]  # per round, in the order played; the last repeats if there are more rounds
+  unlocks:
+    - above: 50%
+      track: full
   rounds:
     - photo: 9.png
       caption: holding it furiously
