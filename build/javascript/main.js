@@ -660,9 +660,9 @@ function openTask() {
   $('#mg-card').hidden = false;
 }
 
-// Everything a run plays, in a random order, with the data each play needs:
-// find, every thing in every photo; pair-it, one play of every pair; find-all, every photo;
-// caption-match, one play of every round.
+// Everything a run plays, with the data each play needs, in a random order except find-all,
+// which follows config/games.yaml: find, every thing in every photo; pair-it, one play of every
+// pair; find-all, every photo; caption-match, one play of every round.
 function planRun(key) {
   const G = GAMES[key];
   const photo = name => `images/${name}`;
@@ -673,7 +673,7 @@ function planRun(key) {
       seconds: +G.seconds, tolerance: +G.tolerance, round: [k, all.length] } }));
   }
   if (key === 'find-all') {
-    const items = shuffle([...G.items]);
+    const items = G.items;
     return items.map((item, k) => ({ item, data: { photo: photo(item.photo), viewBox: item.viewBox, shapes: item.shapes,
       target: item.target, prompt: item.prompt ?? `find all: ${item.target}`, seconds: +G.seconds,
       tolerance: +G.tolerance, reach: item.reach, found: [], steps: steps(item), round: [k, items.length] } }));
