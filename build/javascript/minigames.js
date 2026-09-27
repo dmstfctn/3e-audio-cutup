@@ -237,13 +237,13 @@ const MINIGAMES = (() => {
       g.countdown(r.seconds, () => finish(null));
     }
 
-    // the answer goes green, a wrong pick red; a time-out shows nothing, as in find it
+    // a right pick goes green, a wrong one red without giving the answer away; a time-out shows nothing, as in find it
     function finish(chosen, e) {
       g.stop();
       const r = rounds[idx];
       for (const b of opts.children) {
         b.disabled = true;
-        if (chosen && b.dataset.src === r.answer) b.classList.add('ok');
+        if (chosen === r.answer && b.dataset.src === r.answer) b.classList.add('ok');
         else if (b.dataset.src === chosen) b.classList.add('bad');
       }
       if (chosen === r.answer) {

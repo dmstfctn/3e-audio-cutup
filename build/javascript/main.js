@@ -69,6 +69,7 @@ let start = [];    // texts of the words the first stage gives: the first line's
 let results = {};
 let run = null;    // the game being played: its plays, and what it's won so far
 let trackOn = {};  // track name -> whether its toggle is on
+let paused = false;  // the loop stopped with the play / pause button
 let shownPoints = 0;  // the counter at the top right: the points that have landed there
 let landed = {};      // game key -> its points that have landed on the counter, so a retry takes back as many
 const flyingTracks = new Set();  // tracks unlocked whose toggle is still flying to the bar, kept hidden till it lands
@@ -449,6 +450,7 @@ function newGame() {
   task = 0;
   results = {};
   trackOn = {};
+  paused = false;
   landed = {};
   shownPoints = 0;
   lines.forEach(l => l.length = 0);
@@ -495,8 +497,13 @@ function toggle(name) {
   return b;
 }
 
-// a toggle per track unlocked, hidden while it's still flying there; and the points counter
+// play / pause, when there's something to play; a toggle per track unlocked, hidden while it's still
+// flying there; and the points counter
 function renderTracks() {
+  const any = unlockedTracks().length > 0;
+  $('#play').hidden = !any && phase !== 'write';
+  $('#play-sep').hidden = $('#play').hidden || !any;
+  $('#play').textContent = paused ? 'play' : 'pause';
   $('#toggles').replaceChildren(...unlockedTracks().map(([name]) => {
     const b = toggle(name);
     if (flyingTracks.has(name)) b.style.visibility = 'hidden';
@@ -506,6 +513,21 @@ function renderTracks() {
   renderPoints();
   $('#ui-header').hidden = !MUSIC.includes(phase);
 }
+
+// paused stops the loop; playing starts it again from the first line
+function togglePlay() {
+  paused = !paused;
+  if (paused) stopLoop();
+  renderTracks();
+}
+$('#play').addEventListener('click', togglePlay);
+// the space bar too, whenever the button shows; the focused button is let go of, so space doesn't also press it
+document.addEventListener('keydown', e => {
+  if (e.code !== 'Space' || e.repeat || $('#ui-header').hidden || $('#play').hidden || !$('#show').hidden) return;
+  e.preventDefault();
+  document.activeElement?.blur();
+  togglePlay();
+});
 
 function renderPoints() {
   $('#points').textContent = `${shownPoints}`;
@@ -521,15 +543,12 @@ function applyGains() {
   }
 }
 
-// A track just unlocked comes on, and joins the lines already scheduled from now. Its toggle flies to
-// the bar from (x, y), where the click that unlocked it was.
+// A track just unlocked starts off, but joins the lines already scheduled from now, so toggling it on
+// is heard straight away. Its toggle flies to the bar from (x, y), where the click that unlocked it was.
 function newTrack(name, x, y) {
-  trackOn[name] = true;
-  save();
   flyingTracks.add(name);
   renderTracks();
   fly(toggle(name), () => $(`#toggles [data-track="${name}"]`), x, y, TRACK_FLY_MS, () => { flyingTracks.delete(name); renderTracks(); });
-  applyGains();
   const buf = trackBufs[TRACKS.find(([n]) => n === name)?.[1]];
   if (!buf || !looping()) return;
   const now = ctx.currentTime + 0.02;
@@ -755,6 +774,7 @@ function progress(k, ev) {
   const fresh = won.filter(t => t && !run.words.includes(t));
   run.words.push(...fresh);
   flyWords(fresh, ev.x, ev.y, run.key);
+  sayWords(fresh);
   flyPoints(run.points - before, ev.x, ev.y, run.key);
   const percent = run.total ? run.points / run.total * 100 : 0;
   for (const u of REWARDS[run.key] ?? []) {
@@ -1045,7 +1065,7 @@ function buildPalette(before = null, delay = 0) {
     list.append(...binWords.map(w => {
       const el = wordEl(w);
       el.addEventListener('dragstart', e => startDrag(e, { id: w.id, from: null }));
-      el.addEventListener('click', () => addWord(w.id));
+      el.addEventListener('click', () => { playWord(w.id); addWord(w.id); });
       touchDrag(el, { id: w.id, from: null }, true);
       if (morphing.has(w.id)) el.style.visibility = 'hidden';
       if (enterDelays.has(w.id)) {
@@ -1404,8 +1424,28 @@ function playSlice(buffer, when, offset, duration, fade, out = ctx.destination) 
 // the browser only lets audio start after a click
 document.addEventListener('pointerdown', () => { if (ctx.state !== 'running') ctx.resume(); });
 
+// a word on its own, now or at when; pauses make no sound
+function playWord(id, when = ctx.currentTime) {
+  const w = words[id];
+  if (w.a !== null) playSlice(wordsBuf, when, w.a, w.d, FADE);
+}
+
+// Words won are each said once, in turn, with the shortest pause writing gives between them. Words won
+// while others are still being said wait their turn.
+let sayFree = 0;  // audio-clock time the last word queued ends, with its pause
+function sayWords(texts) {
+  const rests = STORY.write.pauses, gap = rests.length ? Math.min(...rests) * 60 / BPM : 0;
+  for (const t of texts) {
+    const id = takesOf(t)[0];
+    if (!id) continue;
+    const at = Math.max(ctx.currentTime + 0.02, sayFree);
+    playWord(id, at);
+    sayFree = at + words[id].d + gap;
+  }
+}
+
 // From work on, the tracks loop, line by line; when writing, the lines play over them.
-const looping = () => MUSIC.includes(phase) && !submitting;
+const looping = () => MUSIC.includes(phase) && !submitting && !paused;
 let nextTime = null;   // audio-clock time the next line starts
 let slot = 0;          // lines since the loop started; slot % nLines is the line
 let scheduled = [];    // [{ line, t0, voice }] for the playhead and tracks unlocked mid-line

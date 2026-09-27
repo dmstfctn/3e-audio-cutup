@@ -24,8 +24,8 @@
 #   (each game's `points` for every thing found, pair matched, shape found or
 #   round matched), so `above: 0%` is given for the first win. An unlock can
 #   give:
-#     track: a track name from `tracks` below. It comes on when unlocked, and
-#            the player can toggle it at the top of the page.
+#     track: a track name from `tracks` below. It shows at the top of the page
+#            when unlocked, off, for the player to toggle on.
 #     text:  what the summary says about it. Leave it out to have one written.
 #   Yeahs and pauses aren't unlocks: writing gives them all (config/story.yaml).
 #   Retrying a game throws away its unlocks and works them out again.

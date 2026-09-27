@@ -12,6 +12,9 @@ body { font: 16px "Times New Roman", Times, serif; margin: 16px; }
 #screen-text .new { animation: line-in .4s ease-out; }
 @keyframes line-in { from { opacity: 0; } }
 #screen.dark { background: black; color: white; }  /* the intro */
+/* the button reads as the story's text, underlined to show it can be clicked */
+#screen-go { background: none; border: 0; padding: 0; font: inherit; color: inherit; text-decoration: underline; cursor: pointer; }
+#screen-go:disabled { text-decoration: none; cursor: default; }
 #screen[hidden], #game[hidden] { display: none; }
 
 /* from work on, always on top: at the left the tracks unlocked, each a toggle looking like a word in grey;
@@ -19,7 +22,9 @@ body { font: 16px "Times New Roman", Times, serif; margin: 16px; }
 #ui-header { position: fixed; top: 0; left: 0; right: 0; height: var(--top); z-index: 12; box-sizing: border-box; background: white;
           border-bottom: 1px solid black; padding: 0 16px; display: flex; justify-content: space-between; align-items: center; }
 #ui-header[hidden] { display: none; }
+#transport { display: flex; align-items: center; gap: 8px; }
 #toggles { display: flex; gap: 2px; }
+#play-sep[hidden], #play[hidden] { display: none; }
 .toggle { box-sizing: border-box; height: 2em; line-height: calc(2em - 2px); padding: 0 8px; border: 1px solid black; border-radius: 0;
           background: lightgray; color: black; font: inherit; white-space: nowrap; cursor: pointer; user-select: none; }
 .toggle[aria-pressed="false"] { opacity: .4; }  /* off */
@@ -31,8 +36,13 @@ body { font: 16px "Times New Roman", Times, serif; margin: 16px; }
 #status:empty { display: none; }
 /* in the top bar, centred whatever the toggles and counter either side of it */
 #submit { position: absolute; left: 50%; transform: translateX(-50%); }
-/* plain bold text: submit, and the + / − under the lines that adds or removes two */
-#submit, #more { background: none; border: 0; padding: 0; font: bold 16px Arial, sans-serif; color: black; cursor: pointer; }
+/* narrow screens: next to the counter, where the toggles can't run into it */
+@media (max-width: 640px) {
+  #submit { position: static; transform: none; margin: 0 16px 0 auto; }
+}
+/* plain bold text: play / pause, submit, and the + / − under the lines that adds or removes two */
+#play { min-width: 3em; text-align: left; }  /* the same width either way, so the toggles don't shift */
+#play, #submit, #more { background: none; border: 0; padding: 0; font: bold 16px Arial, sans-serif; color: black; cursor: pointer; }
 #more { align-self: center; margin-top: 8px; font-size: 20px; }
 #submit[hidden], #more[hidden] { display: none; }
 
@@ -74,8 +84,10 @@ body { font: 16px "Times New Roman", Times, serif; margin: 16px; }
 
 /* in the tray a word is at least as wide as its text, so it can be read; in the lines it's its duration */
 #palette .word, .word.dragged { min-width: max-content; padding: 0 4px; }
-/* narrow screens: smaller text in the tray, where words are narrow; the box keeps its height */
+/* narrow screens: smaller text in the tray, where words are narrow, the box keeping its height; and the
+   tray no more than half the screen */
 @media (max-width: 640px) {
+  #palette { max-height: 50svh; }
   #palette .word, .word.dragged { font-size: 12px; height: 32px; line-height: 30px; }
 }
 
