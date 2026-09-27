@@ -13,14 +13,15 @@ body { font: 16px "Times New Roman", Times, serif; margin: 16px; }
 #screen.dark { background: black; color: white; }  /* the intro */
 #screen[hidden], #game[hidden] { display: none; }
 
-/* the tracks unlocked, always on top from work on; each one toggles */
+/* from work on, always on top: at the left the tracks unlocked, each a toggle looking like a word in grey;
+   at the right the points counter */
 #tracks { position: fixed; top: 0; left: 0; right: 0; height: var(--top); z-index: 12; box-sizing: border-box; background: white;
-          border-bottom: 1px solid black; display: flex; justify-content: center; align-items: center; gap: 8px; }
-#tracks:empty { border-bottom: 0; }
+          border-bottom: 1px solid black; padding: 0 16px; display: flex; justify-content: space-between; align-items: center; }
 #tracks[hidden] { display: none; }
-#tracks button[aria-pressed="true"] { background: black; color: white; }
-#tracks button.new { animation: track-in 1.2s ease-out; }
-@keyframes track-in { 0% { transform: scale(0); } 30% { transform: scale(1.4); } 60% { transform: scale(1); } }
+#toggles { display: flex; gap: 2px; }
+.toggle { box-sizing: border-box; height: 2em; line-height: calc(2em - 2px); padding: 0 8px; border: 1px solid black; border-radius: 0;
+          background: lightgray; color: black; font: inherit; white-space: nowrap; cursor: pointer; user-select: none; }
+.toggle[aria-pressed="false"] { opacity: .4; }  /* off */
 
 #game { padding-top: var(--top); }
 #transport { display: flex; gap: 8px; align-items: center; margin-bottom: 16px; min-height: 2em; }
@@ -70,7 +71,10 @@ body:has(#minigame:not([hidden])), body:has(#show:not([hidden])) { overflow: hid
          border-top: 1px solid black; padding: 0 16px; display: flex; justify-content: flex-end; align-items: center; gap: 4px; overflow: hidden; }
 #strip[hidden] { display: none; }
 .chip { flex: none; box-sizing: border-box; height: 2em; line-height: calc(2em - 2px); padding: 0 8px; border: 1px solid black; white-space: nowrap; }
-.chip.flying { position: fixed; z-index: 13; margin: 0; pointer-events: none; }
+/* a word, track or point on its way to the strip, the tracks or the counter */
+.flying { position: fixed; z-index: 13; margin: 0; pointer-events: none; }
+/* the points counter and each +1: bare text, white with a black outline */
+.point { font: 20px Arial, sans-serif; color: white; -webkit-text-stroke: 4px black; paint-order: stroke fill; white-space: nowrap; }
 
 /* a message over the page, which still shows through */
 #notice { position: fixed; inset: 0; z-index: 9; background: rgb(255 255 255 / .7); display: flex; align-items: center; justify-content: center; }

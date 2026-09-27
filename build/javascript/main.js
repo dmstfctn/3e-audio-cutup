@@ -7,7 +7,11 @@ const PAD = 0.03;                               // seconds around each word's al
 const FADE = 0.008;                             // seconds of fade in/out on each word
 const LOOKAHEAD = 0.15;                         // how far ahead lines are scheduled
 const ENTER_SPREAD = 1.2;                       // seconds over which the words won drop into the tray
-const FLY_MS = 700, FLY_GAP = 120;              // a word won flying to the strip, and the gap between words won together
+const FLY_GAP = 120;                            // the gap between words won together flying to the strip
+// how long a point, a word and a track take to fly to the counter, the strip and the bar: each 10% slower than the last
+const POINT_FLY_MS = 700, WORD_FLY_MS = POINT_FLY_MS * 1.1, TRACK_FLY_MS = WORD_FLY_MS * 1.1;
+const SHRINK_MS = 250, SHRINK_GAP = 60;         // a word a retry clears shrinking out of the strip, and the gap between words
+const DROP_MS = 700, DROP_SPREAD = 1.5;         // a point a retry takes back dropping from the counter, and the most time they all take
 // The game runs through these phases. Their texts, the first stage's line and words, and the words
 // given for writing come from config/story.yaml (see its comments).
 //   intro:   screens of text, shown a line at a time; the last one's button starts the first stage
@@ -24,13 +28,14 @@ const SCREENS = ['intro', 'brief', 'debrief'];  // the phases that are screens o
 const MUSIC = ['work', 'debrief', 'write'];     // the phases with the tracks bar; the lines only play in write
 const GAME_ORDER = ['find', 'pair-it', 'find-all', 'caption-match'];
 // Minigames (javascript/minigames.js). Their photos, shapes, words and settings come from
-// config/games.yaml; these are the settings a game gets when games.yaml leaves one out.
+// config/games.yaml; these are the settings a game gets when games.yaml leaves one out. points is what
+// each thing found, pair or round matched, or shape found is worth.
 // What a score unlocks beyond the words is under each game's unlocks, and the tracks under tracks.
 const GAME_DEFAULTS = {
-  'find': { title: 'find it', seconds: 5, tolerance: 10 },
-  'pair-it': { title: 'pair it', seconds: 15, prompt: 'click two photos with the same energy' },
-  'caption-match': { title: 'caption match', seconds: [6, 4, 3], prompt: 'select the image that shows: "{caption}"' },
-  'find-all': { title: 'find them all', seconds: 15, tolerance: 10 },
+  'find': { title: 'find it', seconds: 5, tolerance: 10, points: 1 },
+  'pair-it': { title: 'pair it', seconds: 15, prompt: 'click two photos with the same energy', points: 1 },
+  'caption-match': { title: 'caption match', seconds: [6, 4, 3], prompt: 'select the image that shows: "{caption}"', points: 1 },
+  'find-all': { title: 'find them all', seconds: 15, tolerance: 10, points: 1 },
 };
 // tracks that have the others in them: while one is on, the others are muted
 const SOLO_TRACKS = ['full'];
@@ -67,6 +72,9 @@ let start = [];    // texts of the words the first stage gives: the first line's
 let results = {};
 let run = null;    // the game being played: its plays, and what it's won so far
 let trackOn = {};  // track name -> whether its toggle is on
+let shownPoints = 0;  // the counter at the top right: the points that have landed there
+let landed = {};      // game key -> its points that have landed on the counter, so a retry takes back as many
+const flyingTracks = new Set();  // tracks unlocked whose toggle is still flying to the bar, kept hidden till it lands
 let last = null;   // [line, index] of the word added last, where a clicked word goes after
 const lines = Array.from({ length: N_LINES }, () => []);
 
@@ -307,6 +315,11 @@ async function loadGames(doc) {
     if (!GAME_DEFAULTS[key]) { problems.push(`unknown game "${key}"`); continue; }
     if (typeof g !== 'object' || !g) { problems.push(`${key}: expected its settings and photos`); continue; }
     const game = { ...settings(key, g), items: [] };
+    game.points = Number(game.points);
+    if (!(Number.isInteger(game.points) && game.points > 0)) {
+      problems.push(`${key}: points should be a whole number, e.g. 50`);
+      game.points = GAME_DEFAULTS[key].points;
+    }
     if (key === 'caption-match') {
       for (const [k, r] of [].concat(g.rounds ?? []).entries()) {
         const where = `caption-match round ${k + 1}`;
@@ -437,6 +450,8 @@ function newGame() {
   task = 0;
   results = {};
   trackOn = {};
+  landed = {};
+  shownPoints = 0;
   lines.forEach(l => l.length = 0);
   lines[0] = STORY.first.line.map(t => takesOf(t)[0]).filter(id => id != null);
   let cut = 0;
@@ -471,18 +486,29 @@ function unlockedTracks() {
   return TRACKS.filter(([name]) => won.has(name));
 }
 
-// a toggle per track unlocked; fresh is a track just unlocked, which pops in
-function renderTracks(fresh = null) {
-  const box = $('#tracks');
-  box.replaceChildren(...unlockedTracks().map(([name]) => {
-    const b = document.createElement('button');
-    b.textContent = name;
-    b.setAttribute('aria-pressed', !!trackOn[name]);
-    if (name === fresh) b.className = 'new';
+function toggle(name) {
+  const b = document.createElement('button');
+  b.className = 'toggle';
+  b.textContent = name;
+  b.dataset.track = name;
+  b.setAttribute('aria-pressed', !!trackOn[name]);
+  return b;
+}
+
+// a toggle per track unlocked, hidden while it's still flying there; and the points counter
+function renderTracks() {
+  $('#toggles').replaceChildren(...unlockedTracks().map(([name]) => {
+    const b = toggle(name);
+    if (flyingTracks.has(name)) b.style.visibility = 'hidden';
     b.addEventListener('click', () => { trackOn[name] = !trackOn[name]; save(); renderTracks(); applyGains(); });
     return b;
   }));
-  box.hidden = !MUSIC.includes(phase);
+  renderPoints();
+  $('#tracks').hidden = !MUSIC.includes(phase);
+}
+
+function renderPoints() {
+  $('#points').textContent = `${shownPoints}`;
 }
 
 // the tracks on are heard, but a solo track (one with the others in it) on mutes the rest
@@ -495,11 +521,14 @@ function applyGains() {
   }
 }
 
-// a track just unlocked comes on, and joins the lines already scheduled from now
-function newTrack(name) {
+// A track just unlocked comes on, and joins the lines already scheduled from now. Its toggle flies to
+// the bar from (x, y), where the click that unlocked it was.
+function newTrack(name, x, y) {
   trackOn[name] = true;
   save();
-  renderTracks(name);
+  flyingTracks.add(name);
+  renderTracks();
+  fly(toggle(name), () => $(`#toggles [data-track="${name}"]`), x, y, TRACK_FLY_MS, () => { flyingTracks.delete(name); renderTracks(); });
   applyGains();
   const buf = trackBufs[TRACKS.find(([n]) => n === name)?.[1]];
   if (!buf || !looping()) return;
@@ -549,7 +578,8 @@ function enter(next) {
   phase = next;
   step = 0;
   shown = 1;
-  if (next === 'work') { task = 0; results = {}; $('#strip').replaceChildren(); }
+  if (next === 'work') { task = 0; results = {}; landed = {}; shownPoints = 0; $('#strip').replaceChildren(); }
+  if (next === 'debrief') { trackOn = {}; applyGains(); }  // after work it's silent until a track's switched on
   if (next === 'write') stopLoop();  // the lines start from the first
   save();
   showScreen();
@@ -652,16 +682,18 @@ function planRun(key) {
     seconds: G.seconds[Math.min(k, G.seconds.length - 1)] })) } }];
 }
 
-// a run's points: find, one per thing; pair-it, one per pair; find-all, one per shape; caption-match, one per round
+// a run's points: the game's points for each thing (find), pair (pair-it), shape (find-all) or round (caption-match)
 function totalOf(key, plays) {
-  if (key === 'find') return plays.length;
-  if (key === 'find-all') return plays.reduce((t, p) => t + p.item.shapes.length, 0);
-  return plays[0]?.[key === 'pair-it' ? 'pairs' : 'rounds'].length ?? 0;
+  const each = GAMES[key].points;
+  if (key === 'find') return each * plays.length;
+  if (key === 'find-all') return each * plays.reduce((t, p) => t + p.item.shapes.length, 0);
+  return each * (plays[0]?.[key === 'pair-it' ? 'pairs' : 'rounds'].length ?? 0);
 }
 
 // plays the run's plays back to back, giving words and unlocks as they're won, then shows what it won
 function startRun(key) {
   clearStrip(key);
+  dropPoints(key);
   const plays = planRun(key);
   run = { key, plays, points: 0, total: totalOf(key, plays), words: [], tracks: [], notes: [], given: new Set(), state: new Map() };
   showGame(key);
@@ -695,9 +727,10 @@ function quickness(taken, seconds) {
 // pair-it and caption-match: a pair or round matched wins its words.
 function progress(k, ev) {
   const p = run.plays[k];
+  const before = run.points, each = GAMES[run.key].points;
   let won = [];
   if (run.key === 'find') {
-    run.points++;
+    run.points += each;
     const item = p.item;
     if (!run.state.has(item)) run.state.set(item, { others: shuffle(item.rewards.filter(w => !item.findWords.includes(w))),
       plays: run.plays.filter(q => q.item === item).length, shares: 0, given: 0 });
@@ -707,20 +740,21 @@ function progress(k, ev) {
     won = [findWord(p.t.target.toLowerCase())?.text, ...s.others.slice(s.given, due)];
     s.given = Math.max(s.given, due);
   } else if (run.key === 'find-all') {
-    run.points += ev.found.length;
+    run.points += each * ev.found.length;
     const n = (run.state.get(k) ?? 0) + ev.found.length;
     run.state.set(k, n);
     won = p.item.rewards.slice(0, p.data.steps.filter(x => x <= n).length);
   } else if (run.key === 'pair-it') {
-    run.points++;
+    run.points += each;
     won = p.pairs[ev.pair].rewards;
   } else {
-    run.points++;
+    run.points += each;
     won = p.rounds[ev.round].rewards;
   }
   const fresh = won.filter(t => t && !run.words.includes(t));
   run.words.push(...fresh);
   flyWords(fresh, ev.x, ev.y, run.key);
+  flyPoints(run.points - before, ev.x, ev.y, run.key);
   const percent = run.total ? run.points / run.total * 100 : 0;
   for (const u of REWARDS[run.key] ?? []) {
     if (!(percent > u.above) || run.given.has(u)) continue;
@@ -730,7 +764,7 @@ function progress(k, ev) {
     if (!u.track || run.tracks.includes(u.track)) continue;
     const had = unlockedTracks().some(([name]) => name === u.track);
     run.tracks.push(u.track);
-    if (!had) newTrack(u.track);
+    if (!had) newTrack(u.track, ev.x, ev.y);
   }
 }
 
@@ -776,9 +810,16 @@ function chip(text, key) {
   return el;
 }
 
+// the game's words shrink away one after another, newest first, the others closing up behind them
 function clearStrip(key) {
   stripGen[key] = (stripGen[key] ?? 0) + 1;
-  $('#strip').querySelectorAll(`[data-game="${key}"]`).forEach(el => el.remove());
+  [...$('#strip').querySelectorAll(`[data-game="${key}"]`)].reverse().forEach((el, k) => {
+    delete el.dataset.game;  // already going, so a second clear leaves it be
+    el.animate([
+      { transform: 'scale(1)', opacity: 1, width: `${el.offsetWidth}px`, marginLeft: '0px' },
+      { transform: 'scale(0)', opacity: 0, width: '0px', paddingLeft: '0px', paddingRight: '0px', borderWidth: '0px', marginLeft: '-4px' },  // -4px: the strip's gap
+    ], { duration: SHRINK_MS, delay: k * SHRINK_GAP, easing: 'ease-in', fill: 'forwards' }).onfinish = () => el.remove();
+  });
 }
 
 // after a reload, the words already won, without flying
@@ -792,7 +833,7 @@ function flyWords(texts, x, y, key) {
 }
 
 // The word takes its place at the right of the strip, the others sliding left to make room, and a copy
-// flies there from (x, y); the place is followed as it moves, as more words come in.
+// flies there from (x, y).
 function flyWord(text, x, y, key) {
   const strip = $('#strip');
   const olds = [...strip.children], lefts = olds.map(c => c.getBoundingClientRect().left);
@@ -803,19 +844,66 @@ function flyWord(text, x, y, key) {
     const dx = lefts[i] - c.getBoundingClientRect().left;
     if (dx) c.animate([{ transform: `translateX(${dx}px)` }, { transform: 'none' }], { duration: 300, easing: 'ease-out' });
   });
-  const fly = chip(text, key);
-  fly.classList.add('flying');
-  document.body.append(fly);
-  const fx = x - fly.offsetWidth / 2, fy = y - fly.offsetHeight / 2, t0 = performance.now();
+  fly(chip(text, key), () => place.isConnected ? place : null, x, y, WORD_FLY_MS, () => place.style.visibility = '');
+}
+
+// Each point flies from (x, y) to the counter as a +1, and counts when it lands. Many at once
+// (find-all's reach) are spread over at most FLY_GAP each.
+function flyPoints(n, x, y, key) {
+  const gen = stripGen[key], gap = Math.min(FLY_GAP, 600 / n);
+  for (let k = 0; k < n; k++) setTimeout(() => {
+    if (stripGen[key] !== gen) return;
+    const plus = document.createElement('div');
+    plus.className = 'point';
+    plus.textContent = '+1';
+    fly(plus, () => $('#points'), x, y, POINT_FLY_MS, () => {
+      if (stripGen[key] !== gen) return;  // retried while it flew
+      landed[key] = (landed[key] ?? 0) + 1;
+      shownPoints++;
+      renderPoints();
+      $('#points').animate([{ transform: 'scale(1.2)' }, { transform: 'none' }], { duration: 200, easing: 'ease-out' });
+    });
+  }, k * gap);
+}
+
+// A retry takes back the game's points: each drops from the counter as a +1 and fades, the counter
+// going down with it, spread over at most DROP_SPREAD.
+function dropPoints(key) {
+  const n = landed[key] ?? 0;
+  landed[key] = 0;
+  if (!n) return;
+  const from = $('#points').getBoundingClientRect(), gap = Math.min(SHRINK_GAP, DROP_SPREAD * 1000 / n);
+  for (let k = 0; k < n; k++) setTimeout(() => {
+    shownPoints--;
+    renderPoints();
+    const minus = document.createElement('div');
+    minus.className = 'point flying';
+    minus.textContent = '+1';
+    minus.style.left = `${from.left}px`;
+    minus.style.top = `${from.top}px`;
+    document.body.append(minus);
+    minus.animate([{ transform: 'none', opacity: 1 }, { transform: 'translateY(80px)', opacity: 0 }],
+      { duration: DROP_MS, easing: 'ease-in', fill: 'forwards' }).onfinish = () => minus.remove();
+  }, k * gap);
+}
+
+// el flies from (x, y) to where target() is, taking ms, following it as it moves, then land() is called. If
+// target() comes back empty on the way, el vanishes where it is and land() is still called.
+function fly(el, target, x, y, ms, land) {
+  el.classList.add('flying');
+  document.body.append(el);
+  const fx = x - el.offsetWidth / 2, fy = y - el.offsetHeight / 2, t0 = performance.now();
   const frame = now => {
-    const t = Math.min(1, (now - t0) / FLY_MS), e = 1 - (1 - t) ** 3;
-    const to = place.getBoundingClientRect();
-    fly.style.left = `${fx + (to.left - fx) * e}px`;
-    fly.style.top = `${fy + (to.top - fy) * e}px`;
-    fly.style.transform = `scale(${1.4 - 0.4 * e})`;
-    if (t < 1 && place.isConnected) return requestAnimationFrame(frame);
-    fly.remove();
-    place.style.visibility = '';
+    const t = Math.min(1, (now - t0) / ms), e = 1 - (1 - t) ** 3;
+    const to = target()?.getBoundingClientRect();
+    if (to) {
+      el.style.left = `${fx + (to.left - fx) * e}px`;
+      el.style.top = `${fy + (to.top - fy) * e}px`;
+      el.style.transform = `scale(${1.4 - 0.4 * e})`;
+    }
+    if (t < 1 && to) return requestAnimationFrame(frame);
+    el.remove();
+    land();
   };
   requestAnimationFrame(frame);
 }
@@ -1103,6 +1191,8 @@ function restore() {
     last = lines[li] && lk >= -1 && lk < lines[li].length ? [li, lk] : null;
     trackOn = {};
     for (const [name] of TRACKS) trackOn[name] = !!s.trackOn?.[name];
+    landed = Object.fromEntries(Object.entries(results).map(([key, r]) => [key, r.points]));
+    shownPoints = Object.values(landed).reduce((t, n) => t + n, 0);
     return true;
   } catch {
     return false;

@@ -21,14 +21,16 @@
 # - Words are given the moment they're won, and fly to the strip at the bottom.
 # - unlocks: what a game's score unlocks beyond words. Each one is given the
 #   moment the score is MORE than its `above` percentage of the game's points
-#   (find it: one per thing found; pair it: one per pair matched; find them
-#   all: one per shape found; caption match: one per round matched), so
-#   `above: 0%` is given for the first point. An unlock can give:
+#   (each game's `points` for every thing found, pair matched, shape found or
+#   round matched), so `above: 0%` is given for the first win. An unlock can
+#   give:
 #     track: a track name from `tracks` below. It comes on when unlocked, and
 #            the player can toggle it at the top of the page.
 #     text:  what the summary says about it. Leave it out to have one written.
 #   Yeahs and pauses aren't unlocks: writing gives them all (config/story.yaml).
 #   Retrying a game throws away its unlocks and works them out again.
+# - points: what each thing found, pair or round matched, or shape found is
+#   worth (1 if left out). Each point flies to the counter as a +1.
 # - reach (find-all photos, optional): a click finds every shape within this
 #   many of the photo's own pixels, instead of only the nearest one within
 #   tolerance. For photos with many small shapes. One click can find several.
@@ -47,6 +49,7 @@ tracks:
 find:
   title: find it
   seconds: 5
+  points: 50          # per thing found
   tolerance: 10       # on-screen pixels of slack around each shape
   unlocks:            # one thing found
     - above: 0%
@@ -89,6 +92,7 @@ pair-it:
   title: pair it
   prompt: click two photos with the same energy
   seconds: 15
+  points: 50          # per pair matched
   unlocks:            # one pair matched
     - above: 0%
       track: drums
@@ -119,6 +123,7 @@ pair-it:
 find-all:
   title: find them all
   seconds: 15
+  points: 1           # per shape found
   unlocks:            # one shape found
     - above: 0%
       track: full
@@ -159,6 +164,7 @@ caption-match:
   title: caption match
   prompt: 'select the image that shows: "{caption}"'
   seconds: [6, 4, 3]  # per round, in the order played; the last repeats if there are more rounds
+  points: 100         # per round matched
   unlocks: []         # nothing
   rounds:
     - photo: 9.png
