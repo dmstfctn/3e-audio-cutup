@@ -26,11 +26,11 @@ The game started as a copy of prototype-09 (see [Two lines, live rewards](#two-l
 - `build/index.html`: the page
 - `build/config/`: what to edit to change the content. Each file's comments explain it.
   - `games.yaml`: the games' photos, shapes, words, settings and unlocks, and the tracks
-  - `story.yaml`: the screens of text, the first stage's line and words, and the words given for writing
+  - `story.yaml`: the order the game runs in (pages of text, tries, games, the end), the first line and its words, and the words given for writing
   - `bins.yaml`: word category fixes (see [Fix word categories](#fix-word-categories))
 - `build/javascript/`: `main.js` runs the page, `minigames.js` the games, and `lib/` holds js-yaml
 - `build/style/`: the page's styles (`style.css`) and the games' (`minigames.css`)
-- `build/audio/`: the cut-up recording (`words.wav`, `words.json`) and the tracks
+- `build/audio/`: the cut-up recording (`words.mp3`, `words.json`; `words.wav` is kept) and the tracks
 - `build/images/`: the photos and their shapes
 
 ## Run the prototypes
@@ -61,10 +61,11 @@ After editing the transcript or replacing the recording:
 ```
 preprocess/.venv/bin/python preprocess/preprocess.py --clips
 cp data/audio.wav build/audio/words.wav
+lame --quiet -V 2 build/audio/words.wav build/audio/words.mp3
 cp data/manifest.json build/audio/words.json
 ```
 
-Copy them to `prototype/audio/` as well to update the prototypes.
+Copy them to `prototype/audio/` as well to update the prototypes (the prototypes play the `.wav`). The game plays the `.mp3`. Make it with `lame`, whose header tells browsers how much silence the encoder added at the start, so they trim it and the words' times still line up.
 
 The script prints the words in each category and a list of words with low alignment confidence. Listen to those in `data/clips/`. A low score usually means the transcript doesn't match what's said at that point.
 

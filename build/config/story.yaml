@@ -1,10 +1,24 @@
-# The story: the screens of text between stages, the first stage's line and
-# words, and the words given for writing at the end.
+# The story: the order the game runs in, its screens of text, the first
+# line and its words, and the words given for writing at the end.
 #
-# - Screens (intro, brief, debrief) are lists, shown one after another. Each has
-#   a text and a button. The text shows a line at a time, with the `next`
-#   button below; after its last line, the screen's own button. Blank lines
-#   show as a gap and don't take a click.
+# - sequence is the game from start to end, a step at a time:
+#     page: light or dark, with text: a screen of text (see below)
+#     try: a game (pair-it, find, find-all or caption-match), played with no
+#          timer until the first win, then on to the next step. It wins nothing.
+#          A game with several plays (find, find-all) only plays its first.
+#     games: [the games in order], each played through once, with its timer.
+#          Words won fly to the strip at the bottom. After each game, its
+#          points, with retry and next task; last-button is the button after
+#          the last game.
+#     write: the end: the lines, the tray and the tracks.
+#   Any step can have play: [tracks] and stop: [tracks], track names from
+#   games.yaml. A track played is unlocked from then on and comes on; stop
+#   switches it off, and the player can still switch it back on.
+# - A page's text shows a line at a time. A line ends with its button in
+#   [square brackets], which shows the next line; the last line's button moves
+#   on to the next step. Lines without a button show along with the next line
+#   that has one. A button on a line of its own shows with no new text. Blank
+#   lines show as a gap.
 # - Words are grouped by bin (noun, verb…). Words match as in bins.yaml, and
 #   apostrophes are ignored (that’s = thats). A word shows in the bin bins.yaml
 #   gives it. Listing it under another bin still offers it, with a warning
@@ -13,67 +27,62 @@
 # - The tray shows every recording of each word, so a word said 20 times shows
 #   20 times.
 # - Reload the page to see edits. Texts apply straight away. The first line and
-#   the first words apply from the next new game (restart).
+#   its words apply from the next new game (restart). Changing the sequence can
+#   start a new game.
 
-# the button that shows a screen's next line
+# the button for a page's last line if it has none
 next: next
 
-# before the first stage
-intro:
-  - text: |
-      you’re a rapper by night
-      george tavern 10pm next thursday
-      you've got a slot but just one line
-    button: check your line
+sequence:
+  - page: light
+    text: '[start]'
+  - page: light
+    play: [drone]
+    text: |
+      you’re finally awake [next]
+      when can you start? [log on]
+  - try: pair-it
+  - page: light
+    text: |
+      you’re a data labeller by day [next]
+      you train to speak the tangible, the real [keep going]
+  - try: pair-it
+  - page: light
+    text: |
+      you check the rules [next]
+      1. rawdownload images
+      2. solve puzzles
+      3. unlock words
+      4. express yourself [rawdownload]
+      you rawdownload the lot and start training
+      [start]
+  - games: [pair-it, find, find-all, caption-match]
+    last-button: finish training
+    play: [metro]
+  - page: light
+    text: training complete [next]
+  - page: dark
+    stop: [metro]
+    text: |
+      you’re a rapper by night [next]
+      george tavern 10pm next thursday [next]
+      you've got a slot but no lines [next]
+      [start writing]
+  - write
 
-# The first stage: 2 lines, silent, with the first one filled in (always with
+# The lines at the end start with the first filled in with line (always with
 # the first recording of each word). The tray has every recording of the
-# line's words and of these. seconds isn't shown; when it's up, time-up shows.
+# line's words and of these.
 first:
-  seconds: 10
   line: this pages are my words and I
   words:
     noun: [pages, words]
     verb: [are, do]
     pronoun: [this, I, my, nothing]
     glue: [and]
-  # the notice over the page when the time's up
-  time-up:
-    text: |
-      it’s not good enough
-      you need more training
-    button: head to work
 
-# between the first stage and the games
-brief:
-  - text: |
-      you’re finally awake
-      you’re a data labeller by day
-      you train to speak the tangible, the real
-      you check the rules
-      1. rawdownload images
-      2. solve puzzles
-      3. unlock words
-      4. express yourself
-    button: rawdownload
-  - text: you rawdownload the lot and start training
-    button: begin
-
-# the button on the last game's summary
-work:
-  last-button: finish work
-
-# between the games and writing
-debrief:
-  - text: |
-      You are a data labeller by day and a rapper by night
-      You trained to speak the tangible, the real
-      but you learned to turn it around and make it poetic
-      tonight you can show it
-    button: start writing
-
-# Writing: the lines as the first stage left them, its words, what the games
-# won, and these, every recording of each.
+# Writing: the lines, the first line's words, what the games won, and these,
+# every recording of each.
 write:
   pauses: [0.25, 0.5, 1, 2, 4]   # beats: 1 = a quarter note, 4 = a bar
   yeahs: all                     # every yeah; or a list of them

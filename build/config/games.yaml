@@ -26,7 +26,6 @@
 #   give:
 #     track: a track name from `tracks` below. It shows at the top of the page
 #            when unlocked, off, for the player to toggle on.
-#     text:  what the summary says about it. Leave it out to have one written.
 #   Yeahs and pauses aren't unlocks: writing gives them all (config/story.yaml).
 #   Retrying a game throws away its unlocks and works them out again.
 # - points: what each thing found, pair or round matched, or shape found is
@@ -35,16 +34,13 @@
 #   many of the photo's own pixels, instead of only the nearest one within
 #   tolerance. For photos with many small shapes. One click can find several.
 
-# The tracks, each unlocked by a game or listed under unlocked. The lines loop
-# their first 4 bars. The toggles show in this order.
+# The tracks, each unlocked by a game or played by story.yaml's sequence. The
+# lines loop their first 4 bars. The toggles show in this order.
 tracks:
   drone: audio/track-drone.mp3
   metro: audio/track-metronome.mp3
   beat: audio/track-drums.mp3
   all: audio/track-full.mp3
-
-# tracks unlocked from the start, without a game; they show from work on, off
-unlocked: [drone]
 
 # Find It: one photo and one thing per play, every thing in every photo once.
 # A click that misses leaves the time running. Finding a thing wins its word
@@ -56,9 +52,7 @@ find:
   seconds: 5
   points: 50          # per thing found
   tolerance: 10       # on-screen pixels of slack around each shape
-  unlocks:            # one thing found
-    - above: 0%
-      track: metro
+  unlocks: []         # nothing
   photos:
     1.jpg:
       find:

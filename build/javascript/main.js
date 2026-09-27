@@ -14,21 +14,16 @@ const FLY_GAP = 120;                            // the gap between words won tog
 const POINT_FLY_MS = 700, WORD_FLY_MS = POINT_FLY_MS * 1.1, TRACK_FLY_MS = WORD_FLY_MS * 1.1;
 const SHRINK_MS = 250, SHRINK_GAP = 60;         // a word a retry clears shrinking out of the strip, and the gap between words
 const DROP_MS = 700, DROP_SPREAD = 1.5;         // a point a retry takes back dropping from the counter, and the most time they all take
-// The game runs through these phases. Their texts, the first stage's line and words, and the words
-// given for writing come from config/story.yaml (see its comments).
-//   intro:   screens of text, shown a line at a time; the last one's button starts the first stage
-//   first:   the lines, the first filled in, with a few words, silent, for first.seconds (not shown);
-//            then the time-up notice sends the player on
-//   brief:   screens of text before work
-//   work:    the games in GAME_ORDER, each played through once, with a summary after that offers a retry;
-//            words won fly to the strip at the bottom, tracks unlocked show in the header
-//   debrief: screens of text after work
-//   write:   the lines as the first stage left them, its words, what the games won, the write words, and
-//            the tracks unlocked; the lines loop, and submit plays them once on their own
-const PHASES = ['intro', 'first', 'brief', 'work', 'debrief', 'write'];
-const SCREENS = ['intro', 'brief', 'debrief'];  // the phases that are screens of text
-const MUSIC = ['work', 'debrief', 'write'];     // the phases with the header; the lines only play in write
-const GAME_ORDER = ['find', 'pair-it', 'find-all', 'caption-match'];
+const TRY_MS = 1000;                            // how long a try's win shows before the story goes on
+// The game runs through the steps of story.yaml's sequence (see its comments), each one of these kinds:
+//   page:  a screen of text, shown a line at a time, each line with its own button
+//   try:   a game played with no timer until its first win, winning nothing
+//   games: the games in GAME_ORDER, each played through once, with its points after and a retry; words won fly
+//          to the strip at the bottom, which shows from here until writing, and points to the counter
+//   write: the lines, the first filled in, its words, what the games won, the write words, and the
+//          tracks unlocked; the lines play over the tracks, and submit plays them once on their own
+// A step can play or stop tracks. The header shows once a track is unlocked, and the tracks loop from
+// then on.
 // Minigames (javascript/minigames.js). Their photos, shapes, words and settings come from
 // config/games.yaml; these are the settings a game gets when games.yaml leaves one out. points is what
 // each thing found, pair or round matched, or shape found is worth.
@@ -53,23 +48,26 @@ let words = {};  // id -> { id, text, bin, a, d }; pauses have no audio (a = nul
 let takes = {};  // text -> the ids of its recordings, in recording order
 let binOrder = [...BIN_ORDER];  // palette sections: bins.yaml's order, then any bins it leaves out, then pauses
 let GAMES = {};       // game key -> its content and settings from games.yaml; a key missing can't be played
-// games.yaml: tracks as [name, url], the names of those unlocked from the start, and game key -> its
-// unlocks [{ above, track, text }]
+// games.yaml: tracks as [name, url], and game key -> its unlocks [{ above, track }]
 let TRACKS = [['drone', 'audio/track-drone.mp3'], ['metro', 'audio/track-metronome.mp3'], ['beat', 'audio/track-drums.mp3'], ['all', 'audio/track-full.mp3']];
-let UNLOCKED = ['drone'];
 let REWARDS = {};
-// config/story.yaml, filled in by loadStory; screens are [{ text, button }], words are texts
+// config/story.yaml, filled in by loadStory; words are texts
 let STORY = null;
+// the story's steps: [{ kind, play, stop, and for a page: dark, lines: [{ rows, button }]; a try: game }]
+let SEQUENCE = [];
+let GAME_ORDER = [];  // the games step's games
+let LAST_BUTTON = 'finish';  // the button after the last game
 
 // state: lines[i] is an array of word ids in play order
-let phase = 'intro';
-let step = 0;      // the screen showing, in a phase of screens
-let shown = 1;     // how many of the screen's lines are showing
-let task = 0;      // index in GAME_ORDER of the game being played at work
-let start = [];    // texts of the words the first stage gives: the first line's, then the rest of first.words
-// game key -> the result of its last run: { points, total, words: [texts], tracks, notes: [text] }
+let at = 0;        // the step of SEQUENCE showing
+let phase = null;  // its kind
+let shown = 1;     // how many of a page's lines are showing
+let task = 0;      // index in GAME_ORDER of the game being played
+let start = [];    // texts of the words given with the first line: its own, then the rest of first.words
+// game key -> the result of its run: { points, total, words: [texts], tracks }
 let results = {};
 let run = null;    // the game being played: its plays, and what it's won so far
+let tried = [];    // indexes in GAMES['pair-it'].items of the pairs matched in tries, left out of later tries
 let trackOn = {};  // track name -> whether its toggle is on
 let paused = false;  // the loop stopped with the play / pause button
 let shownPoints = 0;  // the counter at the top right: the points that have landed there
@@ -91,7 +89,7 @@ async function load() {
     loadUnlocks(doc);  // first: it says which tracks to load
     const [manifest, voice, ...tracks] = await Promise.all([
       fetch('audio/words.json').then(r => r.json()),
-      decode('audio/words.wav'),
+      decode('audio/words.mp3'),
       // all up front, so an unlocked track never waits; one that won't load is left silent
       ...TRACKS.map(([name, url]) => decode(url).catch(() => { warnings.push(`track ${name} (${url}) didn't load`); return null; })),
     ]);
@@ -123,12 +121,9 @@ async function load() {
   new ResizeObserver(sizeToWindow).observe(lineEls[0]);
   new ResizeObserver(() => document.documentElement.style.setProperty('--tray', `${$('#palette').offsetHeight}px`)).observe($('#palette'));
   $('#status').textContent = warnings.join(' · ');
-  showScreen();
-  showPhase();
+  fillStrip();
+  showStep();
   applyGains();
-  if (phase === 'first') startTimer();  // a reload gives the whole time again
-  if (phase === 'work' || phase === 'debrief') fillStrip();
-  if (phase === 'work') openTask();
 }
 
 // bins.yaml maps bin -> [words] and moves every occurrence of each word (ignoring case)
@@ -195,21 +190,12 @@ async function readYaml(file, missing = `no ${file}`) {
 }
 const readGames = () => readYaml('config/games.yaml', 'no config/games.yaml: the games can\'t be played');
 
-// config/story.yaml: the screens of text, the first stage's line and words, and the words given for
-// writing (see the file's comments). Anything missing or wrong gets a stand-in, with a warning.
+// config/story.yaml: the sequence, the first line and its words, and the words given for writing (see
+// the file's comments). Anything missing or wrong gets a stand-in, with a warning.
 function loadStory(doc) {
   const problems = [], unknown = new Set(), misfiled = new Set();
   const list = v => [].concat(v ?? []).map(x => String(x).trim()).filter(Boolean);  // a lone item works as well as a list
   doc ??= {};
-  const screen = (where, s) => {
-    if (!s || typeof s !== 'object') { problems.push(`${where}: expected a text and a button`); s = {}; }
-    return { text: String(s.text ?? '').trim(), button: String(s.button ?? 'continue') };
-  };
-  const screens = key => {
-    const out = [].concat(doc[key] ?? []).map((s, k) => screen(`${key} ${k + 1}`, s));
-    if (!out.length) { problems.push(`${key}: no screens`); out.push(screen(key, {})); }
-    return out;
-  };
   // texts of the words listed by bin; a word counts as in its bin if any recording of it is
   const byBin = (where, bins) => {
     if (bins != null && (typeof bins !== 'object' || Array.isArray(bins))) { problems.push(`${where}: expected bin names with lists of words`); return []; }
@@ -223,8 +209,6 @@ function loadStory(doc) {
     return texts;
   };
   const first = doc.first ?? {};
-  const seconds = Number(first.seconds ?? 15);
-  if (!(seconds > 0)) problems.push('first: seconds should be a number');
   // the line's words, in order, repeats kept; punctuation around a word is ignored
   const line = String(first.line ?? '').split(/\s+/).map(t => t.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, '')).filter(Boolean)
     .flatMap(t => { const w = findWord(t.toLowerCase()); if (!w) unknown.add(t); return w ? [w.text] : []; });
@@ -238,18 +222,71 @@ function loadStory(doc) {
   if (String(write.yeahs).toLowerCase() === 'all') yeahs = yeahTexts();
   else yeahs = byBin('write yeahs', { yeah: write.yeahs });
   STORY = {
-    next: String(doc.next ?? 'next'),
-    intro: screens('intro'),
-    first: { seconds: seconds > 0 ? seconds : 15, line, words: byBin('first', first.words),
-      timeUp: screen('first time-up', first['time-up']) },
-    brief: screens('brief'),
-    lastButton: String(doc.work?.['last-button'] ?? 'finish work'),
-    debrief: screens('debrief'),
+    first: { line, words: byBin('first', first.words) },
     write: { words: [...byBin('write', write.words), ...yeahs], pauses },
   };
+  SEQUENCE = readSequence(doc.sequence, String(doc.next ?? 'next'), problems);
+  const games = SEQUENCE.find(s => s.kind === 'games');
+  GAME_ORDER = games?.games ?? [];
+  LAST_BUTTON = games?.lastButton ?? LAST_BUTTON;
   if (problems.length) warnings.push(`story.yaml: ${problems.join('; ')}`);
   if (unknown.size) warnings.push(`story.yaml: not in the recording: ${[...unknown].join(', ')}`);
   if (misfiled.size) warnings.push(`story.yaml: in another bin, shown there: ${[...misfiled].join(', ')}`);
+}
+
+// story.yaml's sequence as steps (see SEQUENCE). A step with a problem is left out, with a warning; the
+// sequence always ends in write, and has one games step at most.
+function readSequence(list, next, problems) {
+  const out = [];
+  const tracks = (where, v) => [].concat(v ?? []).map(String).filter(name => {
+    if (TRACKS.some(([n]) => n === name)) return true;
+    problems.push(`${where}: no track called ${name} in games.yaml`);
+    return false;
+  });
+  if (!Array.isArray(list) || !list.length) problems.push('sequence: expected a list of steps');
+  for (const [k, raw] of [].concat(list ?? []).entries()) {
+    const where = `sequence step ${k + 1}`;
+    const s = typeof raw === 'string' ? { [raw]: null } : raw;
+    const kind = ['page', 'try', 'games', 'write'].find(key => s && key in s);
+    if (!kind) { problems.push(`${where}: expected page, try, games or write`); continue; }
+    const step = { kind, play: tracks(where, s.play), stop: tracks(where, s.stop) };
+    if (kind === 'page') {
+      if (!['light', 'dark'].includes(s.page)) problems.push(`${where}: page should be light or dark`);
+      step.dark = s.page === 'dark';
+      // a line ends with its [button]; lines without one show with the next that has one
+      step.lines = [];
+      let rows = [];
+      for (const row of String(s.text ?? '').trim().split('\n')) {
+        const m = /^(.*?)\s*\[([^\]]*)\]\s*$/.exec(row);
+        if (!m) { rows.push(row); continue; }
+        if (m[1]) rows.push(m[1]);
+        step.lines.push({ rows, button: m[2] });
+        rows = [];
+      }
+      if (rows.some(r => r.trim())) step.lines.push({ rows, button: next });
+      if (!step.lines.length) { problems.push(`${where}: no text`); step.lines.push({ rows: [], button: next }); }
+    } else if (kind === 'try') {
+      step.game = String(s.try);
+      if (!GAME_DEFAULTS[step.game]) { problems.push(`${where}: no game called ${step.game}`); continue; }
+    } else if (kind === 'games') {
+      if (out.some(o => o.kind === 'games')) { problems.push(`${where}: only one games step is played`); continue; }
+      step.games = [].concat(s.games ?? []).map(String).filter(key => {
+        if (GAME_DEFAULTS[key]) return true;
+        problems.push(`${where}: no game called ${key}`);
+        return false;
+      });
+      if (!step.games.length) { problems.push(`${where}: no games`); continue; }
+      step.lastButton = String(s['last-button'] ?? 'finish');
+    } else {
+      out.push(step);
+      if (k < list.length - 1) problems.push(`${where}: nothing after write is played`);
+      return out;
+    }
+    out.push(step);
+  }
+  problems.push('sequence: no write step, so one is added at the end');
+  out.push({ kind: 'write', play: [], stop: [] });
+  return out;
 }
 
 // games.yaml's tracks, and each game's unlocks: what its score wins beyond words (see the file's comments). An unlock with a problem is left out, with a warning.
@@ -262,14 +299,8 @@ function loadUnlocks(doc) {
       TRACKS = Object.entries(doc.tracks).map(([name, url]) => [name, String(url)]);
     } else problems.push('tracks: expected names with their files');
   }
-  if (doc.unlocked !== undefined) {
-    UNLOCKED = [].concat(doc.unlocked ?? []).map(String).filter(name => {
-      if (TRACKS.some(([n]) => n === name)) return true;
-      problems.push(`unlocked: no track called ${name} in tracks`);
-      return false;
-    });
-  }
-  for (const key of GAME_ORDER) {
+  if (doc.unlocked !== undefined) problems.push('unlocked is ignored: tracks come from the start with play in story.yaml\'s sequence');
+  for (const key of Object.keys(GAME_DEFAULTS)) {
     REWARDS[key] = [];
     for (const [k, r] of [].concat(doc[key]?.unlocks ?? []).entries()) {
       const where = `${key} unlock ${k + 1}`;
@@ -282,7 +313,6 @@ function loadUnlocks(doc) {
       }
       // writing gives every yeah and pause (story.yaml), so they're not unlocks
       if (r.yeahs != null || r.rest != null) problems.push(`${where}: yeahs and rest aren't unlocks, see story.yaml's write`);
-      if (r.text != null) out.text = String(r.text);
       REWARDS[key].push(out);
     }
   }
@@ -451,13 +481,14 @@ function known(id) {
 const yeahTexts = () => [...new Set(Object.values(words).filter(w => w.bin === 'yeah').map(w => w.text))];
 
 // a new game: the first line filled in, always with each word's first recording (cut to fit, with a
-// warning), and the first stage's words
+// warning), and the words given with it
 function newGame() {
-  phase = 'intro';
-  step = 0;
+  at = 0;
+  phase = SEQUENCE[0].kind;
   shown = 1;
   task = 0;
   results = {};
+  tried = [];
   trackOn = {};
   paused = false;
   landed = {};
@@ -476,7 +507,7 @@ function newGame() {
   save();
 }
 
-// what the palette offers: every recording of each word the player has (the first stage's, then when
+// what the palette offers: every recording of each word the player has (the first line's, then when
 // writing, what the games won and story.yaml's write words), and when writing, the pauses
 function paletteWords() {
   const texts = new Set(start);
@@ -491,9 +522,9 @@ function paletteWords() {
 
 // ---------- tracks ----------
 
-// the tracks unlocked, from the start or by the games played and the one being played, in TRACKS order
+// the tracks unlocked, played by the steps so far or by the games played and the one being played, in TRACKS order
 function unlockedTracks() {
-  const won = new Set([...UNLOCKED, ...[...Object.values(results), run ?? { tracks: [] }].flatMap(r => r.tracks)]);
+  const won = new Set([...SEQUENCE.slice(0, at + 1).flatMap(s => s.play), ...[...Object.values(results), run ?? { tracks: [] }].flatMap(r => r.tracks)]);
   return TRACKS.filter(([name]) => won.has(name));
 }
 
@@ -507,7 +538,7 @@ function toggle(name) {
 }
 
 // play / pause, when there's something to play; a toggle per track unlocked, hidden while it's still
-// flying there; and the points counter
+// flying there; and from the games on, the points counter. The header shows once there's a track.
 function renderTracks() {
   const any = unlockedTracks().length > 0;
   $('#play').hidden = !any && phase !== 'write';
@@ -520,8 +551,11 @@ function renderTracks() {
     return b;
   }));
   renderPoints();
-  $('#ui-header').hidden = !MUSIC.includes(phase);
+  $('#points').hidden = gamesAt() < 0 || at < gamesAt();
+  $('#ui-header').hidden = !headerOn();
+  document.body.classList.toggle('with-header', headerOn());
 }
+const headerOn = () => unlockedTracks().length > 0 || phase === 'write';
 
 // paused stops the loop; playing starts it again from the first line
 function togglePlay() {
@@ -552,12 +586,17 @@ function applyGains() {
   }
 }
 
-// A track just unlocked starts off, but joins the lines already scheduled from now, so toggling it on
-// is heard straight away. Its toggle flies to the bar from (x, y), where the click that unlocked it was.
+// A track a game just unlocked starts off, but joins the loop (see joinLoop). Its toggle flies to the bar
+// from (x, y), where the click that unlocked it was.
 function newTrack(name, x, y) {
   flyingTracks.add(name);
   renderTracks();
   fly(toggle(name), () => $(`#toggles [data-track="${name}"]`), x, y, TRACK_FLY_MS, () => { flyingTracks.delete(name); renderTracks(); });
+  joinLoop(name);
+}
+
+// a track just unlocked joins the lines already scheduled from now, so toggling it on is heard straight away
+function joinLoop(name) {
   const buf = trackBufs[TRACKS.find(([n]) => n === name)?.[1]];
   if (!buf || !looping()) return;
   const now = ctx.currentTime + 0.02;
@@ -567,55 +606,71 @@ function newTrack(name, x, y) {
   }
 }
 
-// ---------- phases ----------
+// ---------- the sequence ----------
 
-// In a phase of screens, shows the screen at step, a line at a time: its button shows the next line,
-// then after the last, the next screen, or after the last screen, moves on to the next phase.
-// Otherwise shows the cutup.
+// A page shows its lines one at a time, each line's button showing the next, and the last one's moving
+// on to the next step. The cutup only shows when writing.
 function showScreen() {
-  const on = SCREENS.includes(phase);
+  const s = SEQUENCE[at], on = s.kind === 'page';
   $('#screen').hidden = !on;
-  $('#game').hidden = on;
+  $('#game').hidden = phase !== 'write';
   if (!on) return;
-  $('#screen').classList.toggle('dark', phase === 'intro');
-  const list = STORY[phase], s = list[Math.min(step, list.length - 1)];
-  const rows = s.text.split('\n');
-  const said = rows.flatMap((r, k) => r.trim() ? [k] : []);  // the rows with words, which show one at a time
-  const upTo = said.length ? said[Math.min(shown, said.length) - 1] : -1;
-  $('#screen-text').replaceChildren(...rows.slice(0, upTo + 1).map((r, k) => {
+  $('#screen').classList.toggle('dark', s.dark);
+  const rows = s.lines.slice(0, shown).flatMap((l, k) => l.rows.map(r => [r, k === shown - 1]));
+  $('#screen-text').replaceChildren(...rows.map(([r, fresh]) => {
     const d = document.createElement('div');
-    d.textContent = r || ' ';  // a blank row keeps its space
-    if (k === upTo) d.className = 'new';
+    d.textContent = r.trim() ? r : ' ';  // a blank row keeps its space
+    if (fresh) d.className = 'new';
     return d;
   }));
   const go = $('#screen-go');
-  const done = shown >= said.length;
-  go.textContent = done ? s.button : STORY.next;
+  go.textContent = s.lines[shown - 1].button;
   go.disabled = false;
   go.onclick = () => {
-    if (!done) { shown++; return showScreen(); }
-    shown = 1;
-    if (step < list.length - 1) { step++; save(); return showScreen(); }
-    enter(PHASES[PHASES.indexOf(phase) + 1]);
+    if (shown < s.lines.length) { shown++; return showScreen(); }
+    enter(at + 1);
   };
 }
 
-// moves the game on to phase next
-function enter(next) {
-  const before = next === 'write' ? new Set(paletteWords().map(w => w.id)) : null;  // so the words won drop in
-  const strip = next === 'write' ? stripNow() : null;  // so the tray can grow out of it
-  phase = next;
-  step = 0;
+// moves the game on to step k: the tracks it plays come on, and those it stops go off
+function enter(k) {
+  const next = SEQUENCE[k];
+  const before = next.kind === 'write' ? new Set(paletteWords().map(w => w.id)) : null;  // so the words won drop in
+  const strip = next.kind === 'write' ? stripNow() : null;  // so the tray can grow out of it
+  const had = new Set(unlockedTracks().map(([name]) => name));
+  const wasDark = document.body.classList.contains('dark');
+  at = k;
+  phase = next.kind;
   shown = 1;
-  if (next === 'work') { task = 0; results = {}; landed = {}; shownPoints = 0; $('#strip').replaceChildren(); }
-  if (next === 'write') stopLoop();  // the lines start from the first
+  if (phase === 'games') { task = 0; results = {}; landed = {}; shownPoints = 0; $('#strip').replaceChildren(); }
+  if (phase === 'write') stopLoop();  // the lines start from the first
+  for (const name of next.play) {
+    trackOn[name] = true;
+    if (!had.has(name)) joinLoop(name);
+  }
+  for (const name of next.stop) trackOn[name] = false;
   save();
+  applyGains();
+  showStep(before, strip);
+  if (wasDark && !document.body.classList.contains('dark')) fadeFromDark();
+}
+
+// leaving a dark page, the page fades from black while the bars change back (see style.css)
+function fadeFromDark() {
+  const cover = document.createElement('div');
+  cover.className = 'cover';
+  document.body.append(cover);
+  cover.animate([{ opacity: 1 }, { opacity: 0 }], { duration: MORPH_MS, easing: 'ease-in-out' }).onfinish = () => cover.remove();
+}
+
+// shows the step the game is at, from its start; before and strip as for showPhase
+function showStep(before = null, strip = null) {
   showScreen();
   showBars();
-  if (next === 'work') return openTask();
-  if (SCREENS.includes(next)) return;
-  showPhase(before, strip);
-  if (next === 'first') startTimer();
+  if (phase === 'try') return startTry(SEQUENCE[at].game);
+  if (phase === 'games') return openTask();
+  $('#minigame').hidden = true;
+  if (phase === 'write') showPhase(before, strip);
 }
 
 // before = the tray's word ids before the phase changed, so the new ones can be animated in;
@@ -630,34 +685,51 @@ function showPhase(before = null, strip = null) {
   showBars();
 }
 
-// the header from work on, and the strip of words won during work and the debrief after it
+const gamesAt = () => SEQUENCE.findIndex(s => s.kind === 'games');
+
+// the strip of words won, from the games until writing, and the header, both inverted on a dark page
 function showBars() {
-  const strip = phase === 'work' || phase === 'debrief';
-  document.body.classList.toggle('with-header', MUSIC.includes(phase));
+  const strip = gamesAt() >= 0 && at >= gamesAt() && phase !== 'write';
+  document.body.classList.toggle('dark', phase === 'page' && SEQUENCE[at].dark);
   document.body.classList.toggle('with-strip', strip);
   $('#strip').hidden = !strip;
   renderTracks();
 }
 
-// the first stage's countdown, not shown; when it's up, a notice sends the player on
-let timer = null;
-function startTimer() {
-  clearTimeout(timer);
-  timer = setTimeout(timeUp, STORY.first.seconds * 1000);
+// ---------- try: a game with no timer, until its first win ----------
+
+// The game's first play, which wins nothing. Its first win shows for TRY_MS, then the story goes on;
+// so does a play that ends without one. A pair-it try leaves out the pairs matched in earlier tries
+// (the games step has them all).
+function startTry(key) {
+  showGame();
+  $('#mg-card').hidden = true;
+  if (typeof MINIGAMES === 'undefined' || !GAMES[key]) return enter(at + 1);  // nothing to try
+  const data = planRun(key)[0].data;
+  data.seconds = null;
+  data.rounds?.forEach(r => r.seconds = null);
+  const items = GAMES[key].items;
+  let pairs = items.map((_, k) => k);  // pair-it: the items of data.pairs
+  if (key === 'pair-it' && tried.length < items.length) {
+    pairs = pairs.filter(k => !tried.includes(k));
+    data.pairs = pairs.map(k => data.pairs[k]);
+  }
+  let won = false;
+  const game = mounted = MINIGAMES[key].mount($('#mg-body'), data, () => on(), ev => {
+    if (key === 'pair-it' && !tried.includes(pairs[ev.pair])) { tried.push(pairs[ev.pair]); save(); }
+    if (won) return;
+    won = true;
+    setTimeout(on, TRY_MS);
+  });
+  function on() {
+    if (mounted !== game) return;  // already gone on, or restarted
+    game.destroy();
+    mounted = null;
+    enter(at + 1);
+  }
 }
 
-function timeUp() {
-  timer = null;
-  $('#notice-text').textContent = STORY.first.timeUp.text;
-  $('#notice-go').textContent = STORY.first.timeUp.button;
-  $('#notice-go').onclick = () => {
-    $('#notice').hidden = true;
-    enter('brief');
-  };
-  $('#notice').hidden = false;
-}
-
-// ---------- work: the games, each once through with a summary ----------
+// ---------- games: each once through, with its points after ----------
 
 let mounted = null;  // the game being played, so it can be torn down
 
@@ -669,18 +741,18 @@ function showGame() {
   $('#minigame').hidden = false;
 }
 
-// the task's summary if it's been played, otherwise straight into the game
+// the task's points if it's been played, otherwise straight into the game
 function openTask() {
   const key = GAME_ORDER[task];
   if (results[key]) return showSummary(key);
   if (typeof MINIGAMES !== 'undefined' && GAMES[key]) return startRun(key);
-  // a game that can't be played counts as played for nothing, so work carries on
+  // a game that can't be played counts as played for nothing, so the games carry on
   showGame();
   $('#mg-text').textContent = typeof MINIGAMES === 'undefined' ? 'couldn\'t load this game (no javascript/minigames.js).'
     : 'this game has nothing to play: see the warnings above the lines.';
   $('#mg-retry').hidden = true;
   $('#mg-go').textContent = 'next task';
-  $('#mg-go').onclick = () => { results[key] = { points: 0, total: 0, words: [], tracks: [], notes: [] }; save(); nextTask(); };
+  $('#mg-go').onclick = () => { results[key] = { points: 0, total: 0, words: [], tracks: [] }; save(); nextTask(); };
   $('#mg-card').hidden = false;
 }
 
@@ -719,12 +791,12 @@ function totalOf(key, plays) {
   return each * (plays[0]?.[key === 'pair-it' ? 'pairs' : 'rounds'].length ?? 0);
 }
 
-// plays the run's plays back to back, giving words and unlocks as they're won, then shows what it won
+// plays the run's plays back to back, giving words and unlocks as they're won, then shows its points
 function startRun(key) {
   clearStrip(key);
   dropPoints(key);
   const plays = planRun(key);
-  run = { key, plays, points: 0, total: totalOf(key, plays), words: [], tracks: [], notes: [], given: new Set(), state: new Map() };
+  run = { key, plays, points: 0, total: totalOf(key, plays), words: [], tracks: [], given: new Set(), state: new Map() };
   showGame();
   $('#mg-card').hidden = true;
   const next = k => {
@@ -734,7 +806,7 @@ function startRun(key) {
       mounted?.destroy();
       mounted = null;
       if (k + 1 < plays.length) return next(k + 1);
-      results[key] = { points: run.points, total: run.total, words: run.words, tracks: run.tracks, notes: run.notes };
+      results[key] = { points: run.points, total: run.total, words: run.words, tracks: run.tracks };
       run = null;
       save();
       showSummary(key);
@@ -789,8 +861,6 @@ function progress(k, ev) {
   for (const u of REWARDS[run.key] ?? []) {
     if (!(percent > u.above) || run.given.has(u)) continue;
     run.given.add(u);
-    const note = u.text ?? (u.track ? `you unlocked the ${u.track} track.` : '');
-    if (note) run.notes.push(note);
     if (!u.track || run.tracks.includes(u.track)) continue;
     const had = unlockedTracks().some(([name]) => name === u.track);
     run.tracks.push(u.track);
@@ -798,38 +868,33 @@ function progress(k, ev) {
   }
 }
 
-// what the run won, with a retry (which throws it away and plays again) and the way on
+// the run's points, with a retry (which throws away what it won and plays again) and the way on
 function showSummary(key) {
   const r = results[key];
   showGame();
-  $('#mg-text').textContent = [
-    r.words.length ? `you unlocked ${r.words.length} word${r.words.length === 1 ? '' : 's'}: ${r.words.join(', ')}` : 'you unlocked no words.',
-    `you gained ${r.points} / ${r.total} points`,
-    ...r.notes,
-  ].join('\n');
+  $('#mg-text').textContent = `${r.points} / ${r.total} points`;
   const retry = $('#mg-retry');
   retry.hidden = !GAMES[key] || typeof MINIGAMES === 'undefined';
   retry.onclick = () => { delete results[key]; save(); renderTracks(); applyGains(); startRun(key); };
   const go = $('#mg-go');
-  go.textContent = task < GAME_ORDER.length - 1 ? 'next task' : STORY.lastButton;
+  go.textContent = task < GAME_ORDER.length - 1 ? 'next task' : LAST_BUTTON;
   go.onclick = nextTask;
   $('#mg-card').hidden = false;
 }
 
-// on to the next game, or after the last, the screens after work
+// on to the next game, or after the last, the next step
 function nextTask() {
   if (task < GAME_ORDER.length - 1) {
     task++;
     save();
     return openTask();
   }
-  $('#minigame').hidden = true;
-  enter('debrief');
+  enter(at + 1);
 }
 
-// ---------- the strip: words won at work ----------
+// ---------- the strip: words won in the games ----------
 
-const stripGen = {};  // game key -> bumped when its words are cleared, so words still flying for it land nowhere
+const stripGen = {};  // game key -> bumped on a retry or restart, so words and points still flying for it land nowhere
 
 function chip(text, key) {
   const el = document.createElement('div');
@@ -852,9 +917,9 @@ function clearStrip(key) {
   });
 }
 
-// the strip's height and its words, where they are, for the tray to grow out of
+// the strip's height and its words, where they are, and whether they're grey, for the tray to grow out of
 function stripNow() {
-  return { height: $('#strip').offsetHeight,
+  return { height: $('#strip').offsetHeight, grey: document.body.classList.contains('dark'),
     chips: [...$('#strip').children].filter(c => c.dataset.game).map(c => ({ text: c.textContent, key: c.dataset.game, rect: c.getBoundingClientRect() })) };
 }
 
@@ -893,7 +958,7 @@ function flyPoints(n, x, y, key) {
     plus.className = 'point';
     plus.textContent = '+1';
     fly(plus, () => $('#points'), x, y, POINT_FLY_MS, () => {
-      if (stripGen[key] !== gen) return;  // retried while it flew
+      if (stripGen[key] !== gen) return;  // retried or restarted while it flew
       landed[key] = (landed[key] ?? 0) + 1;
       shownPoints++;
       renderPoints();
@@ -1008,12 +1073,8 @@ function restart() {
   $('#strip').replaceChildren();
   GAME_ORDER.forEach(key => stripGen[key] = (stripGen[key] ?? 0) + 1);  // words and points still flying land nowhere
   stopLoop();
-  clearTimeout(timer);
-  timer = null;
-  $('#notice').hidden = true;
   newGame();
-  showPhase();
-  showScreen();
+  showStep();
   applyGains();
 }
 
@@ -1109,7 +1170,7 @@ function buildPalette(before = null, delay = 0) {
   });
 }
 
-// Going from work to writing, the tray grows up out of the strip, and each word in the strip moves to
+// Going from the games to writing, the tray grows up out of the strip, and each word in the strip moves to
 // its place in the tray, taking its size there. The strip = stripNow(), taken before it was hidden.
 function morphTray(strip) {
   const palette = $('#palette');
@@ -1125,6 +1186,13 @@ function morphTray(strip) {
     el.classList.add('flying');
     Object.assign(el.style, { left: `${rect.left}px`, top: `${rect.top}px`, width: `${rect.width}px`, overflow: 'hidden', textAlign: 'center' });
     document.body.append(el);
+    // grey from a dark page: its colour comes in on the way
+    if (strip.grey) {
+      el.classList.add('grey');
+      el.getBoundingClientRect();  // so the grey is drawn before it goes
+      Object.assign(el.style, { transitionDuration: `${MORPH_MS}ms`, transitionDelay: `${k * gap}ms` });
+      el.classList.remove('grey');
+    }
     const t0 = performance.now() + k * gap;
     const frame = now => {
       const t = Math.max(0, Math.min(1, (now - t0) / MORPH_MS)), e = 1 - (1 - t) ** 3;
@@ -1391,27 +1459,30 @@ document.addEventListener('contextmenu', e => { if (e.target.closest?.('.word'))
 
 function save() {
   try {
-    localStorage.setItem(STORE_KEY, JSON.stringify({ phase, step, task, start, results, lines, nLines, last, trackOn }));
+    localStorage.setItem(STORE_KEY, JSON.stringify({ phase, at, task, start, results, tried, lines, nLines, last, trackOn }));
   } catch {}
 }
 // returns false when there's nothing usable saved, so a new game is dealt
 function restore() {
   try {
     const s = JSON.parse(localStorage.getItem(STORE_KEY));
-    if (!PHASES.includes(s?.phase) || !Array.isArray(s.start)) return false;
+    // a sequence changed since may have another step here: start again
+    if (!s?.phase || SEQUENCE[s.at]?.kind !== s.phase || !Array.isArray(s.start)) return false;
     // words.json may have changed since: words no longer in it are dropped
     const ids = a => [].concat(a ?? []).map(known).filter(Boolean);
     const texts = a => [].concat(a ?? []).map(String).filter(t => takesOf(t).length);
+    at = s.at;
     phase = s.phase;
-    step = SCREENS.includes(phase) ? Math.min(Math.max(0, s.step | 0), STORY[phase].length - 1) : 0;
-    task = Math.min(Math.max(0, s.task | 0), GAME_ORDER.length - 1);
+    shown = 1;
+    task = Math.max(0, Math.min(s.task | 0, GAME_ORDER.length - 1));
     start = texts(s.start);
+    tried = [].concat(s.tried ?? []).map(Number).filter(k => k >= 0 && k < (GAMES['pair-it']?.items.length ?? 0));
     results = {};
     for (const key of GAME_ORDER) {
       const r = s.results?.[key];
       if (!r) continue;
       results[key] = { points: +r.points || 0, total: +r.total || 0, words: texts(r.words),
-        tracks: [].concat(r.tracks ?? []).filter(t => TRACKS.some(([n]) => n === t)), notes: [].concat(r.notes ?? []).map(String) };
+        tracks: [].concat(r.tracks ?? []).filter(t => TRACKS.some(([n]) => n === t)) };
     }
     nLines = s.nLines === MAX_LINES ? MAX_LINES : MIN_LINES;
     [].concat(s.lines ?? []).slice(0, nLines).forEach((l, i) => {
@@ -1477,8 +1548,8 @@ function sayWords(texts) {
   }
 }
 
-// From work on, the tracks loop, line by line; when writing, the lines play over them.
-const looping = () => MUSIC.includes(phase) && !submitting && !paused;
+// The tracks loop, line by line; when writing, the lines play over them.
+const looping = () => !submitting && !paused;
 let nextTime = null;   // audio-clock time the next line starts
 let slot = 0;          // lines since the loop started; slot % nLines is the line
 let scheduled = [];    // [{ line, t0, voice }] for the playhead and tracks unlocked mid-line

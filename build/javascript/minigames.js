@@ -21,6 +21,7 @@
 // seconds: how long the player took, from the timer starting to the click that found it (find) or
 // the last one (find-all); the whole time if the timer ran out.
 // onComplete fires once, after the last reveal. Shapes are SVG elements in the photo's pixel space.
+// seconds: null plays with no timer (and no bar) until the game's done or destroyed.
 const MINIGAMES = (() => {
   'use strict';
 
@@ -108,23 +109,27 @@ const MINIGAMES = (() => {
       root,
       bar: frac => { root.firstChild.style.transform = `scaleX(${Math.max(0, frac)})`; },
     };
-    let raf = null, started = null, stopped = null;
+    let raf = null, started = null, stopped = null, live = false;
     const timeouts = new Set(), cleanups = [];
-    // counts down secs on the bar, then calls onDone; only runs while the player can act
+    // counts down secs on the bar, then calls onDone; only runs while the player can act. With no secs
+    // there's no bar, and it runs until stopped.
     g.countdown = (secs, onDone) => {
       const t0 = started = performance.now();
       stopped = null;
+      live = true;
+      root.firstChild.hidden = secs == null;
+      if (secs == null) return;
       const tick = now => {
         const left = 1 - (now - t0) / (secs * 1000);
         g.bar(left);
-        if (left <= 0) { raf = null; onDone(); } else raf = requestAnimationFrame(tick);
+        if (left <= 0) { raf = null; live = false; onDone(); } else raf = requestAnimationFrame(tick);
       };
       raf = requestAnimationFrame(tick);
     };
-    g.stop = () => { if (raf) { cancelAnimationFrame(raf); stopped ??= performance.now(); } raf = null; };
+    g.stop = () => { if (live) stopped ??= performance.now(); cancelAnimationFrame(raf); raf = null; live = false; };
     // seconds from the countdown starting to it stopping (or to now, while it runs)
     g.elapsed = () => started === null ? 0 : ((stopped ?? performance.now()) - started) / 1000;
-    g.running = () => raf !== null;
+    g.running = () => live;
     g.later = (fn, ms) => {
       const t = setTimeout(() => { timeouts.delete(t); if (!g.dead) fn(); }, ms);
       timeouts.add(t);
