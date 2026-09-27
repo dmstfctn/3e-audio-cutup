@@ -19,13 +19,13 @@ const DROP_MS = 700, DROP_SPREAD = 1.5;         // a point a retry takes back dr
 //            then the time-up notice sends the player on
 //   brief:   screens of text before work
 //   work:    the games in GAME_ORDER, each played through once, with a summary after that offers a retry;
-//            words won fly to the strip at the bottom, tracks unlocked show in the bar at the top
+//            words won fly to the strip at the bottom, tracks unlocked show in the header
 //   debrief: screens of text after work
 //   write:   the lines as the first stage left them, its words, what the games won, the write words, and
 //            the tracks unlocked; the lines loop, and submit plays them once on their own
 const PHASES = ['intro', 'first', 'brief', 'work', 'debrief', 'write'];
 const SCREENS = ['intro', 'brief', 'debrief'];  // the phases that are screens of text
-const MUSIC = ['work', 'debrief', 'write'];     // the phases with the tracks bar; the lines only play in write
+const MUSIC = ['work', 'debrief', 'write'];     // the phases with the header; the lines only play in write
 const GAME_ORDER = ['find', 'pair-it', 'find-all', 'caption-match'];
 // Minigames (javascript/minigames.js). Their photos, shapes, words and settings come from
 // config/games.yaml; these are the settings a game gets when games.yaml leaves one out. points is what
@@ -504,7 +504,7 @@ function renderTracks() {
     return b;
   }));
   renderPoints();
-  $('#tracks').hidden = !MUSIC.includes(phase);
+  $('#ui-header').hidden = !MUSIC.includes(phase);
 }
 
 function renderPoints() {
@@ -579,7 +579,6 @@ function enter(next) {
   step = 0;
   shown = 1;
   if (next === 'work') { task = 0; results = {}; landed = {}; shownPoints = 0; $('#strip').replaceChildren(); }
-  if (next === 'debrief') { trackOn = {}; applyGains(); }  // after work it's silent until a track's switched on
   if (next === 'write') stopLoop();  // the lines start from the first
   save();
   showScreen();
@@ -598,9 +597,9 @@ function showPhase(before = null) {
   showBars();
 }
 
-// the tracks bar from work on, and the strip of words won during work
+// the header from work on, and the strip of words won during work
 function showBars() {
-  document.body.classList.toggle('with-tracks', MUSIC.includes(phase));
+  document.body.classList.toggle('with-header', MUSIC.includes(phase));
   document.body.classList.toggle('with-strip', phase === 'work');
   $('#strip').hidden = phase !== 'work';
   renderTracks();
@@ -916,6 +915,7 @@ let submitting = false;
 $('#submit').addEventListener('click', async () => {
   submitting = true;
   stopLoop();
+  $('#submit').hidden = true;  // back to writing brings it back
   const cues = [];  // [span, time it's said]
   const box = $('#show-lines');
   box.replaceChildren();
@@ -952,6 +952,7 @@ $('#show-back').addEventListener('click', () => {
   stopLoop();
   submitting = false;
   $('#show').hidden = true;
+  $('#submit').hidden = false;
 });
 
 $('#restart').addEventListener('click', () => {
@@ -976,7 +977,6 @@ function sizeToWindow() {
   document.documentElement.style.setProperty('--beat', pps * 60 / BPM);
 }
 
-// a word plays when the pointer comes over it
 function wordEl(w) {
   const el = document.createElement('div');
   el.className = 'word';
@@ -985,7 +985,6 @@ function wordEl(w) {
   el.title = w.bin === 'rest' ? `pause (${w.d.toFixed(2)}s)` : `${w.text} (${w.bin}, ${w.d.toFixed(2)}s)`;
   el.style.setProperty('--d', w.d);
   el.draggable = true;
-  if (w.a !== null) el.addEventListener('mouseenter', () => preview(w));
   return el;
 }
 
@@ -1223,13 +1222,6 @@ function playSlice(buffer, when, offset, duration, fade, out = ctx.destination) 
   return src;
 }
 
-// one word at a time: a new one cuts off the last
-let previewing = null;
-function preview(w) {
-  if (ctx.state !== 'running') ctx.resume();
-  try { previewing?.stop(); } catch {}
-  previewing = playSlice(wordsBuf, ctx.currentTime + 0.01, w.a, w.d, FADE);
-}
 // the browser only lets audio start after a click
 document.addEventListener('pointerdown', () => { if (ctx.state !== 'running') ctx.resume(); });
 

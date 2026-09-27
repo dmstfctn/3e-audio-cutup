@@ -1,6 +1,6 @@
-/* --top: the tracks bar, from work on; --strip: the words won, during work */
+/* --top: the header, from work on; --strip: the words won, during work */
 :root { --top: 0px; --strip: 0px; }
-body.with-tracks { --top: 45px; }
+body.with-header { --top: 45px; }
 body.with-strip { --strip: 58px; }
 body { font: 16px "Times New Roman", Times, serif; margin: 16px; }
 
@@ -14,10 +14,10 @@ body { font: 16px "Times New Roman", Times, serif; margin: 16px; }
 #screen[hidden], #game[hidden] { display: none; }
 
 /* from work on, always on top: at the left the tracks unlocked, each a toggle looking like a word in grey;
-   at the right the points counter */
-#tracks { position: fixed; top: 0; left: 0; right: 0; height: var(--top); z-index: 12; box-sizing: border-box; background: white;
+   in the middle submit, when writing; at the right the points counter */
+#ui-header { position: fixed; top: 0; left: 0; right: 0; height: var(--top); z-index: 12; box-sizing: border-box; background: white;
           border-bottom: 1px solid black; padding: 0 16px; display: flex; justify-content: space-between; align-items: center; }
-#tracks[hidden] { display: none; }
+#ui-header[hidden] { display: none; }
 #toggles { display: flex; gap: 2px; }
 .toggle { box-sizing: border-box; height: 2em; line-height: calc(2em - 2px); padding: 0 8px; border: 1px solid black; border-radius: 0;
           background: lightgray; color: black; font: inherit; white-space: nowrap; cursor: pointer; user-select: none; }
@@ -25,7 +25,8 @@ body { font: 16px "Times New Roman", Times, serif; margin: 16px; }
 
 #game { padding-top: var(--top); }
 #transport { display: flex; gap: 8px; align-items: center; margin-bottom: 16px; min-height: 2em; }
-#submit { margin-left: auto; }
+/* in the top bar, centred whatever the toggles and counter either side of it */
+#submit { position: absolute; left: 50%; transform: translateX(-50%); }
 #submit[hidden] { display: none; }
 #footer { display: flex; justify-content: flex-end; margin-top: 16px; }
 
@@ -55,7 +56,7 @@ body { font: 16px "Times New Roman", Times, serif; margin: 16px; }
 .word.entering { animation: enter 0.35s ease-out backwards; }
 @keyframes enter { from { opacity: 0; transform: translateY(-0.75em) scale(0.6); } }
 
-/* the games cover the page between the tracks bar and the words strip */
+/* the games cover the page between the header and the words strip */
 #minigame { position: fixed; top: var(--top); bottom: var(--strip); left: 0; right: 0; z-index: 10; background: white; display: flex; flex-direction: column; }
 #minigame[hidden], #mg-card[hidden], #mg-retry[hidden] { display: none; }
 body:has(#minigame:not([hidden])), body:has(#show:not([hidden])) { overflow: hidden; }  /* the page underneath doesn't scroll */
