@@ -210,6 +210,10 @@ Prototype-08 is prototype-07 with a fourth game, Pair It, from [3e-coco-games](.
 - The story is in `build/words/story-08.yaml`, a copy of `story-07.yaml` to start with.
 - The game code is in `build/minigames/minigames-08.js`, which is `minigames-07.js` with Pair It added.
 
+## Tools
+
+- `build/tools-test-find-all-svg.html`: drop a photo and its shapes (.svg) on the page to check them before they go in `games.yaml`. It outlines every shape over the photo, lists the things the ids mark with their counts, and warns when the SVG's proportions don't match the photo's or its name isn't the one the game looks for. Choose a thing and press **play** to try it in Find Them All, with the seconds, zoom, tolerance, reach and number of words set on the page. When the page is served, these start from `games.yaml`, including the photo's own entry if it has one. Drop a new .svg at any time to try an edit with the same photo.
+
 ## Add a prototype
 
 Copy `build/prototype-01.html` to `build/prototype-02.html` and add a link to it in `build/index.html`.

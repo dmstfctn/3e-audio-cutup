@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Test find-all shapes</title>
+<link rel="icon" href="data:,">
+<style>
+  body { font: 16px "Times New Roman", Times, serif; margin: 16px; }
+  p { margin: 0 0 8px; }
+  #drop { border: 1px dashed black; padding: 16px; margin-bottom: 16px; }
+  body.over #drop { background: #eee; }
+  .muted { color: #777; }
+  #warnings p { color: #d23c3c; }
+  #things { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px; }
+  #things button[aria-pressed="true"] { background: black; color: white; }
+  #settings { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-bottom: 8px; }
+  #settings input { width: 4em; font: inherit; }
+  #result:empty { display: none; }
+
+  /* every shape outlined in blue; the thing chosen in green */
+  #preview { position: relative; display: inline-block; line-height: 0; margin-top: 8px; max-width: 100%; }
+  #preview[hidden] { display: none; }
+  #preview img { display: block; max-width: 100%; }
+  #preview svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+  #preview svg g * { fill: rgb(0 0 255 / .12); stroke: blue; stroke-width: 1; vector-effect: non-scaling-stroke; }
+  #preview svg g.on * { fill: rgb(26 158 75 / .35); stroke: #1a9e4b; stroke-width: 2; }
+
+  /* the game covers the page, as in the prototypes */
+  #game { position: fixed; inset: 0; z-index: 10; background: white; display: flex; flex-direction: column; }
+  #game[hidden] { display: none; }
+  #game-top { padding: 8px 16px; border-bottom: 1px solid black; display: flex; gap: 16px; align-items: center; }
+  #game-body { position: relative; flex: 1; overflow: hidden; }
+</style>
+</head>
+<body>
+
+<div id="drop">
+  <p>Drop a photo and its shapes (.svg) anywhere on this page, or choose them:
+    <input type="file" id="pick" accept="image/*,.svg" multiple></p>
+  <p id="files" class="muted">no files yet</p>
+  <p class="muted">Drop a new .svg at any time to try an edit with the same photo. Settings come from
+    games.yaml's find-all (and the photo's entry, if its name is there) when this page is served; change them below.</p>
+</div>
+
+<div id="warnings"></div>
+<div id="things"></div>
+<div id="settings">
+  <label>seconds <input id="seconds" type="number" min="1" step="1"></label>
+  <label>zoom <input id="zoom" type="number" min="1" step="0.5"></label>
+  <label>tolerance <input id="tolerance" type="number" min="0" step="1"></label>
+  <label>reach <input id="reach" type="number" min="0" step="1" placeholder="off"></label>
+  <label>words on the bar <input id="words" type="number" min="1" step="1"></label>
+  <button id="play" disabled>play</button>
+  <span id="result"></span>
+</div>
+<div id="preview" hidden><img alt=""><svg preserveAspectRatio="none"></svg></div>
+
+<div id="game" hidden>
+  <div id="game-top"><b>find them all</b><span class="muted" id="game-note"></span><button id="stop">stop</button></div>
+  <div id="game-body"></div>
+</div>
+
+<script src="lib/js-yaml.min.js"></script>
+<script src="minigames/minigames-08.js"></script>
+<script>
+// Tries a find-all photo and its shapes before they go in games.yaml: shows every shape over the photo,
+// lists the things the ids mark, and plays find-all on one of them with minigames-08.js.
+// The shapes are read as the prototypes read images/<photo>.svg (see loadShapes in prototype-08.html).
+const SVG_NS = 'http://www.w3.org/2000/svg';
+const $ = s => document.querySelector(s);
+const DEFAULTS = { seconds: 15, zoom: 3, tolerance: 10, reach: '', words: 5 };
+
+let photo = null;   // { name, url, w, h }
+let shapes = null;  // { name, viewBox, byTag: tag -> [{ key, el }], problems: [text] }
+let tag = null;     // the thing chosen to find
+let yaml = null;    // games.yaml's find-all, if it could be read
+let mounted = null;
+
+for (const [k, v] of Object.entries(DEFAULTS)) $(`#${k}`).value = v;
+
+// games.yaml's settings; and the photo's own find, reach and word count when it's listed there
+fetch('minigames/games.yaml', { cache: 'no-cache' })
+  .then(r => r.ok ? r.text() : null)
+  .then(t => { if (t) { yaml = jsyaml.load(t)?.['find-all'] ?? null; applyYaml(); } })
+  .catch(() => {});
+
+function applyYaml() {
+  if (!yaml) return;
+  for (const k of ['seconds', 'zoom', 'tolerance']) if (yaml[k] != null) $(`#${k}`).value = yaml[k];
+  const p = photo && yaml.photos?.[photo.name];
+  if (!p) return;
+  if (p.find != null) tag = String(p.find).toLowerCase();
+  $('#reach').value = p.reach ?? '';
+  // the thing's own word, then the rewards, as the prototypes count them
+  const listed = Object.values(p.rewards ?? {}).flatMap(v => [].concat(v ?? [])).map(w => String(w).toLowerCase());
+  $('#words').value = new Set([tag, ...listed].filter(Boolean)).size || DEFAULTS.words;
+}
+
+// ---------- files ----------
+
+async function take(files) {
+  for (const f of files) {
+    if (/\.svg$/i.test(f.name) || f.type === 'image/svg+xml') shapes = readShapes(f.name, await f.text());
+    else if (f.type.startsWith('image/')) {
+      const url = URL.createObjectURL(f);
+      const im = new Image();
+      await new Promise(res => { im.onload = im.onerror = res; im.src = url; });
+      if (photo) URL.revokeObjectURL(photo.url);
+      photo = { name: f.name, url, w: im.naturalWidth, h: im.naturalHeight };
+      applyYaml();
+    }
+  }
+  render();
+}
+
+// A shape's id is the thing it marks, and anything after a _ is ignored, so fruits_1 and fruits_2 are
+// two fruits. A <g> with an id is one shape. The shapes lose their ids and styles, as in the game.
+function readShapes(name, text) {
+  const out = { name, viewBox: null, byTag: {}, problems: [] };
+  const doc = new DOMParser().parseFromString(text, 'image/svg+xml');
+  const svg = doc.documentElement;
+  if (svg.nodeName !== 'svg' || doc.querySelector('parsererror')) { out.problems.push(`${name} isn't a readable SVG`); return out; }
+  out.viewBox = svg.getAttribute('viewBox') ?? `0 0 ${parseFloat(svg.getAttribute('width'))} ${parseFloat(svg.getAttribute('height'))}`;
+  if (out.viewBox.includes('NaN')) out.problems.push(`${name} has no viewBox, width or height`);
+  const tagOf = el => el.id.toLowerCase().split('_')[0];
+  const seen = {};
+  for (const el of svg.querySelectorAll('[id]')) {
+    if (el.closest('defs, clipPath, mask, style')) continue;
+    let up = el.parentElement, inGroup = false;
+    for (; up && up !== svg; up = up.parentElement) if (up.id && tagOf(up) === tagOf(el)) inGroup = true;
+    if (inGroup) continue;
+    const copy = el.cloneNode(true);
+    for (const n of [copy, ...copy.querySelectorAll('*')]) for (const a of ['id', 'class', 'style', 'fill', 'stroke']) n.removeAttribute(a);
+    const n = seen[el.id] = (seen[el.id] ?? 0) + 1;
+    (out.byTag[tagOf(el)] ??= []).push({ key: n > 1 ? `${el.id}#${n}` : el.id, el: copy });
+  }
+  if (!Object.keys(out.byTag).length) out.problems.push(`${name} has no shapes with an id`);
+  return out;
+}
+
+// ---------- page ----------
+
+function render() {
+  $('#files').textContent = [
+    photo ? `photo: ${photo.name} (${photo.w} × ${photo.h})` : 'no photo yet',
+    shapes ? `shapes: ${shapes.name}${shapes.viewBox ? ` (viewBox ${shapes.viewBox})` : ''}` : 'no .svg yet',
+  ].join(' · ');
+
+  const warn = [...(shapes?.problems ?? [])];
+  if (photo && shapes?.viewBox) {
+    const [, , vw, vh] = shapes.viewBox.split(/[\s,]+/).map(Number);
+    if (Math.abs(vw / vh - photo.w / photo.h) > 0.01 * (photo.w / photo.h))
+      warn.push(`the SVG is ${vw} × ${vh} but the photo is ${photo.w} × ${photo.h}: a different shape, so the shapes will be stretched out of place`);
+    const expected = photo.name.replace(/\.[^.]+$/, '') + '.svg';
+    if (shapes.name.toLowerCase() !== expected.toLowerCase()) warn.push(`the game looks for ${expected} for ${photo.name}, not ${shapes.name}`);
+  }
+  const tags = Object.keys(shapes?.byTag ?? {}).sort();
+  if (tag && shapes && !tags.includes(tag)) warn.push(`no shape with the id ${tag}`);
+  $('#warnings').replaceChildren(...warn.map(t => Object.assign(document.createElement('p'), { textContent: t })));
+
+  if (!tags.includes(tag) && tags.length === 1) tag = tags[0];
+  $('#things').replaceChildren(...tags.map(t => {
+    const b = document.createElement('button');
+    b.textContent = `${t} (${shapes.byTag[t].length})`;
+    b.setAttribute('aria-pressed', t === tag);
+    b.addEventListener('click', () => { tag = t; render(); });
+    return b;
+  }));
+  $('#play').disabled = !(photo && tags.includes(tag));
+
+  $('#preview').hidden = !photo;
+  if (photo) $('#preview img').src = photo.url;
+  const overlay = $('#preview svg');
+  overlay.replaceChildren();
+  if (shapes?.viewBox) {
+    overlay.setAttribute('viewBox', shapes.viewBox);
+    for (const [t, list] of Object.entries(shapes.byTag)) for (const s of list) {
+      const g = document.createElementNS(SVG_NS, 'g');
+      g.classList.toggle('on', t === tag);
+      g.append(document.importNode(s.el, true));
+      overlay.append(g);
+    }
+  }
+}
+
+// ---------- play ----------
+
+$('#play').addEventListener('click', () => {
+  const list = shapes.byTag[tag], n = list.length;
+  const num = id => Number($(`#${id}`).value);
+  const words = Math.max(1, Math.round(num('words')) || 1);
+  const reach = num('reach') > 0 ? num('reach') : null;
+  const data = {
+    photo: photo.url, viewBox: shapes.viewBox, shapes: list, target: tag, prompt: `find all: ${tag}`,
+    seconds: num('seconds') || DEFAULTS.seconds, zoom: num('zoom') || DEFAULTS.zoom, tolerance: num('tolerance'),
+    reach, found: [], steps: Array.from({ length: words }, (_, k) => Math.ceil((k + 1) * n / words)),
+  };
+  $('#game-note').textContent = `${n} to find · ${data.seconds}s · zoom ${data.zoom} · tolerance ${data.tolerance}px` + (reach ? ` · reach ${reach}` : '');
+  $('#result').textContent = '';
+  $('#game').hidden = false;
+  mounted = MINIGAMES['find-all'].mount($('#game-body'), data, r => {
+    stop();
+    $('#result').textContent = `found ${r.found.length} / ${n} in ${r.seconds.toFixed(1)}s`;
+  });
+});
+
+function stop() {
+  mounted?.destroy();
+  mounted = null;
+  $('#game').hidden = true;
+}
+$('#stop').addEventListener('click', stop);
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && mounted) stop(); });
+
+// ---------- dropping ----------
+
+$('#pick').addEventListener('change', e => take([...e.target.files]));
+document.addEventListener('dragover', e => { e.preventDefault(); document.body.classList.add('over'); });
+document.addEventListener('dragleave', e => { if (!e.relatedTarget) document.body.classList.remove('over'); });
+document.addEventListener('drop', e => {
+  e.preventDefault();
+  document.body.classList.remove('over');
+  take([...e.dataTransfer.files]);
+});
+</script>
+</body>
+</html>
