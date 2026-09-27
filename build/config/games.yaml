@@ -129,30 +129,30 @@ find-all:
       track: full
   tolerance: 10
   photos:
-    3.jpg:
-      find: fruits
-      rewards:
-        noun: [market, fruits, sale, growntology]
-        adjective: [sustainable, renewable]
-    5.jpg:
-      find: white
-      rewards:
-        noun: [piece, geometries]
-        adjective: [smooth, white, fine, minimal, blank]
     11.jpg:
       find: green
       rewards:
         noun: [banana-fish, woman, phone-box]
         adjective: [happy, green]
         verb: [connected]
+    3.jpg:
+      find: fruits
+      rewards:
+        noun: [market, fruits, sale, growntology]
+        adjective: [sustainable, renewable]
     8.jpg:
       find: ecology
       rewards:
         noun: [blessings, cloth, vegetables, ecology]
         adjective: [much, alone]
+    5.jpg:
+      find: white
+      rewards:
+        noun: [piece, geometries]
+        adjective: [smooth, white, fine, minimal, blank]       
     12.jpg:
       find: rain
-      reach: 30         # a click finds every drop within 30 of the photo's pixels
+      reach: 40         # a click finds every drop within 30 of the photo's pixels
       rewards:
         noun: [barclays, bike-lane, P12, SL, rain, crack, person]
         adjective: [colourless]
