@@ -35,11 +35,16 @@
 #   many of the photo's own pixels, instead of only the nearest one within
 #   tolerance. For photos with many small shapes. One click can find several.
 
-# The tracks, each unlocked by a game. The lines loop their first 4 bars.
+# The tracks, each unlocked by a game or listed under unlocked. The lines loop
+# their first 4 bars. The toggles show in this order.
 tracks:
-  metronome: audio/track-metronome.wav
-  drums: audio/track-drums.wav
-  full: audio/track-full.wav
+  drone: audio/track-drone.mp3
+  metro: audio/track-metronome.mp3
+  beat: audio/track-drums.mp3
+  all: audio/track-full.mp3
+
+# tracks unlocked from the start, without a game; they show from work on, off
+unlocked: [drone]
 
 # Find It: one photo and one thing per play, every thing in every photo once.
 # A click that misses leaves the time running. Finding a thing wins its word
@@ -53,7 +58,7 @@ find:
   tolerance: 10       # on-screen pixels of slack around each shape
   unlocks:            # one thing found
     - above: 0%
-      track: metronome
+      track: metro
   photos:
     1.jpg:
       find:
@@ -95,7 +100,7 @@ pair-it:
   points: 50          # per pair matched
   unlocks:            # one pair matched
     - above: 0%
-      track: drums
+      track: beat
   pairs:
     - photos: [pair-it/A1.jpg, pair-it/A2.jpg]
       rewards:
@@ -126,7 +131,7 @@ find-all:
   points: 1           # per shape found
   unlocks:            # one shape found
     - above: 0%
-      track: full
+      track: all
   tolerance: 10
   photos:
     11.jpg:

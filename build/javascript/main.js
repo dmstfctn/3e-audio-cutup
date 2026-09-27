@@ -40,7 +40,7 @@ const GAME_DEFAULTS = {
   'find-all': { seconds: 15, tolerance: 10, points: 1 },
 };
 // tracks that have the others in them: while one is on, the others are muted
-const SOLO_TRACKS = ['full'];
+const SOLO_TRACKS = ['all'];
 const COARSE = matchMedia('(pointer: coarse)').matches;  // a touch screen
 const BIN_ORDER = ['yeah', 'noun', 'verb', 'describer', 'pronoun', 'glue', 'other', 'rest'];
 const BIN_LABELS = { rest: 'pause' };
@@ -53,8 +53,10 @@ let words = {};  // id -> { id, text, bin, a, d }; pauses have no audio (a = nul
 let takes = {};  // text -> the ids of its recordings, in recording order
 let binOrder = [...BIN_ORDER];  // palette sections: bins.yaml's order, then any bins it leaves out, then pauses
 let GAMES = {};       // game key -> its content and settings from games.yaml; a key missing can't be played
-// games.yaml: tracks as [name, url], and game key -> its unlocks [{ above, track, text }]
-let TRACKS = [['metronome', 'audio/track-metronome.wav'], ['drums', 'audio/track-drums.wav'], ['full', 'audio/track-full.wav']];
+// games.yaml: tracks as [name, url], the names of those unlocked from the start, and game key -> its
+// unlocks [{ above, track, text }]
+let TRACKS = [['drone', 'audio/track-drone.mp3'], ['metro', 'audio/track-metronome.mp3'], ['beat', 'audio/track-drums.mp3'], ['all', 'audio/track-full.mp3']];
+let UNLOCKED = ['drone'];
 let REWARDS = {};
 // config/story.yaml, filled in by loadStory; screens are [{ text, button }], words are texts
 let STORY = null;
@@ -260,6 +262,13 @@ function loadUnlocks(doc) {
       TRACKS = Object.entries(doc.tracks).map(([name, url]) => [name, String(url)]);
     } else problems.push('tracks: expected names with their files');
   }
+  if (doc.unlocked !== undefined) {
+    UNLOCKED = [].concat(doc.unlocked ?? []).map(String).filter(name => {
+      if (TRACKS.some(([n]) => n === name)) return true;
+      problems.push(`unlocked: no track called ${name} in tracks`);
+      return false;
+    });
+  }
   for (const key of GAME_ORDER) {
     REWARDS[key] = [];
     for (const [k, r] of [].concat(doc[key]?.unlocks ?? []).entries()) {
@@ -311,7 +320,7 @@ async function loadGames(doc) {
   const shapesOf = photo => shapeFiles[photo] ??= loadShapes(photo).catch(e => { problems.push(e.message); return null; });
 
   for (const [key, g] of Object.entries(doc)) {
-    if (key === 'tracks') continue;  // read by loadUnlocks
+    if (key === 'tracks' || key === 'unlocked') continue;  // read by loadUnlocks
     if (!GAME_DEFAULTS[key]) { problems.push(`unknown game "${key}"`); continue; }
     if (typeof g !== 'object' || !g) { problems.push(`${key}: expected its settings and photos`); continue; }
     const game = { ...settings(key, g), items: [] };
@@ -482,9 +491,9 @@ function paletteWords() {
 
 // ---------- tracks ----------
 
-// the tracks unlocked, by the games played and the one being played, in TRACKS order
+// the tracks unlocked, from the start or by the games played and the one being played, in TRACKS order
 function unlockedTracks() {
-  const won = new Set([...Object.values(results), run ?? { tracks: [] }].flatMap(r => r.tracks));
+  const won = new Set([...UNLOCKED, ...[...Object.values(results), run ?? { tracks: [] }].flatMap(r => r.tracks)]);
   return TRACKS.filter(([name]) => won.has(name));
 }
 
@@ -1033,7 +1042,10 @@ function wordEl(w) {
 // The tray: a section per bin, its words wrapping under its label, in a panel that scrolls up and down.
 // The labels stick, stacking at the top for the sections scrolled past and at the bottom for those
 // still to come, so every label shows, and clicking one scrolls to its section.
+// On narrow screens, tabs in two rows (the shorter on top) take the labels' place, and only the chosen
+// bin's words show, in a panel as tall as the tallest bin's.
 const trayHome = new Map();  // id -> its word in the tray, which the morph flies to
+let tab = null;  // the bin whose tab is chosen
 let morphing = new Set();  // ids hidden in the tray while a word from the strip flies to them
 
 // before: as for showPhase; delay: seconds before the new words start popping in
@@ -1049,6 +1061,12 @@ function buildPalette(before = null, delay = 0) {
   const enterDelays = new Map(fresh.map((w, k) => [w.id, delay + k * step]));
   const bins = binOrder.filter(bin => offered.some(w => w.bin === bin));
   palette.style.setProperty('--bins', bins.length);
+  if (!bins.includes(tab)) tab = bins[0];
+  const tabs = document.createElement('div');
+  tabs.className = 'tabs';
+  const rows = [document.createElement('div'), document.createElement('div')];
+  tabs.append(...rows);
+  palette.append(tabs);
   bins.forEach((bin, k) => {
     const binWords = offered.filter(w => w.bin === bin);
     // pauses go shortest to longest; words go alphabetically, a word's recordings in recording order
@@ -1060,6 +1078,18 @@ function buildPalette(before = null, delay = 0) {
     const list = document.createElement('div');
     list.className = 'bin-words';
     list.dataset.bin = bin;
+    list.classList.toggle('on', bin === tab);
+    const tabEl = document.createElement('button');
+    tabEl.className = 'tab';
+    tabEl.textContent = BIN_LABELS[bin] ?? bin;
+    tabEl.dataset.bin = bin;
+    tabEl.classList.toggle('on', bin === tab);
+    tabEl.addEventListener('click', () => {
+      tab = bin;
+      palette.querySelectorAll('.tab, .bin-words').forEach(el => el.classList.toggle('on', el.dataset.bin === bin));
+      palette.scrollTop = 0;
+    });
+    rows[+(k >= Math.floor(bins.length / 2))].append(tabEl);
     // scrolled to, the section's words start just under its label, stacked under the labels before it
     label.addEventListener('click', () => palette.scrollTo({ top: list.offsetTop - (k + 1) * label.offsetHeight, behavior: 'smooth' }));
     list.append(...binWords.map(w => {
@@ -1098,15 +1128,18 @@ function morphTray(strip) {
     const t0 = performance.now() + k * gap;
     const frame = now => {
       const t = Math.max(0, Math.min(1, (now - t0) / MORPH_MS)), e = 1 - (1 - t) ** 3;
-      const target = trayHome.get(id);  // a resize on the way lays the tray out again
+      // a resize on the way lays the tray out again; a word in a tab not showing goes to its tab
+      const home = trayHome.get(id);
+      const shown = home && getComputedStyle(home.parentElement).visibility !== 'hidden';
+      const target = shown ? home : palette.querySelector(`.tab[data-bin="${CSS.escape(words[id].bin)}"]`);
       if (target) {
         const to = target.getBoundingClientRect();
         el.style.left = `${rect.left + (to.left - rect.left) * e}px`;
         el.style.top = `${rect.top + (to.top - rect.top) * e}px`;
         el.style.width = `${rect.width + (to.width - rect.width) * e}px`;
         el.style.padding = `0 ${8 - 7 * e}px`;  // .chip's padding to .word's
-        // a place below the tray's fold: fade on the way
-        el.style.opacity = to.bottom <= box.bottom + palette.getBoundingClientRect().top - box.top ? 1 : 1 - e;
+        // a place below the tray's fold, or a tab: fade on the way
+        el.style.opacity = target === home && to.bottom <= box.bottom + palette.getBoundingClientRect().top - box.top ? 1 : 1 - e;
       }
       if (t < 1 && target) return requestAnimationFrame(frame);
       el.remove();
@@ -1430,11 +1463,11 @@ function playWord(id, when = ctx.currentTime) {
   if (w.a !== null) playSlice(wordsBuf, when, w.a, w.d, FADE);
 }
 
-// Words won are each said once, in turn, with the shortest pause writing gives between them. Words won
+// Words won are each said once, in turn, with twice the shortest pause writing gives between them. Words won
 // while others are still being said wait their turn.
 let sayFree = 0;  // audio-clock time the last word queued ends, with its pause
 function sayWords(texts) {
-  const rests = STORY.write.pauses, gap = rests.length ? Math.min(...rests) * 60 / BPM : 0;
+  const rests = STORY.write.pauses, gap = rests.length ? 2 * Math.min(...rests) * 60 / BPM : 0;
   for (const t of texts) {
     const id = takesOf(t)[0];
     if (!id) continue;
