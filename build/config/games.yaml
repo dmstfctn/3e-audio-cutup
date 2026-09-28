@@ -87,7 +87,7 @@ find:
 # shown over the grid.
 pair-it:
   title: pair it
-  prompt: click two photos with the same energy
+  prompt: pair two
   seconds: 15
   points: 50          # per pair matched
   unlocks:            # one pair matched

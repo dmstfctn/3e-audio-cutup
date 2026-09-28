@@ -292,7 +292,7 @@ const MINIGAMES = (() => {
       sc.scrollTop = (sc.scrollHeight - sc.clientHeight) / 2;
       photo.style.visibility = '';
       ready = true;
-      prompt.replaceChildren('find all the ', bold(plural(item.tag)));
+      prompt.replaceChildren('find the ', bold(plural(item.tag)));
       updateCount();
       g.countdown(SECONDS, end);
     };
