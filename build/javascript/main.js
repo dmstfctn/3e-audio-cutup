@@ -289,6 +289,7 @@ function loadStory(doc) {
   STORY = {
     first: { line, words: byBin('first', first.words) },
     write: { words: [...byBin('write', write.words), ...yeahs], pauses },
+    submitted: submittedText(doc.submitted),
   };
   SEQUENCE = readSequence(doc.sequence, String(doc.next ?? 'next'), problems);
   const games = SEQUENCE.find(s => s.kind === 'games');
@@ -1128,6 +1129,11 @@ $('#submit').addEventListener('click', async () => {
   submitting = true;
   stopLoop();
   $('#submit').hidden = true;  // back to writing brings it back
+  $('#show-text').replaceChildren(...STORY.submitted.map(para => {
+    const p = document.createElement('p');
+    p.append(...para);
+    return p;
+  }));
   const cues = [];  // [span, time it's said]
   const box = $('#show-lines');
   box.replaceChildren();
@@ -1166,7 +1172,29 @@ $('#show-back').addEventListener('click', () => {
   $('#submit').hidden = false;
 });
 
-$('#show-restart').addEventListener('click', () => restart());
+// story.yaml's submitted text, shown under the lines and their buttons: paragraphs (split at blank lines), each a list of nodes: text, and [text](url) as a
+// link opening in a new tab (with no url, just the text)
+function submittedText(src) {
+  return String(src ?? '').trim().split(/\n\s*\n/).map(para => {
+    const nodes = [];
+    let last = 0;
+    const flat = para.replace(/\s*\n\s*/g, ' ');
+    for (const m of flat.matchAll(/\[([^\]]+)\]\(([^)]*)\)/g)) {
+      nodes.push(flat.slice(last, m.index));
+      if (m[2].trim()) {
+        const a = document.createElement('a');
+        a.href = m[2].trim();
+        a.target = '_blank';
+        a.rel = 'noopener';
+        a.textContent = m[1];
+        nodes.push(a);
+      } else nodes.push(m[1]);
+      last = m.index + m[0].length;
+    }
+    nodes.push(flat.slice(last));
+    return nodes.filter(n => n !== '');
+  }).filter(p => p.length);
+}
 
 // a new game from the top, clearing the lines and everything the games won
 function restart() {

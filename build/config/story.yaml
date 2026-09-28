@@ -93,6 +93,16 @@ sequence:
   - write:
     unlock: [drone]
 
+# After submit your lines: the text under the lines and their buttons. A blank line starts a new paragraph.
+# [text](https://…) is a link, opening in a new tab; with no address, just the
+# text.
+submitted: |
+  * Big things coming (2026) tells the story of Degular, a data-labeller by day and rapper by night.
+
+  Trained to describe the world through objective, manageable language, Degular strives to meet what others expect of it, but struggles when confronted with something that cannot be labelled, categorised or explained. As its language begins to fail, a new form of expression emerges.
+
+  On Sunday 18 October, Degular's rap performance at [Wapping Hydraulic Power Station]() will be influenced by yours and others' lines - voiced by rapper Jawnino.
+
 # The lines at the end start empty. The tray has every recording of line's
 # words and of these.
 first:
