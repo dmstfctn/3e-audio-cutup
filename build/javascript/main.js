@@ -1287,7 +1287,7 @@ function onPaletteDrop(e) {
   if (dragging && dragging.from !== null) removeWord(dragging.from, dragging.index);
 }
 
-// Each line in a row: a handle to move it, and after it its on / off button
+// Each line in a row: a handle to move it, and after it its on button, greyed out while it's off
 function buildLines() {
   const container = $('#lines');
   for (let i = 0; i < MAX_LINES; i++) {
@@ -1300,6 +1300,7 @@ function buildLines() {
     handle.addEventListener('pointerdown', e => startRowDrag(e, i));
     const onOff = document.createElement('button');
     onOff.className = 'line-on';
+    onOff.textContent = 'on';
     onOff.addEventListener('click', () => { lineOff[i] = !lineOff[i]; renderLine(i); save(); });
     const line = document.createElement('div');
     line.className = 'line';
@@ -1393,7 +1394,7 @@ function renderLine(i) {
   const line = lineEls[i];
   line.replaceChildren(markerEls[i], playheadEls[i]);
   line.classList.toggle('off', lineOff[i]);
-  onEls[i].textContent = lineOff[i] ? 'off' : 'on';
+  onEls[i].setAttribute('aria-pressed', !lineOff[i]);
   lines[i].forEach((id, index) => {
     const el = wordEl(words[id]);
     el.addEventListener('dragstart', e => startDrag(e, { id, from: i, index }));

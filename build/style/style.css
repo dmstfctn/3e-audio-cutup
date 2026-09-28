@@ -41,20 +41,22 @@ html { overscroll-behavior: none; }  /* no rubber-banding of a page that doesn't
 #status:empty { display: none; }
 #submit { margin-left: 12px; white-space: nowrap; }
 @media (max-width: 640px) {
-  /* smaller toggles, so they fit between play / pause and submit */
-  .toggle { font-size: 12px; height: 26px; line-height: 24px; padding: 0 5px; }
+  /* smaller toggles, left after play / pause rather than centred, so they fit before submit */
+  .toggle { font-size: 12px; height: 26px; line-height: 24px; padding: 0 4px; }
+  #toggles { position: static; transform: none; margin: 0 auto 0 10px; }  /* the room left goes after them */
 }
 /* plain bold text: play / pause, submit, and the − / + under the lines that removes or adds one */
-#play { width: 20px; height: 20px; }  /* a play or pause icon */
+#play { width: 20px; height: 20px; flex: none; }  /* a play or pause icon, never squeezed by the toggles */
 #play svg { display: block; width: 100%; height: 100%; }
 #play, #submit, #more, #fewer { background: none; border: 0; padding: 0; font: bold 16px Arial, sans-serif; color: black; cursor: pointer; }
 /* − at the left, under the handles, and + at the right, under the on / off buttons; each keeps its place when hidden */
 #more-lines { display: flex; justify-content: space-between; margin-top: 8px; }
 #more, #fewer { font-size: 20px; }
 #fewer { width: 20px; text-align: center; }  /* the handle's width, centred as its ≡ is */
-#more { width: 26px; text-align: left; }    /* on / off's width, starting where its text does */
+#more { width: 18px; text-align: left; }    /* on's width, starting where its text does */
 #more[hidden], #fewer[hidden] { display: block; visibility: hidden; }
 #submit[hidden], #more-lines[hidden] { display: none; }
+@media (max-width: 640px) { #submit { font-size: 14px; margin-left: 8px; } }  /* after five toggles, it just fits at 390px */
 
 #lines { position: relative; padding: 8px 0; display: flex; flex-direction: column; gap: 8px; }
 /* a line's row: its handle, the
@@ -66,9 +68,9 @@ html { overscroll-behavior: none; }  /* no rubber-banding of a page that doesn't
           user-select: none; -webkit-user-select: none; touch-action: none; }
 .row.moving { opacity: .4; }
 #row-marker { position: absolute; left: 0; right: 0; height: 2px; background: var(--ink, black); display: none; pointer-events: none; }
-/* on / off: small uppercase Arial, the same width either way; a line off fades */
-.line-on { flex: none; width: 26px; padding: 0; border: 0; background: none; color: inherit; font: 12px Arial, sans-serif; text-transform: uppercase; text-align: left; cursor: pointer; }
-.line.off { opacity: .3; }
+/* on: small uppercase Arial, greyed out (faded as its line is) while the line's off */
+.line-on { flex: none; width: 18px; padding: 0; border: 0; background: none; color: inherit; font: 12px Arial, sans-serif; text-transform: uppercase; text-align: left; cursor: pointer; }
+.line.off, .line-on[aria-pressed="false"] { opacity: .3; }
 /* a line in a notebook, with ticks standing on it: grey for the 8 beats, black and wider at both ends
    and the bar line after 4. The line reaches 3px past the words' room at each end, and words sit 2px
    above it. The beat ticks are placed in the words' room, 3px in. */
