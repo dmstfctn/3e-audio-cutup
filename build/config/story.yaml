@@ -41,6 +41,10 @@ sequence:
     text: '[start]'
   - page: light
     text: |
+     ​
+
+
+
       you’re finally awake [next]
       when can you start? [log on]
   - try: pair-it
@@ -69,11 +73,14 @@ sequence:
     play: [metro]
   - page: light
     text: |
+     ​
+      well done [next]
       training complete [next]
       you are a data labeller by day [next]
     stop: [metro]
   - page: dark
     text: |
+     ​
       and a rapper by night [next]
       you trained to speak the tangible, the real [next]
       but you want to turn it around and make it poetic [next]
