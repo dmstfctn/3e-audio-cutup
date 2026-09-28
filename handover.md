@@ -43,10 +43,14 @@ Times, black 1px borders and square corners. Green `#1a9e4b` means right and red
 - Rewards: find it gives only the thing found's own word (no speed share), and caption match only a round's first listed word. Pair it and find them all give several words as before.
 - The recording loads from `words.mp3`, made from `words.wav` with `lame -V 2` (see the README). In Chrome it lines up with the WAV to the sample, because LAME's header lets the browser trim the encoder delay.
 - Play/pause (and the space bar) stops the loop. It's not saved.
+- The end doesn't scroll unless it has to: `#game` is fixed and scrolls only if the lines don't fit, and the tray scrolls only when the chosen tab's words overflow (`sizeTray`). On touch, a tray word drags straight away unless the tray scrolls, when it has to be held for `HOLD_MS` first. The page doesn't rubber-band (`overscroll-behavior: none`).
+- The word won grows by its font size, not a transform, because iOS Safari pixellated the transform.
 - Words won are not said. A clicked tray word is always said (`playWord`).
 - About 4.7 MB loads before [start] is enabled: `words.mp3` 3.2 MB, all four tracks 1.2 MB, the find/find-all shape `.svg`s 190 KB (mostly `12.svg`), the rest small. Photos load when their game starts.
 
 ## Open
 
+- Not yet checked on an iPhone: the sharp word won, the end not scrolling, and dragging from the tray with no hold.
+- If a tray tab ever overflows on phones (bringing the hold back), offered: paging the tray instead of scrolling, or telling drag from scroll by the swipe's direction. No library helps; they all use a press delay on touch.
 - Not yet checked on an iPhone: whether Safari trims the MP3's encoder delay. If it doesn't, words shift by about 23 ms (PAD is 30 ms, so maybe inaudible). Ask the user if words sound clipped or late there.
 - Offered, not asked for: loading only the drone before [start] (the other tracks in the background) and the shape files when the games begin, to get [start] up sooner on phones.

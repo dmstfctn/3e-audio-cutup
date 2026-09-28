@@ -123,6 +123,7 @@ async function load() {
   $('#palette').addEventListener('dragover', onPaletteDragOver);
   $('#palette').addEventListener('drop', onPaletteDrop);
   new ResizeObserver(sizeToWindow).observe(lineEls[0]);
+  addEventListener('resize', sizeTray);
   new ResizeObserver(() => document.documentElement.style.setProperty('--tray', `${$('#palette').offsetHeight}px`)).observe($('#palette'));
   $('#status').textContent = warnings.join(' · ');
   fillStrip();
@@ -970,7 +971,8 @@ function dropPoints(key) {
 // el appears near (x, y) at scale, growing from nothing over grow ms if given, and waits there for hold ms. Then it
 // flies to where target() is, taking ms, following it as it moves, and shrinking to its own size, then land() is
 // called. If target() comes back empty on the way, el vanishes where it is and land() is still called. Scaled up, it
-// stays whole on screen: nudged in from the edges, and smaller if it can't fit.
+// stays whole on screen: nudged in from the edges, and smaller if it can't fit. It's scaled by its font size, not a
+// transform, which iOS Safari draws at the size it started and blows up, pixellated.
 function fly(el, target, x, y, ms, land, { scale = 1.4, grow = 0, hold = 0 } = {}) {
   // from a random spot near (x, y), so things won together don't all start from one point
   const a = Math.random() * 2 * Math.PI, r = JITTER * Math.sqrt(Math.random());
@@ -978,7 +980,7 @@ function fly(el, target, x, y, ms, land, { scale = 1.4, grow = 0, hold = 0 } = {
   y += r * Math.sin(a);
   el.classList.add('flying');
   document.body.append(el);
-  const w = el.offsetWidth, h = el.offsetHeight, m = 8;
+  const w = el.offsetWidth, h = el.offsetHeight, m = 8, size = parseFloat(getComputedStyle(el).fontSize);
   const vw = document.documentElement.clientWidth, vh = innerHeight;
   scale = Math.max(1, Math.min(scale, (vw - 2 * m) / w, (vh - 2 * m) / h));
   const inside = (c, size, room) => Math.max(m + size / 2, Math.min(room - m - size / 2, c));
@@ -990,11 +992,10 @@ function fly(el, target, x, y, ms, land, { scale = 1.4, grow = 0, hold = 0 } = {
     const g = grow ? 1 - (1 - Math.min(1, (now - start) / grow)) ** 3 : 1;
     const to = target()?.getBoundingClientRect();
     if (to) {
-      el.style.left = `${fx + (to.left - fx) * e}px`;
-      el.style.top = `${fy + (to.top - fy) * e}px`;
-      const k = (scale - (scale - 1) * e) * g;
-      el.style.transform = `scale(${k})`;
-      el.style.setProperty('--scale', Math.max(k, 0.01));
+      el.style.fontSize = `${size * (scale - (scale - 1) * e) * g}px`;
+      // centred where a box of its own size would be
+      el.style.left = `${fx + (to.left - fx) * e + (w - el.offsetWidth) / 2}px`;
+      el.style.top = `${fy + (to.top - fy) * e + (h - el.offsetHeight) / 2}px`;
     }
     if (t < 1 && to) return requestAnimationFrame(frame);
     el.remove();
@@ -1142,6 +1143,7 @@ function buildPalette(before = null, delay = 0) {
       tab = bin;
       palette.querySelectorAll('.tab, .bin-words').forEach(el => el.classList.toggle('on', el.dataset.bin === bin));
       palette.scrollTop = 0;
+      sizeTray();
     });
     rows[+(k >= Math.floor(bins.length / 2))].append(tabEl);
     list.append(...binWords.map(w => {
@@ -1159,6 +1161,18 @@ function buildPalette(before = null, delay = 0) {
     }));
     palette.append(list);
   });
+  sizeTray();
+}
+
+// The tray is as tall as its tallest bin, up to its max-height, but only the chosen bin is laid out, so it
+// scrolls only when that bin's words don't fit.
+function sizeTray() {
+  const palette = $('#palette'), tabs = palette.querySelector('.tabs');
+  if (!tabs) return;
+  palette.style.height = '';
+  const tallest = Math.max(0, ...[...palette.querySelectorAll('.bin-words')].map(b => b.scrollHeight));
+  const border = palette.offsetHeight - palette.clientHeight;
+  palette.style.height = `${Math.min(border + tabs.offsetHeight + tallest, parseFloat(getComputedStyle(palette).maxHeight))}px`;
 }
 
 // Going from the games to writing, the tray grows up out of the strip, and each word in the strip moves to
@@ -1373,15 +1387,17 @@ function dropAt(i, x) {
   save();
 }
 
-// Touch screens have no HTML5 drag and drop, so a finger drags a copy of the word. In the tray, where a
-// swipe scrolls, the word has to be held first; in the lines it moves straight away. A tap still clicks.
+// Touch screens have no HTML5 drag and drop, so a finger drags a copy of the word. In the tray, when its words
+// don't all fit and a swipe scrolls, the word has to be held first; otherwise it moves straight away. A tap
+// still clicks.
 const HOLD_MS = 300, SLOP = 8;  // how long a hold is, and px a finger can move before it's a swipe
 let touch = null;  // { info, el, x, y, hold, ghost, over }
 
 function touchDrag(el, info, hold) {
   el.addEventListener('touchstart', e => {
     if (e.touches.length > 1) return cancelTouch();
-    const t = e.touches[0];
+    const t = e.touches[0], palette = $('#palette');
+    hold &&= palette.scrollHeight > palette.clientHeight;
     touch = { info, el, x: t.clientX, y: t.clientY, hold: hold && setTimeout(() => liftTouch(), HOLD_MS) };
   }, { passive: true });
 }
