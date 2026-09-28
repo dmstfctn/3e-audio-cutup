@@ -93,7 +93,7 @@ find:
 # shown over the grid.
 pair-it:
   title: pair it
-  prompt: pair two
+  prompt: find pairs
   seconds: 15
   points: 50          # per pair matched
   unlocks:            # one pair matched
