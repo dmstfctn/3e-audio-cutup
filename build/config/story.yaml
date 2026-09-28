@@ -79,7 +79,8 @@ sequence:
     text: |
       you’re a rapper by night [next]
       george tavern 10pm next thursday [next]
-      you've got a slot but no lines [start writing]
+      you've got a slot but no lines [next]
+      what's on your mind? [start writing]
   - write:
     unlock: [drone]
 
