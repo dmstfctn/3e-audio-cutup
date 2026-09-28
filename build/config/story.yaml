@@ -38,7 +38,7 @@ next: next
 
 sequence:
   - page: dark
-    text: '[start]'
+    text: big things coming (human in the loop) [start]
   - page: light
     text: |
      ​
@@ -74,8 +74,9 @@ sequence:
   - page: light
     text: |
      ​
-      well done [next]
+      
       training complete [next]
+      you log off [next]
       you are a data labeller by day [next]
     stop: [metro]
   - page: dark
@@ -86,7 +87,7 @@ sequence:
       but you want to turn it around and make it poetic [next]
   - page: dark
     text: |
-      george tavern 10pm next thursday [next]
+      wapping power station 7pm next sunday [next]
       you've got a slot but no lines [next]
       what's on your mind? [start writing]
   - write:
