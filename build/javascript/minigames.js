@@ -130,6 +130,11 @@ const MINIGAMES = (() => {
     // seconds from the countdown starting to it stopping (or to now, while it runs)
     g.elapsed = () => started === null ? 0 : ((stopped ?? performance.now()) - started) / 1000;
     g.running = () => live;
+    // replaces a prompt's text at the end of a play, keeping its height, so the photo under it doesn't move
+    g.say = (el, nodes) => {
+      el.style.minHeight = `${el.offsetHeight}px`;
+      el.replaceChildren(...nodes);
+    };
     g.later = (fn, ms) => {
       const t = setTimeout(() => { timeouts.delete(t); if (!g.dead) fn(); }, ms);
       timeouts.add(t);
@@ -308,9 +313,9 @@ const MINIGAMES = (() => {
       clearBad();
       if (picked) picked.classList.remove('picked');
       grid.querySelectorAll('.mg-cell').forEach(c => c.disabled = true);
-      prompt.replaceChildren(...(matched.length < data.pairs.length
+      g.say(prompt, matched.length < data.pairs.length
         ? ["time's up: ", bold(`${matched.length} / ${data.pairs.length}`), ' paired']
-        : ['you paired all ', bold(String(data.pairs.length))]));
+        : ['you paired all ', bold(String(data.pairs.length))]);
       const seconds = g.elapsed();
       g.later(() => done({ matched, seconds }), REVEAL_MS);
     }
@@ -341,8 +346,8 @@ const MINIGAMES = (() => {
   }
 
   // ---------- find them all ----------
-  // Click every shape of one thing in data.seconds, on the whole photo. Shapes found on earlier
-  // plays start found.
+  // Click every shape of one thing in data.seconds, on the whole photo, the count found after the prompt.
+  // Shapes found on earlier plays start found.
 
   function findAll(container, data, done, progress) {
     const g = frame(container, `
@@ -356,13 +361,13 @@ const MINIGAMES = (() => {
         </div>
       </div>`);
     const photo = g.$('.mg-photo'), overlay = g.$('.mg-overlay'), find = g.$('.mg-find');
-    const prompt = g.$('.mg-say'), count = g.$('.mg-count');
+    const line = g.$('.mg-prompt'), prompt = g.$('.mg-say'), count = g.$('.mg-count');
     const shapes = drawShapes(overlay, data.viewBox, data.shapes.map(s => s.el));
     const n = shapes.length;
     const found = new Set(data.shapes.flatMap((s, k) => data.found.includes(s.key) ? [k] : []));
     found.forEach(k => shapes[k].classList.add('ok'));
     g.bar(1);
-    const updateCount = () => { count.textContent = `${found.size} / ${n}`; };
+    const updateCount = () => { count.textContent = ` (${found.size}/${n})`; };
 
     // the shapes a click finds: the nearest one not found yet within tol screen pixels, or with data.reach,
     // every one not found yet within reach of the photo's pixels
@@ -408,10 +413,9 @@ const MINIGAMES = (() => {
     function end() {
       g.stop();
       // the ones not found stay hidden, so they're still there to find next time
-      prompt.replaceChildren(...(found.size < n
+      g.say(line, found.size < n
         ? ["time's up: ", bold(`${found.size} / ${n}`), ' found']
-        : ['you found all ', bold(String(n))]));
-      count.textContent = '';
+        : ['you found all ', bold(String(n))]);
       const seconds = g.elapsed();
       g.later(() => done({ found: data.shapes.filter((_, k) => found.has(k)).map(s => s.key), seconds }), REVEAL_MS);
     }
