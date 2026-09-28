@@ -1,0 +1,337 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Clip picker</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: Times, 'Times New Roman', serif; background: #fff; color: #000; }
+  header { position: sticky; top: 0; z-index: 2; background: #fff; border-bottom: 1px solid #000; padding: 8px 16px;
+    display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; }
+  header h1 { font-size: 18px; margin: 0; }
+  header input[type=search] { font: inherit; border: 1px solid #000; border-radius: 0; padding: 2px 6px; width: 160px; }
+  button { font: bold 13px Arial, sans-serif; background: #fff; color: #000; border: 1px solid #000; border-radius: 0;
+    padding: 2px 8px; cursor: pointer; }
+  button:hover { background: #eee; }
+  #status { font-size: 14px; flex: 1 1 100%; }
+  #status .changed { color: #ff0000; }
+  main { padding: 8px 16px 64px; }
+  .group { margin: 16px 0 0; }
+  .group h2 { font: bold 16px Arial, sans-serif; margin: 0 0 4px; }
+  .group h2 small { font-weight: normal; font-size: 13px; }
+  .group.none h2 small { color: #ff0000; }
+  .take { display: grid; grid-template-columns: 24px 32px 1fr 150px 56px; gap: 8px; align-items: center; margin: 4px 0; }
+  .take.off .wave { opacity: 0.35; }
+  .take.off .times { color: #999; }
+  .take input { width: 18px; height: 18px; margin: 0; }
+  .play { width: 32px; height: 32px; padding: 0; display: grid; place-items: center; }
+  .play svg { width: 14px; height: 14px; }
+  .wave { position: relative; height: 56px; border: 1px solid #000; overflow: hidden; touch-action: none; }
+  .wave canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .block { position: absolute; top: 0; bottom: 0; background: rgba(0, 255, 0, 0.25); border-left: 1px solid #000;
+    border-right: 1px solid #000; cursor: pointer; }
+  .take.off .block { background: rgba(0, 0, 0, 0.1); }
+  .edge { position: absolute; top: 0; bottom: 0; width: 12px; cursor: ew-resize; }
+  .edge.l { left: -6px; } .edge.r { right: -6px; }
+  .edge::after { content: ''; position: absolute; left: 3px; top: 50%; width: 6px; height: 20px; margin-top: -10px;
+    background: #000; }
+  .default { position: absolute; top: 0; bottom: 0; border-left: 1px dashed #999; border-right: 1px dashed #999;
+    pointer-events: none; }
+  .head { position: absolute; top: 0; bottom: 0; width: 1px; background: #ff0000; pointer-events: none; display: none; }
+  .times { font: 12px Arial, sans-serif; white-space: nowrap; }
+  .times .from { display: block; color: #666; overflow: hidden; text-overflow: ellipsis; }
+  .reset { font-size: 11px; padding: 2px 4px; }
+  .take:not(.edited) .reset { visibility: hidden; }
+  @media (max-width: 600px) {
+    .take { grid-template-columns: 24px 32px 1fr 56px; }
+    .times { grid-column: 3 / 5; grid-row: 2; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>Clip picker</h1>
+  <input type="search" id="filter" placeholder="filter words">
+  <button id="export">export clips.json</button>
+  <button id="revert" title="forget the edits in this browser and go back to config/clips.json">revert</button>
+  <div id="status">loading…</div>
+</header>
+<main id="list"></main>
+<script>
+// Every recording of every word in audio/words.json, grouped by word. Drag a block's edges to trim it, untick it
+// to leave it out of the game's tray. Export downloads clips.json: put it in build/config/, where the game reads it.
+// It lists only the recordings that differ from the defaults. Edits are kept in this browser until exported.
+const PAD = 0.03, FADE = 0.008;  // as in main.js: the default bounds, and the fade on each play
+const CONTEXT = 0.6;             // seconds of the recording shown either side of a word's default bounds
+const MIN_LEN = 0.04;            // the shortest a clip can be trimmed to
+const DRAFT_KEY = 'clippicker';
+const $ = s => document.querySelector(s);
+const ctx = new AudioContext();
+let buf, samples, defaults = {}, clips = {}, fileClips = {}, rows = [];
+
+const round = t => Math.round(t * 1000) / 1000;
+const edited = id => { const c = clips[id], d = defaults[id]; return c.off || c.a !== d.a || c.b !== d.b; };
+
+async function load() {
+  const [manifest, audio, file] = await Promise.all([
+    fetch('../audio/words.json').then(r => r.json()),
+    fetch('../audio/words.mp3').then(r => r.arrayBuffer()).then(b => ctx.decodeAudioData(b)),
+    fetch('../config/clips.json', { cache: 'no-cache' }).then(r => r.ok ? r.json() : null).catch(() => null),
+  ]);
+  buf = audio;
+  samples = audio.getChannelData(0);
+  const lineText = Object.fromEntries(manifest.lines.map(l => [l.id, l.text]));
+  for (const w of manifest.words) {
+    const a = round(Math.max(0, w.start - PAD)), b = round(Math.min(buf.duration, w.end + PAD));
+    defaults[w.id] = { id: w.id, word: w.word.toLowerCase(), raw: w.raw, from: lineText[w.line] ?? '', a, b };
+  }
+  fileClips = file ?? {};
+  let draft = null;
+  try { draft = JSON.parse(localStorage.getItem(DRAFT_KEY)); } catch {}
+  applyClips(draft ?? fileClips);
+  build();
+  status(file ? 'loaded config/clips.json' : 'no config/clips.json yet: every clip at its default', draft);
+}
+
+// clips: id -> { start, end, off }, as exported
+function applyClips(from) {
+  for (const [id, d] of Object.entries(defaults)) {
+    const c = from[id] ?? {};
+    clips[id] = { a: typeof c.start === 'number' ? c.start : d.a, b: typeof c.end === 'number' ? c.end : d.b, off: !!c.off };
+  }
+}
+
+function exported() {
+  const out = {};
+  for (const id of Object.keys(defaults).sort((x, y) => x - y)) {
+    if (!edited(id)) continue;
+    const c = clips[id], d = defaults[id];
+    out[id] = { word: d.word };
+    if (c.a !== d.a || c.b !== d.b) Object.assign(out[id], { start: c.a, end: c.b });
+    if (c.off) out[id].off = true;
+  }
+  return out;
+}
+
+function saveDraft() {
+  const out = exported();
+  try {
+    if (JSON.stringify(out) === JSON.stringify(normalised(fileClips))) localStorage.removeItem(DRAFT_KEY);
+    else localStorage.setItem(DRAFT_KEY, JSON.stringify(out));
+  } catch {}
+  status();
+}
+// the file as it would be exported, to tell whether the edits here differ from it
+function normalised(file) {
+  const keep = clips; clips = {};
+  applyClips(file);
+  const out = exported();
+  clips = keep;
+  return out;
+}
+
+let baseStatus = '';
+function status(base, draft) {
+  if (base) baseStatus = base;
+  const all = Object.keys(defaults), off = all.filter(id => clips[id].off).length;
+  const trimmed = all.filter(id => clips[id].a !== defaults[id].a || clips[id].b !== defaults[id].b).length;
+  let unsaved = false;
+  try { unsaved = draft ?? localStorage.getItem(DRAFT_KEY) !== null; } catch {}
+  $('#status').innerHTML = `${all.length} recordings · ${trimmed} trimmed · ${off} off · ${baseStatus}` +
+    (unsaved ? ' · <span class="changed">edits not exported yet</span>' : '');
+}
+
+// ---------- the list ----------
+
+function build() {
+  const groups = {};
+  for (const d of Object.values(defaults)) (groups[d.word] ??= []).push(d);
+  const list = $('#list');
+  list.textContent = '';
+  rows = [];
+  for (const word of Object.keys(groups).sort((x, y) => x.localeCompare(y))) {
+    const g = document.createElement('section');
+    g.className = 'group';
+    g.dataset.word = word;
+    g.innerHTML = `<h2>${escape(word)} <small></small></h2>`;
+    for (const d of groups[word]) g.append(buildRow(d));
+    list.append(g);
+    countGroup(g);
+  }
+  requestAnimationFrame(() => rows.forEach(draw));
+}
+
+function countGroup(g) {
+  const ids = [...g.querySelectorAll('.take')].map(el => el.dataset.id);
+  const on = ids.filter(id => !clips[id].off).length;
+  g.classList.toggle('none', on === 0);
+  g.querySelector('small').textContent = on === 0 ? `— none of ${ids.length} on: not offered in the game`
+    : `— ${on} of ${ids.length} on`;
+}
+
+const PLAY = '<svg viewBox="0 0 10 10"><path d="M1 0 L10 5 L1 10 Z"/></svg>';
+const STOP = '<svg viewBox="0 0 10 10"><path d="M1 1 H9 V9 H1 Z"/></svg>';
+
+function buildRow(d) {
+  const el = document.createElement('div');
+  el.className = 'take';
+  el.dataset.id = d.id;
+  el.innerHTML = `<input type="checkbox" title="offered in the game"><button class="play" title="play (shift: with the context)">${PLAY}</button>
+    <div class="wave"><canvas></canvas><div class="default"></div><div class="block"><div class="edge l"></div><div class="edge r"></div></div><div class="head"></div></div>
+    <div class="times"><span class="t"></span><span class="from" title="${escape(d.from)}">${escape(d.from)}</span></div>
+    <button class="reset" title="back to the default bounds">reset</button>`;
+  // the stretch of the recording the row shows: fixed, so the waveform doesn't move under a drag
+  const row = { d, el, w0: Math.max(0, d.a - CONTEXT), w1: Math.min(buf.duration, d.b + CONTEXT) };
+  row.w0 = Math.min(row.w0, clips[d.id].a); row.w1 = Math.max(row.w1, clips[d.id].b);
+  rows.push(row);
+  const box = el.querySelector('input');
+  box.checked = !clips[d.id].off;
+  box.addEventListener('change', () => { clips[d.id].off = !box.checked; update(row); countGroup(el.parentElement); saveDraft(); });
+  el.querySelector('.play').addEventListener('click', e => play(row, e.shiftKey));
+  el.querySelector('.block').addEventListener('click', e => { if (!e.target.classList.contains('edge')) play(row); });
+  el.querySelector('.reset').addEventListener('click', () => {
+    Object.assign(clips[d.id], { a: d.a, b: d.b });
+    update(row); saveDraft(); play(row);
+  });
+  for (const side of ['l', 'r']) dragEdge(row, el.querySelector(`.edge.${side}`), side);
+  update(row);
+  return el;
+}
+
+const x = (row, t) => (t - row.w0) / (row.w1 - row.w0) * 100 + '%';
+function update(row) {
+  const c = clips[row.d.id], d = row.d;
+  const block = row.el.querySelector('.block'), def = row.el.querySelector('.default');
+  block.style.left = x(row, c.a); block.style.right = `calc(100% - ${x(row, c.b)})`;
+  def.style.left = x(row, d.a); def.style.right = `calc(100% - ${x(row, d.b)})`;
+  row.el.querySelector('.t').textContent = `${c.a.toFixed(3)}–${c.b.toFixed(3)} (${(c.b - c.a).toFixed(2)}s)`;
+  row.el.classList.toggle('off', c.off);
+  row.el.classList.toggle('edited', edited(d.id));
+}
+
+// dragging an edge trims that end; letting go plays the clip
+function dragEdge(row, handle, side) {
+  handle.addEventListener('pointerdown', e => {
+    e.preventDefault(); e.stopPropagation();
+    handle.setPointerCapture(e.pointerId);
+    const wave = row.el.querySelector('.wave'), c = clips[row.d.id];
+    const move = ev => {
+      const r = wave.getBoundingClientRect();
+      const t = round(row.w0 + Math.min(1, Math.max(0, (ev.clientX - r.left) / r.width)) * (row.w1 - row.w0));
+      if (side === 'l') c.a = Math.min(t, round(c.b - MIN_LEN)); else c.b = Math.max(t, round(c.a + MIN_LEN));
+      update(row);
+    };
+    const up = () => {
+      handle.removeEventListener('pointermove', move);
+      handle.removeEventListener('pointerup', up);
+      handle.removeEventListener('pointercancel', up);
+      saveDraft(); play(row);
+    };
+    handle.addEventListener('pointermove', move);
+    handle.addEventListener('pointerup', up);
+    handle.addEventListener('pointercancel', up);
+  });
+  handle.addEventListener('click', e => e.stopPropagation());
+}
+
+function draw(row) {
+  const canvas = row.el.querySelector('canvas');
+  const w = canvas.clientWidth, h = canvas.clientHeight, dpr = devicePixelRatio || 1;
+  if (!w) return;
+  canvas.width = w * dpr; canvas.height = h * dpr;
+  const g = canvas.getContext('2d');
+  g.scale(dpr, dpr);
+  g.fillStyle = '#000';
+  const s0 = Math.floor(row.w0 * buf.sampleRate), per = (row.w1 - row.w0) * buf.sampleRate / w;
+  let peak = 0.01;
+  for (let i = s0, end = s0 + per * w; i < end; i++) peak = Math.max(peak, Math.abs(samples[i] || 0));
+  for (let px = 0; px < w; px++) {
+    let lo = 0, hi = 0;
+    for (let i = Math.floor(s0 + px * per), end = Math.floor(s0 + (px + 1) * per); i < end; i++) {
+      const v = samples[i] || 0;
+      if (v < lo) lo = v; else if (v > hi) hi = v;
+    }
+    const top = h / 2 - hi / peak * h / 2 * 0.9, bottom = h / 2 - lo / peak * h / 2 * 0.9;
+    g.fillRect(px, top, 1, Math.max(1, bottom - top));
+  }
+}
+let resizing;
+addEventListener('resize', () => { clearTimeout(resizing); resizing = setTimeout(() => rows.forEach(draw), 150); });
+
+// ---------- playing ----------
+
+let playing = null;  // { row, src, head, raf }
+function play(row, withContext = false) {
+  const again = playing?.row === row && !withContext;
+  stop();
+  if (again) return;  // a second click on the same clip stops it
+  ctx.resume();
+  const c = clips[row.d.id];
+  const a = withContext ? row.w0 : c.a, b = withContext ? row.w1 : c.b, d = b - a;
+  const src = ctx.createBufferSource(), gain = ctx.createGain();
+  src.buffer = buf;
+  src.connect(gain).connect(ctx.destination);
+  const t = ctx.currentTime + 0.02;
+  // faded in and out as the game plays it
+  gain.gain.setValueAtTime(0, t);
+  gain.gain.linearRampToValueAtTime(1, t + FADE);
+  gain.gain.setValueAtTime(1, t + d - FADE);
+  gain.gain.linearRampToValueAtTime(0, t + d);
+  src.start(t, a, d);
+  const head = row.el.querySelector('.head'), btn = row.el.querySelector('.play');
+  head.style.display = 'block';
+  btn.innerHTML = STOP;
+  playing = { row, src, head, btn };
+  const tick = () => {
+    if (playing?.src !== src) return;
+    const now = Math.min(d, Math.max(0, ctx.currentTime - t));
+    head.style.left = x(row, a + now);
+    playing.raf = requestAnimationFrame(tick);
+  };
+  tick();
+  src.onended = () => { if (playing?.src === src) stop(); };
+}
+function stop() {
+  if (!playing) return;
+  cancelAnimationFrame(playing.raf);
+  playing.src.onended = null;
+  try { playing.src.stop(); } catch {}
+  playing.head.style.display = 'none';
+  playing.btn.innerHTML = PLAY;
+  playing = null;
+}
+
+// ---------- header ----------
+
+$('#filter').addEventListener('input', e => {
+  const q = e.target.value.trim().toLowerCase();
+  for (const g of document.querySelectorAll('.group')) g.hidden = q && !g.dataset.word.includes(q);
+  requestAnimationFrame(() => rows.forEach(r => { if (!r.el.parentElement.hidden) draw(r); }));
+});
+
+$('#export').addEventListener('click', () => {
+  const blob = new Blob([JSON.stringify(exported(), null, 2) + '\n'], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'clips.json';
+  a.click();
+  URL.revokeObjectURL(a.href);
+  status('exported: move clips.json into build/config/ and reload the game');
+});
+
+$('#revert').addEventListener('click', () => {
+  if (!confirm('Forget the edits in this browser and go back to config/clips.json?')) return;
+  try { localStorage.removeItem(DRAFT_KEY); } catch {}
+  stop();
+  applyClips(fileClips);
+  build();
+  status();
+});
+
+const escape = s => String(s).replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[ch]);
+
+load().catch(e => { $('#status').textContent = `could not load: serve build/ (python3 -m http.server) and open /tools/clippicker.html · ${e.message}`; throw e; });
+</script>
+</body>
+</html>

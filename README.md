@@ -28,10 +28,12 @@ The game started as a copy of prototype-09 (see [Two lines, live rewards](#two-l
   - `games.yaml`: the games' photos, shapes, words, settings and unlocks, and the tracks
   - `story.yaml`: the order the game runs in (pages of text, tries, games, the end), the first line and its words, and the words given for writing
   - `bins.yaml`: word category fixes (see [Fix word categories](#fix-word-categories))
+  - `clips.json`: trims and recordings switched off, from the clip picker (see [Trim and pick recordings](#trim-and-pick-recordings)). Optional.
 - `build/javascript/`: `main.js` runs the page, `minigames.js` the games, and `lib/` holds js-yaml
 - `build/style/`: the page's styles (`style.css`) and the games' (`minigames.css`)
 - `build/audio/`: the cut-up recording (`words.mp3`, `words.json`; `words.wav` is kept) and the tracks
 - `build/images/`: the photos and their shapes
+- `build/tools/clippicker.html`: the clip picker
 
 ## Run the prototypes
 
@@ -75,6 +77,18 @@ Options:
 - `--separate`: isolate vocals with Demucs before aligning (for speech over music; `pip install demucs` first)
 - `--pad`, `--fade`: clip padding and fade in seconds (defaults 0.03, 0.008). The game sets its own padding (`PAD`) and fade (`FADE`).
 - `--wav`, `--transcript`: use files other than the ones in `source/`
+
+## Trim and pick recordings
+
+With the game served, open http://localhost:8000/tools/clippicker.html. It lists every recording of every word, A–Z, each over its stretch of the recording.
+
+- Click the block or ▶ to hear the clip as the game plays it. Shift-click ▶ to hear the context around it.
+- Drag the block's left or right edge to trim it. It plays when you let go. The dashed lines are the default bounds, and **reset** goes back to them.
+- Untick a recording to leave it out of the game's tray. A word with every recording unticked isn't offered at all.
+- **export clips.json** downloads the file. Move it to `build/config/clips.json` and reload the game. The file lists only the recordings changed from the defaults, by id, with their times in seconds (padding included).
+- Edits are kept in the browser until they're exported. **revert** drops them and goes back to `config/clips.json`.
+
+Without `clips.json`, every recording plays from `PAD` before its aligned start to `PAD` after its end. The tray picks its `TAKES` recordings of a word from those left on. Re-running preprocessing can renumber the recordings. The game then leaves out the entries whose word no longer matches, with a warning above the lines.
 
 ## Fix word categories
 

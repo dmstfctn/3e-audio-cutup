@@ -5,9 +5,8 @@ const MIN_LINES = 2, MAX_LINES = 8;              // the lines showing, one more 
 const TRACK_LINES = 4;                          // the tracks are 8 bars: line i plays over bars 2i+1..2i+2, mod 8
 const TAKES = 2;                                // the most recordings of a word the tray offers, picked at random
 const MAX_YEAHS = 5;                            // the most yeahs the tray offers, picked at random
-const LONG_TAKE = 3;                            // a recording this many times its word's median length is left out of the tray (the 0.9s "it")
 const FIND_ALL_EXTRA = 3;                       // find-all: the most words a photo wins besides the thing's own
-const PAD = 0.03;                               // seconds around each word's aligned bounds
+const PAD = 0.03;                               // seconds around each word's aligned bounds, unless config/clips.json sets them
 const FADE = 0.008;                             // seconds of fade in/out on each word
 const LOOKAHEAD = 0.15;                         // how far ahead lines are scheduled
 const ENTER_SPREAD = 1.2;                       // seconds over which the words won drop into the tray
@@ -115,6 +114,7 @@ async function load() {
       const b = Math.min(voice.duration, w.end + PAD);
       words[w.id] = { id: w.id, text: w.word.toLowerCase(), raw: w.raw.toLowerCase(), bin: w.bin, line: w.line, a, d: b - a };
     }
+    await applyClips();
     await applyBinOverrides();
     for (const w of Object.values(words)) (takes[w.text] ??= []).push(w.id);
     loadStory(story);
@@ -134,6 +134,30 @@ async function load() {
   fillStrip();
   showStep();
   applyGains();
+}
+
+// config/clips.json, from tools/clippicker.html: recording id -> { start, end } to trim it (seconds, padding
+// included), and off: true to leave it out of the tray. Recordings it doesn't list keep PAD around their bounds.
+async function applyClips() {
+  let doc = {};
+  try {
+    const r = await fetch('config/clips.json', { cache: 'no-cache' });
+    if (r.ok) doc = await r.json();  // no file: every recording as aligned
+  } catch (e) {
+    warnings.push(`clips.json ignored, could not read it: ${e.message}`);
+  }
+  const unknown = [];
+  for (const [id, c] of Object.entries(doc)) {
+    const w = words[id];
+    // its word is written down too, so a recording renumbered by re-running preprocessing is caught
+    if (!w || (c.word && c.word !== w.text)) { unknown.push(`${id} (${c.word})`); continue; }
+    if (typeof c.start === 'number' && typeof c.end === 'number' && c.end > c.start) {
+      w.a = Math.max(0, c.start);
+      w.d = Math.min(wordsBuf.duration, c.end) - w.a;
+    }
+    if (c.off) w.off = true;
+  }
+  if (unknown.length) warnings.push(`clips.json: not in the recording: ${unknown.join(', ')}`);
 }
 
 // bins.yaml maps bin -> [words] and moves every occurrence of each word (ignoring case)
@@ -478,8 +502,8 @@ function shuffle(a) {
   return a;
 }
 
-// every recording of a word, pauses left out
-const takesOf = text => (takes[text] ?? []).filter(id => words[id].bin !== 'rest');
+// every recording of a word, pauses and those clips.json switches off left out
+const takesOf = text => (takes[text] ?? []).filter(id => words[id].bin !== 'rest' && !words[id].off);
 
 // a pause block this many beats long, made the first time it's needed; one ~ per 1/32 note
 function restId(beats) {
@@ -517,14 +541,11 @@ function newGame() {
 
 const YEAHS = ' yeahs';  // picks' key for the yeahs offered (no word has a space)
 
-// the recordings of a word the tray offers: TAKES of them at random, in recording order, the same until a new game;
-// never one far longer than the word's others
+// the recordings of a word the tray offers: TAKES of them at random, in recording order, the same until a new game
 function trayTakes(text) {
   const all = takesOf(text);
-  const ds = all.map(id => words[id].d).sort((a, b) => a - b), median = ds[Math.floor(ds.length / 2)];
-  const ok = all.filter(id => all.length < 3 || words[id].d <= LONG_TAKE * median);
-  if (!picks[text]?.length || picks[text].length > TAKES || picks[text].some(id => !ok.includes(id))) {
-    picks[text] = shuffle([...ok]).slice(0, TAKES).sort((a, b) => all.indexOf(a) - all.indexOf(b));
+  if (!picks[text]?.length || picks[text].length > TAKES || picks[text].some(id => !all.includes(id))) {
+    picks[text] = shuffle([...all]).slice(0, TAKES).sort((a, b) => all.indexOf(a) - all.indexOf(b));
     save();
   }
   return picks[text];

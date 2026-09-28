@@ -1,0 +1,565 @@
+{
+  "6": {
+    "word": "sl",
+    "start": 13.135,
+    "end": 13.683
+  },
+  "30": {
+    "word": "a",
+    "start": 68.454,
+    "end": 68.518
+  },
+  "31": {
+    "word": "market",
+    "start": 68.559,
+    "end": 68.96
+  },
+  "34": {
+    "word": "and",
+    "start": 69.825,
+    "end": 69.935
+  },
+  "35": {
+    "word": "fruits",
+    "start": 69.971,
+    "end": 70.287
+  },
+  "36": {
+    "word": "for",
+    "start": 70.239,
+    "end": 70.355
+  },
+  "38": {
+    "word": "a",
+    "start": 71.425,
+    "end": 71.489
+  },
+  "43": {
+    "word": "bread",
+    "start": 72.599,
+    "end": 72.784
+  },
+  "44": {
+    "word": "is",
+    "off": true
+  },
+  "46": {
+    "word": "a",
+    "start": 74.322,
+    "end": 74.388
+  },
+  "48": {
+    "word": "an",
+    "start": 75.12,
+    "end": 75.21
+  },
+  "51": {
+    "word": "there",
+    "start": 76.1,
+    "end": 76.29
+  },
+  "52": {
+    "word": "is",
+    "off": true
+  },
+  "55": {
+    "word": "a",
+    "start": 77.744,
+    "end": 77.823
+  },
+  "57": {
+    "word": "is",
+    "off": true
+  },
+  "58": {
+    "word": "just",
+    "off": true
+  },
+  "59": {
+    "word": "a",
+    "start": 78.934,
+    "end": 79.027
+  },
+  "60": {
+    "word": "prison",
+    "start": 79.04,
+    "end": 79.409
+  },
+  "62": {
+    "word": "a",
+    "start": 79.58,
+    "end": 79.669
+  },
+  "64": {
+    "word": "a",
+    "start": 81.04,
+    "end": 81.092
+  },
+  "65": {
+    "word": "smooth",
+    "start": 81.092,
+    "end": 81.519
+  },
+  "67": {
+    "word": "but",
+    "off": true
+  },
+  "68": {
+    "word": "it",
+    "off": true
+  },
+  "69": {
+    "word": "hides",
+    "start": 82.541,
+    "end": 82.768
+  },
+  "70": {
+    "word": "a",
+    "start": 82.794,
+    "end": 82.889
+  },
+  "72": {
+    "word": "a",
+    "start": 84.361,
+    "end": 84.413
+  },
+  "75": {
+    "word": "but",
+    "off": true
+  },
+  "76": {
+    "word": "its",
+    "off": true
+  },
+  "77": {
+    "word": "pages",
+    "start": 85.801,
+    "end": 86.191
+  },
+  "78": {
+    "word": "are",
+    "start": 86.221,
+    "end": 86.322
+  },
+  "80": {
+    "word": "a",
+    "start": 87.681,
+    "end": 87.733,
+    "off": true
+  },
+  "83": {
+    "word": "but",
+    "start": 89.03,
+    "end": 89.143
+  },
+  "84": {
+    "word": "it",
+    "off": true
+  },
+  "85": {
+    "word": "is",
+    "off": true
+  },
+  "87": {
+    "word": "a",
+    "start": 91.053,
+    "end": 91.222
+  },
+  "91": {
+    "word": "behind",
+    "start": 92.522,
+    "end": 92.881
+  },
+  "92": {
+    "word": "is",
+    "off": true
+  },
+  "94": {
+    "word": "what",
+    "start": 94.742,
+    "end": 94.895
+  },
+  "95": {
+    "word": "if",
+    "start": 94.878,
+    "end": 95.043
+  },
+  "96": {
+    "word": "a",
+    "start": 95.065,
+    "end": 95.138
+  },
+  "98": {
+    "word": "dog",
+    "off": true
+  },
+  "99": {
+    "word": "was",
+    "start": 95.568,
+    "end": 95.707
+  },
+  "100": {
+    "word": "made",
+    "start": 95.762,
+    "end": 95.946
+  },
+  "101": {
+    "word": "out",
+    "start": 95.982,
+    "end": 96.136
+  },
+  "102": {
+    "word": "of",
+    "start": 96.102,
+    "end": 96.274,
+    "off": true
+  },
+  "104": {
+    "word": "what",
+    "start": 97.583,
+    "end": 97.693
+  },
+  "105": {
+    "word": "if",
+    "start": 97.687,
+    "end": 97.841
+  },
+  "106": {
+    "word": "a",
+    "start": 97.846,
+    "end": 97.938,
+    "off": true
+  },
+  "107": {
+    "word": "chair",
+    "start": 97.983,
+    "end": 98.232
+  },
+  "108": {
+    "word": "needed",
+    "start": 98.203,
+    "end": 98.485
+  },
+  "109": {
+    "word": "to",
+    "off": true
+  },
+  "111": {
+    "word": "down",
+    "start": 98.863,
+    "end": 99.098
+  },
+  "112": {
+    "word": "and",
+    "start": 99.088,
+    "end": 99.186
+  },
+  "114": {
+    "word": "alone",
+    "start": 100.763,
+    "end": 101.104
+  },
+  "117": {
+    "word": "but",
+    "start": 102.743,
+    "end": 102.94
+  },
+  "121": {
+    "word": "but",
+    "start": 105.464,
+    "end": 105.634
+  },
+  "125": {
+    "word": "green",
+    "start": 108.264,
+    "end": 108.528
+  },
+  "127": {
+    "word": "sleep",
+    "start": 108.929,
+    "end": 109.208
+  },
+  "129": {
+    "word": "awaken",
+    "start": 110.644,
+    "end": 111.172
+  },
+  "130": {
+    "word": "by",
+    "start": 111.164,
+    "end": 111.31
+  },
+  "131": {
+    "word": "words",
+    "start": 111.364,
+    "end": 111.618
+  },
+  "132": {
+    "word": "of",
+    "start": 111.704,
+    "end": 111.79
+  },
+  "133": {
+    "word": "unruly",
+    "start": 111.844,
+    "end": 112.28
+  },
+  "135": {
+    "word": "my",
+    "start": 113.825,
+    "end": 114.036
+  },
+  "136": {
+    "word": "depth",
+    "start": 114.025,
+    "end": 114.303,
+    "off": true
+  },
+  "137": {
+    "word": "is",
+    "off": true
+  },
+  "139": {
+    "word": "thats",
+    "start": 115.525,
+    "end": 115.761
+  },
+  "140": {
+    "word": "not",
+    "start": 115.765,
+    "end": 115.933,
+    "off": true
+  },
+  "143": {
+    "word": "its",
+    "start": 117.125,
+    "end": 117.286
+  },
+  "144": {
+    "word": "not",
+    "start": 117.285,
+    "end": 117.469
+  },
+  "147": {
+    "word": "but",
+    "start": 118.585,
+    "end": 118.74
+  },
+  "150": {
+    "word": "welcome",
+    "start": 119.965,
+    "end": 120.327
+  },
+  "151": {
+    "word": "to",
+    "start": 120.345,
+    "end": 120.465
+  },
+  "153": {
+    "word": "vaporwave",
+    "start": 120.585,
+    "end": 121.19
+  },
+  "155": {
+    "word": "hashtag",
+    "start": 122.866,
+    "end": 123.318
+  },
+  "156": {
+    "word": "say",
+    "start": 123.426,
+    "end": 123.655
+  },
+  "159": {
+    "word": "welcome",
+    "start": 125.186,
+    "end": 125.534
+  },
+  "160": {
+    "word": "to",
+    "start": 125.586,
+    "end": 125.726
+  },
+  "161": {
+    "word": "club",
+    "start": 125.726,
+    "end": 125.967
+  },
+  "163": {
+    "word": "hashtag",
+    "start": 127.286,
+    "end": 127.765
+  },
+  "164": {
+    "word": "say",
+    "start": 127.826,
+    "end": 128.068
+  },
+  "169": {
+    "word": "what",
+    "start": 130.187,
+    "end": 130.334
+  },
+  "172": {
+    "word": "it",
+    "start": 131.568,
+    "end": 131.707
+  },
+  "174": {
+    "word": "what",
+    "off": true
+  },
+  "177": {
+    "word": "i",
+    "start": 133.221,
+    "end": 133.367
+  },
+  "180": {
+    "word": "for",
+    "start": 133.667,
+    "end": 133.821
+  },
+  "181": {
+    "word": "a",
+    "start": 133.848,
+    "end": 133.927,
+    "off": true
+  },
+  "183": {
+    "word": "it",
+    "off": true
+  },
+  "184": {
+    "word": "is",
+    "off": true
+  },
+  "185": {
+    "word": "what",
+    "off": true
+  },
+  "186": {
+    "word": "it",
+    "off": true
+  },
+  "188": {
+    "word": "i",
+    "start": 136.495,
+    "end": 136.604,
+    "off": true
+  },
+  "190": {
+    "word": "them",
+    "start": 136.808,
+    "end": 136.972
+  },
+  "191": {
+    "word": "what's",
+    "start": 136.981,
+    "end": 137.195,
+    "off": true
+  },
+  "193": {
+    "word": "i",
+    "start": 138.193,
+    "end": 138.313
+  },
+  "196": {
+    "word": "what's",
+    "start": 138.668,
+    "end": 138.893
+  },
+  "198": {
+    "word": "i",
+    "start": 139.838,
+    "end": 140.006
+  },
+  "200": {
+    "word": "this",
+    "off": true
+  },
+  "201": {
+    "word": "for",
+    "start": 140.308,
+    "end": 140.432
+  },
+  "202": {
+    "word": "a",
+    "start": 140.467,
+    "end": 140.548,
+    "off": true
+  },
+  "205": {
+    "word": "is",
+    "off": true
+  },
+  "206": {
+    "word": "what",
+    "off": true
+  },
+  "209": {
+    "word": "a",
+    "off": true
+  },
+  "212": {
+    "word": "a",
+    "start": 144.869,
+    "end": 144.973
+  },
+  "214": {
+    "word": "laying",
+    "start": 146.489,
+    "end": 146.697
+  },
+  "215": {
+    "word": "on",
+    "start": 146.749,
+    "end": 146.844
+  },
+  "216": {
+    "word": "the",
+    "off": true
+  },
+  "217": {
+    "word": "bathroom",
+    "start": 146.969,
+    "end": 147.391
+  },
+  "219": {
+    "word": "a",
+    "start": 149.149,
+    "end": 149.25
+  },
+  "220": {
+    "word": "person",
+    "start": 149.249,
+    "end": 149.633
+  },
+  "221": {
+    "word": "sits",
+    "start": 149.729,
+    "end": 149.978
+  },
+  "222": {
+    "word": "at",
+    "start": 150.029,
+    "end": 150.094
+  },
+  "223": {
+    "word": "a",
+    "off": true
+  },
+  "226": {
+    "word": "holding",
+    "start": 150.889,
+    "end": 151.171
+  },
+  "227": {
+    "word": "a",
+    "off": true
+  },
+  "228": {
+    "word": "piece",
+    "start": 151.289,
+    "end": 151.541
+  }
+}
