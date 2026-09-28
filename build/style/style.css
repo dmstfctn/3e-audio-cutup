@@ -9,7 +9,7 @@ body { font: 16px "Times New Roman", Times, serif; margin: 16px; }
 #screen { position: fixed; inset: var(--top) 0 var(--strip) 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; padding: 16px; text-align: center; }
 #screen-text { max-width: 32em; }
 #screen-text:empty { display: none; }
-#screen-text .new { animation: line-in .4s ease-out; }
+#screen-text .new { animation: line-in .4s ease-out backwards; }  /* backwards: hidden while it waits its turn (LINE_GAP) */
 @keyframes line-in { from { opacity: 0; } }
 #screen.dark { background: black; color: white; }  /* a page: dark */
 /* the button reads as the story's text, underlined to show it can be clicked */
@@ -25,6 +25,7 @@ body { font: 16px "Times New Roman", Times, serif; margin: 16px; }
 /* centred whatever is either side */
 #toggles { position: absolute; left: 50%; transform: translateX(-50%); display: flex; gap: 2px; }
 #play[hidden], #points[hidden] { display: none; }
+#points { margin-left: auto; }  /* at the right, with play / pause hidden in the games */
 /* the bars' colours change as a dark page comes and goes, as long as the tray takes to grow (MORPH_MS) */
 #ui-header, #strip, .toggle, .chip, #play, #submit, .point { transition: background-color .9s, color .9s, border-color .9s, -webkit-text-stroke-color .9s; }
 .toggle { box-sizing: border-box; height: 2em; line-height: calc(2em - 2px); padding: 0 8px; border: 1px solid black; border-radius: 0;
@@ -47,38 +48,44 @@ body { font: 16px "Times New Roman", Times, serif; margin: 16px; }
 #more { align-self: center; margin-top: 8px; font-size: 20px; }
 #submit[hidden], #more[hidden] { display: none; }
 
-#lines { border: 1px solid black; padding: 8px; display: flex; flex-direction: column; gap: 8px; }
+#lines { padding: 8px; display: flex; flex-direction: column; gap: 8px; }
+/* a line in a notebook, with ticks standing on it: grey for the 8 beats, black and wider at both ends
+   and the bar line after 4. The line reaches 3px past the words' room at each end, and words sit 2px
+   above it. The beat ticks are placed in the words' room, 3px in. */
 .line {
-  position: relative; display: flex; height: 2em; border: 1px solid black;
-  /* beat ticks: 8 beats per line, bar line after 4 */
+  position: relative; display: flex; height: 2em; margin: 0 -3px; padding: 0 3px 2px; border-bottom: 2px solid var(--ink, black);
   background:
-    linear-gradient(to right, black 1px, transparent 1px) calc(var(--beat) * 4px) 0 / calc(var(--beat) * 4px) 100% no-repeat,
-    repeating-linear-gradient(to right, transparent 0 calc(var(--beat) * 1px - 1px), #ccc calc(var(--beat) * 1px - 1px) calc(var(--beat) * 1px));
+    linear-gradient(var(--ink, black), var(--ink, black)) left bottom / 2px 6px no-repeat,
+    linear-gradient(var(--ink, black), var(--ink, black)) right bottom / 2px 6px no-repeat,
+    linear-gradient(var(--ink, black), var(--ink, black)) calc(3px + var(--beat) * 4px - 1px) bottom / 2px 6px no-repeat,
+    repeating-linear-gradient(to right, transparent 0 calc(var(--beat) * 1px - 1px), #888 calc(var(--beat) * 1px - 1px) calc(var(--beat) * 1px))
+      3px bottom / calc(100% - 6px) 6px no-repeat;
 }
+/* a word in a line takes up its duration, its block 2px narrower, so there's 2px between words */
+.line .word { width: calc(var(--d) * var(--pps) * 1px - 2px); margin: 0 1px; }
 .line[hidden] { display: none; }
-.marker { position: absolute; top: -4px; bottom: -4px; width: 2px; margin-left: -1px; background: black; display: none; pointer-events: none; }
+.marker { position: absolute; top: -4px; bottom: -4px; width: 2px; margin-left: -1px; background: var(--ink, black); display: none; pointer-events: none; }
 .playhead { position: absolute; top: 0; bottom: 0; width: 1px; background: red; display: none; pointer-events: none; }
 
-/* the tray, fixed to the bottom and scrolling up and down: a section per bin, its words wrapping under
-   its label. The labels stick, stacked in order: --k labels above each at the top, the rest below it
-   at the bottom. */
-#palette { --label: 28px; position: fixed; left: 0; right: 0; bottom: 0; z-index: 5; box-sizing: border-box; max-height: 66svh;
-           background: white; border-top: 1px solid black; overflow-y: auto; overscroll-behavior: contain; }
-.bin-label { position: sticky; z-index: 1; top: calc(var(--k) * var(--label)); bottom: calc((var(--bins) - 1 - var(--k)) * var(--label));
-             box-sizing: border-box; height: var(--label); padding: 10px 16px 0; line-height: 17px;
-             background: white; border-top: 1px solid black; font: 12px Arial, sans-serif; text-transform: uppercase; cursor: pointer; }
-.tabs + .bin-label { border-top-color: transparent; }  /* the tray's own border is there; kept the same height as the rest */
-.bin-words { display: flex; flex-wrap: wrap; gap: 4px; padding: 4px 16px 8px; }
-.bin-words:last-child { padding-bottom: calc(8px + 1em); }  /* half a word's height more below the last section */
-/* every other section grey (the tabs come first) */
-.bin-label:nth-child(4n+4), .bin-words:nth-child(4n+5) { background: #ccc; }
-/* the tabs, a bin each, for narrow screens */
-.tabs { display: none; }
+/* the tray, fixed to the bottom and scrolling up and down: tabs in two rows,
+   showing the chosen bin's words; the bins' panels are stacked in one cell, the others hidden, so the tray
+   is as tall as the tallest */
+#palette { position: fixed; left: 0; right: 0; bottom: 0; z-index: 5; box-sizing: border-box;
+           max-height: 66svh; display: grid; background: white; border-top: 1px solid black; overflow-y: auto; overscroll-behavior: contain; }
+.bin-words { grid-row: 2; grid-column: 1; align-self: start; display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; padding: 14px 16px; }
+.bin-words:not(.on) { visibility: hidden; }
+.tabs { grid-row: 1; position: sticky; top: 0; z-index: 2; display: flex; flex-direction: column; gap: 1px;
+        background: black; border-bottom: 1px solid black; }
+.tabs > div { display: flex; gap: 1px; }
+.tab { flex: 1; height: 28px; padding: 0; border: 0; border-radius: 0; background: white; color: black;
+       font: 12px Arial, sans-serif; text-transform: uppercase; cursor: pointer; }
+.tab.on { background: black; color: white; }
 
 .word {
   box-sizing: border-box; flex: none; height: 2em; line-height: calc(2em - 2px);
   width: calc(var(--d) * var(--pps) * 1px);
   border: 1px solid black; padding: 0 1px; background: white; overflow: hidden; white-space: nowrap; text-align: center;
+  font-family: Arial, sans-serif;
   cursor: pointer; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
 }
 /* dragged by a finger: the word stays behind, faded, and a copy follows the finger */
@@ -91,29 +98,9 @@ body { font: 16px "Times New Roman", Times, serif; margin: 16px; }
    tray no more than half the screen */
 @media (max-width: 640px) {
   #palette { max-height: 50svh; }
-  /* tabs instead of labels, in two rows, showing the chosen bin's words; the bins' panels are stacked in
-     one cell, the others hidden, so the tray is as tall as the tallest */
-  #palette { display: grid; }
-  #palette .bin-label { display: none; }
-  #palette .bin-words { grid-row: 2; grid-column: 1; align-self: start; justify-content: center; background: white; padding-bottom: 8px; }
-  #palette .bin-words:not(.on) { visibility: hidden; }
-  .tabs { grid-row: 1; position: sticky; top: 0; z-index: 2; display: flex; flex-direction: column; gap: 1px;
-          background: black; border-bottom: 1px solid black; }
-  .tabs > div { display: flex; gap: 1px; }
-  .tab { flex: 1; }
-  .tab { height: 28px; padding: 0; border: 0; border-radius: 0; background: white; color: black;
-         font: 12px Arial, sans-serif; text-transform: uppercase; cursor: pointer; }
-  .tab.on { background: black; color: white; }
   #palette .word, .word.dragged { font-size: 12px; height: 32px; line-height: 30px; }
 }
 
-/* a word's colour by its bin: nouns red, verbs green, adjectives blue, yeahs yellow, pronouns and glue
-   dark grey, pauses white; always black text */
-.word[data-bin="noun"], .chip[data-bin="noun"] { background: #ff7b7b; }
-.word[data-bin="verb"], .chip[data-bin="verb"] { background: #74d68f; }
-.word[data-bin="adjective"], .chip[data-bin="adjective"] { background: #7fb6ff; }
-.word[data-bin="yeah"], .chip[data-bin="yeah"] { background: #ffd84a; }
-.word[data-bin="pronoun"], .word[data-bin="glue"], .chip[data-bin="pronoun"], .chip[data-bin="glue"] { background: #999; }
 
 /* words won in the games pop into the tray one after another (delay set per word) */
 .word.entering { animation: enter 0.35s ease-out backwards; }
@@ -132,17 +119,41 @@ body:has(#minigame:not([hidden])), body:has(#show:not([hidden])) { overflow: hid
 #strip { position: fixed; left: 0; right: 0; bottom: 0; height: var(--strip); z-index: 12; box-sizing: border-box; background: white;
          border-top: 1px solid black; padding: 0 16px; display: flex; justify-content: flex-end; align-items: center; gap: 4px; overflow: hidden; }
 #strip[hidden] { display: none; }
-.chip { flex: none; box-sizing: border-box; height: 2em; line-height: calc(2em - 2px); padding: 0 8px; border: 1px solid black; background: white; white-space: nowrap; }
+.chip { flex: none; box-sizing: border-box; height: 2em; line-height: calc(2em - 2px); padding: 0 8px; border: 1px solid black; background: white; white-space: nowrap; font-family: Arial, sans-serif; }
 /* on a dark page the bars invert, and the words won go grey */
 body.dark #ui-header, body.dark #strip { background: black; border-color: white; color: white; }
 body.dark #play, body.dark #submit { color: white; }
 body.dark .toggle { background: #444; border-color: white; color: white; }
 body.dark .point { color: black; -webkit-text-stroke-color: white; }
 body.dark .chip, .chip.grey { background: #777; border-color: white; color: white; }
+/* writing (the cutup, and submit) is white on black: --ink is the lines' and the marker's colour */
+body.writing { --ink: white; background: black; color: white; }
+body.writing #ui-header { background: black; border-color: white; color: white; }
+body.writing #play, body.writing #submit, body.writing #more { color: white; }
+body.writing .toggle { background: #444; border-color: white; color: white; }
+body.writing .word, body.writing .chip { background: black; border-color: white; color: white; }
+/* a word under the mouse lights up (not on touch, where hover sticks after a tap) */
+@media (hover: hover) { body.writing .word:hover { background: rgba(255, 255, 255, .2); } }
+body.writing #palette { background: black; border-color: white; }
+body.writing .tabs { background: white; border-bottom-color: white; }
+body.writing .tab { background: black; color: white; }
+/* the chosen tab, and a tab under the mouse, lit as a word is: over black, since the tabs' gaps are white behind them */
+body.writing .tab.on { background: linear-gradient(rgba(255, 255, 255, .2), rgba(255, 255, 255, .2)) black; }
+@media (hover: hover) { body.writing .tab:hover { background: linear-gradient(rgba(255, 255, 255, .2), rgba(255, 255, 255, .2)) black; } }
+body.writing #show { background: black; }
+body.writing #show-lines span { color: #555; }
+body.writing #show-lines span.said { color: white; }
 /* leaving a dark page, the page fades from black; under the header, over everything else */
 .cover { position: fixed; inset: 0; z-index: 11; background: black; pointer-events: none; }
-/* a word, track or point on its way to the strip, the tracks or the counter */
+/* a word or point on its way to the strip or the counter */
 .flying { position: fixed; z-index: 13; margin: 0; pointer-events: none; }
+/* a word won flies as outlined text cycling through the hues, and gets its block when it lands; the outline
+   stays 6px on screen however it's scaled (--scale, set as it flies) */
+.chip.bare { background: none; border-color: transparent; color: transparent; -webkit-text-stroke-width: calc(6px / var(--scale, 1));
+             animation: hues .6s linear infinite; }
+@keyframes hues { 0%, 100% { -webkit-text-stroke-color: hsl(0 90% 45%); } 17% { -webkit-text-stroke-color: hsl(60 90% 45%); }
+                  33% { -webkit-text-stroke-color: hsl(120 90% 45%); } 50% { -webkit-text-stroke-color: hsl(180 90% 45%); }
+                  67% { -webkit-text-stroke-color: hsl(240 90% 45%); } 83% { -webkit-text-stroke-color: hsl(300 90% 45%); } }
 /* the points counter and each +1: bare text, white with a black outline */
 .point { font: 20px Arial, sans-serif; color: white; -webkit-text-stroke: 4px black; paint-order: stroke fill; white-space: nowrap; }
 

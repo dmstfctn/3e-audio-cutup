@@ -24,8 +24,8 @@
 #   (each game's `points` for every thing found, pair matched, shape found or
 #   round matched), so `above: 0%` is given for the first win. An unlock can
 #   give:
-#     track: a track name from `tracks` below. It shows at the top of the page
-#            when unlocked, off, for the player to toggle on.
+#     track: a track name from `tracks` below. It joins the loop, off, and its
+#            toggle shows when writing, for the player to switch on.
 #   Yeahs and pauses aren't unlocks: writing gives them all (config/story.yaml).
 #   Retrying a game throws away its unlocks and works them out again.
 # - points: what each thing found, pair or round matched, or shape found is
@@ -43,10 +43,8 @@ tracks:
   all: audio/track-full.mp3
 
 # Find It: one photo and one thing per play, every thing in every photo once.
-# A click that misses leaves the time running. Finding a thing wins its word
-# and a share of the photo's other words (not the other things to find): the
-# photo's things share them out, and a thing's share is all of it for finding
-# it in up to half the time, down to none a second before the end.
+# A click that misses leaves the time running. Finding a thing wins its own
+# word only, however quick; the photo's other rewards aren't given.
 find:
   title: find it
   seconds: 5
@@ -157,7 +155,8 @@ find-all:
         adjective: [colourless]
 
 # Caption Match: every round is played each time, in a random order. Pick the
-# photo the caption describes from it and its decoys to win all its words.
+# photo the caption describes from it and its decoys to win its first word
+# (the first listed in rewards).
 # prompt is the line over the photos; {caption} is the round's caption.
 caption-match:
   title: caption match
