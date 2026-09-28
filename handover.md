@@ -34,7 +34,7 @@ Times, black 1px borders and square corners. Green `#00ff00` means right and red
 
 ## State of the game
 
-- The order is `sequence` in `story.yaml`: `page` (light or dark, text in `[button]` notation), `try` (a game with no timer until its first win, winning nothing; `seconds: null` in minigames.js), `games` (one step at most; after each game an `X / Y words` card, words won out of those the run could win, with one retry per game (`retried`) and next task, the last button being the step's `last-button`), and `write`. Any step can `play` (unlock and switch on), `unlock` (off) or `stop` (switch off) tracks. The metro plays from the games until the dark page. The drone never plays by itself: `write` unlocks it, off, as a toggle.
+- The order is `sequence` in `story.yaml`: `page` (light or dark, text in `[button]` notation), `try` (a game with no timer until its first win, winning nothing; `seconds: null` in minigames.js; its own `prompt:` replaces games.yaml's, `{caption}` included), `games` (one step at most; after each game an `X / Y words` card, words won out of those the run could win, with one retry per game (`retried`) and next task, the last button being the step's `last-button`), and `write`. Any step can `play` (unlock and switch on), `unlock` (off) or `stop` (switch off) tracks. The metro plays from the games until the dark page. The drone never plays by itself: `write` unlocks it, off, as a toggle.
 - `restore()` rejects a save whose `phase` doesn't match the kind of step at `at`, so editing the sequence can reset saves. That's fine.
 - Pair-it tries leave out pairs matched in earlier tries (`tried`, saved); the timed game has them all.
 - The header only shows at the end. The strip shows from the games until the end.

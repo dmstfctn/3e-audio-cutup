@@ -348,6 +348,7 @@ function readSequence(list, next, problems) {
     } else if (kind === 'try') {
       step.game = String(s.try);
       if (!GAME_DEFAULTS[step.game]) { problems.push(`${where}: no game called ${step.game}`); continue; }
+      if (s.prompt != null) step.prompt = String(s.prompt);  // in place of games.yaml's
     } else if (kind === 'games') {
       if (out.some(o => o.kind === 'games')) { problems.push(`${where}: only one games step is played`); continue; }
       step.games = [].concat(s.games ?? []).map(String).filter(key => {
@@ -816,9 +817,13 @@ function startTry(key) {
   showGame();
   $('#mg-card').hidden = true;
   if (typeof MINIGAMES === 'undefined' || !GAMES[key]) return enter(at + 1);  // nothing to try
-  const data = planRun(key)[0].data;
+  const data = planRun(key)[0].data, prompt = SEQUENCE[at].prompt;
   data.seconds = null;
   data.rounds?.forEach(r => r.seconds = null);
+  if (prompt != null) {
+    data.prompt = prompt;
+    data.rounds?.forEach(r => r.prompt = prompt.replaceAll('{caption}', r.caption));
+  }
   const items = GAMES[key].items;
   let pairs = items.map((_, k) => k);  // pair-it: the items of data.pairs
   if (key === 'pair-it' && tried.length < items.length) {

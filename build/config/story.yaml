@@ -6,6 +6,7 @@
 #     try: a game (pair-it, find, find-all or caption-match), played with no
 #          timer until the first win, then on to the next step. It wins nothing.
 #          A game with several plays (find, find-all) only plays its first.
+#          prompt: sets its prompt, in place of games.yaml's.
 #     games: [the games in order], each played through once, with its timer.
 #          Words won fly to the strip at the bottom. After each game, its
 #          points, with retry and next task; last-button is the button after
@@ -64,6 +65,7 @@ sequence:
       
       when can you start? [log on]
   - try: pair-it
+    prompt: pair two
   - page: light
     text: |
       you’re a data labeller by day [next]
