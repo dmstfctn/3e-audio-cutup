@@ -12,7 +12,7 @@ html { overscroll-behavior: none; }  /* no rubber-banding of a page that doesn't
 #screen-text:empty { display: none; }
 #screen-text .new { animation: line-in .4s ease-out backwards; }  /* backwards: hidden while it waits its turn (LINE_GAP) */
 @keyframes line-in { from { opacity: 0; } }
-#screen.dark { background: black; color: white; }  /* a page: dark */
+#screen.dark { background: black; color: #ccc; }  /* a page: dark */
 /* the button reads as the story's text, underlined to show it can be clicked; so do retry and next task */
 #screen-go, #mg-buttons button { background: none; border: 0; padding: 0; font: inherit; color: inherit; text-decoration: underline; cursor: pointer; }
 #screen-go:disabled { text-decoration: none; cursor: default; }
@@ -134,14 +134,14 @@ body:has(#minigame:not([hidden])), body:has(#show:not([hidden])) { overflow: hid
 .chip { flex: none; box-sizing: border-box; height: 2em; line-height: calc(2em - 2px); padding: 0 8px; border: 1px solid transparent; background: none;
         color: var(--hue, black); white-space: nowrap; font: bold 16px Arial, sans-serif; }
 /* on a dark page (where the header hides) the strip inverts, and the words won go grey */
-body.dark #strip { background: black; border-color: white; color: white; }
+body.dark #strip { background: black; border-color: #ccc; color: #ccc; }
 body.dark .chip, .chip.grey, body.writing .chip.grey[data-bin] { background: transparent; border-color: transparent; color: #777; }
-/* writing (the cutup, and submit) is white on black: --ink is the lines' and the marker's colour */
-body.writing { --ink: white; background: black; color: white; }
-body.writing #ui-header { background: black; border-bottom: 1px solid white; color: white; }
-body.writing #play, body.writing #submit, body.writing #more, body.writing #fewer { color: white; }
-body.writing .toggle { background: #444; border-color: white; color: white; }
-body.writing .word, body.writing .chip { background: black; border-color: black; color: white; }
+/* writing (the cutup, and submit) is light grey (#ccc) on black: --ink is the lines' and the marker's colour */
+body.writing { --ink: #ccc; background: black; color: #ccc; }
+body.writing #ui-header { background: black; border-bottom: 1px solid #ccc; color: #ccc; }
+body.writing #play, body.writing #submit, body.writing #more, body.writing #fewer { color: #ccc; }
+body.writing .toggle { background: #444; border-color: #ccc; color: #ccc; }
+body.writing .word, body.writing .chip { background: black; border-color: black; color: #ccc; }
 body.writing .chip { font-weight: normal; }  /* flying from the strip into the tray, a block like the tray's words */
 /* a word's colour by its bin, each 25% darker than c9ccd56's: nouns red, verbs green, adjectives (and describers)
    blue, yeahs yellow, pronouns and glue grey, pauses light grey; black text on them */
@@ -153,10 +153,10 @@ body.writing :is(.word, .chip):is([data-bin="pronoun"], [data-bin="glue"]) { bac
 body.writing .word[data-bin="rest"] { background: #bfbfbf; color: black; }
 /* a word under the mouse lights up, whatever its colour (not on touch, where hover sticks after a tap) */
 @media (hover: hover) { body.writing .word:hover { box-shadow: inset 0 0 0 100px rgba(255, 255, 255, .3); } }
-body.writing #palette { background: black; border-color: white; }
+body.writing #palette { background: black; border-color: #ccc; }
 body.writing #show { background: black; }
 body.writing #show-lines span { color: #555; }
-body.writing #show-lines span.said { color: white; }
+body.writing #show-lines span.said { color: #ccc; }
 /* leaving a dark page, the page fades from black; under the header, over everything else */
 .cover { position: fixed; inset: 0; z-index: 11; background: black; pointer-events: none; }
 /* a word on its way to the strip, or a point bursting from a click */
