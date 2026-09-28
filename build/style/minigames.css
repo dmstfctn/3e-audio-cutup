@@ -51,7 +51,6 @@
   .mg-pairs { width: min(100cqw, 100cqh * 9 / 16); grid-template-columns: repeat(3, 1fr); gap: 10px; }
 }
 
-/* find them all: the count found, at the top left of the screen, in the header's height (45px, as --top) */
-.mg-count { position: fixed; top: 0; left: 16px; height: 45px; display: flex; align-items: center; color: black;
-            font: 20px Arial, sans-serif; font-variant-numeric: tabular-nums; }
+/* find them all: the count found, centred under the prompt */
+.mg-count { display: block; margin-top: 4px; color: black; font-size: 20px; font-variant-numeric: tabular-nums; }
 .mg-count:empty { display: none; }
