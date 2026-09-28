@@ -17,16 +17,16 @@ body { font: 16px "Times New Roman", Times, serif; margin: 16px; }
 #screen-go:disabled { text-decoration: none; cursor: default; }
 #screen[hidden], #game[hidden] { display: none; }
 
-/* once a track plays, always on top: at the left the tracks unlocked, each a toggle looking like a word in grey;
-   in the middle submit, when writing; at the right the points counter */
+/* once a track plays, always on top: at the left play / pause; in the middle the tracks unlocked, each a toggle
+   looking like a word in grey; at the right the points counter, or when writing, submit in its place */
 #ui-header { position: fixed; top: 0; left: 0; right: 0; height: var(--top); z-index: 12; box-sizing: border-box; background: white;
           border-bottom: 1px solid black; padding: 0 16px; display: flex; justify-content: space-between; align-items: center; }
 #ui-header[hidden] { display: none; }
-#transport { display: flex; align-items: center; gap: 8px; }
-#toggles { display: flex; gap: 2px; }
-#play-sep[hidden], #play[hidden], #points[hidden] { display: none; }
+/* centred whatever is either side */
+#toggles { position: absolute; left: 50%; transform: translateX(-50%); display: flex; gap: 2px; }
+#play[hidden], #points[hidden] { display: none; }
 /* the bars' colours change as a dark page comes and goes, as long as the tray takes to grow (MORPH_MS) */
-#ui-header, #strip, .toggle, .chip, #play, #play-sep, #submit, .point { transition: background-color .9s, color .9s, border-color .9s, -webkit-text-stroke-color .9s; }
+#ui-header, #strip, .toggle, .chip, #play, #submit, .point { transition: background-color .9s, color .9s, border-color .9s, -webkit-text-stroke-color .9s; }
 .toggle { box-sizing: border-box; height: 2em; line-height: calc(2em - 2px); padding: 0 8px; border: 1px solid black; border-radius: 0;
           background: lightgray; color: black; font: inherit; white-space: nowrap; cursor: pointer; user-select: none; }
 .toggle[aria-pressed="false"] { opacity: .4; }  /* off */
@@ -36,13 +36,9 @@ body { font: 16px "Times New Roman", Times, serif; margin: 16px; }
         display: flex; flex-direction: column; justify-content: center; }
 #status { margin-bottom: 16px; }
 #status:empty { display: none; }
-/* in the top bar, centred whatever the toggles and counter either side of it */
-#submit { position: absolute; left: 50%; transform: translateX(-50%); }
-/* narrow screens: next to the counter, where the toggles can't run into it */
+#submit { margin-left: 12px; white-space: nowrap; }
 @media (max-width: 640px) {
-  #submit { position: static; transform: none; margin: 0 12px 0 auto; white-space: nowrap; }
-  /* smaller toggles, so four fit with the counter */
-  #transport { gap: 6px; }
+  /* smaller toggles, so four fit between play / pause and the counter or submit */
   .toggle { font-size: 12px; height: 26px; line-height: 24px; padding: 0 5px; }
 }
 /* plain bold text: play / pause, submit, and the + / − under the lines that adds or removes two */

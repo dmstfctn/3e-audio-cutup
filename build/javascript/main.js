@@ -538,11 +538,10 @@ function toggle(name) {
 }
 
 // play / pause, when there's something to play; a toggle per track unlocked, hidden while it's still
-// flying there; and from the games on, the points counter. The header shows once there's a track.
+// flying there; and from the games until writing, the points counter. The header shows once there's a track.
 function renderTracks() {
   const any = unlockedTracks().length > 0;
   $('#play').hidden = !any && phase !== 'write';
-  $('#play-sep').hidden = $('#play').hidden || !any;
   $('#play').textContent = paused ? 'play' : 'pause';
   $('#toggles').replaceChildren(...unlockedTracks().map(([name]) => {
     const b = toggle(name);
@@ -551,7 +550,7 @@ function renderTracks() {
     return b;
   }));
   renderPoints();
-  $('#points').hidden = gamesAt() < 0 || at < gamesAt();
+  $('#points').hidden = gamesAt() < 0 || at < gamesAt() || phase === 'write';
   $('#ui-header').hidden = !headerOn();
   document.body.classList.toggle('with-header', headerOn());
 }
