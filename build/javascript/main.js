@@ -544,7 +544,8 @@ function renderTracks() {
     return b;
   }));
   renderPoints();
-  $('#points').hidden = gamesAt() < 0 || at < gamesAt() || phase === 'write';
+  // hidden on a dark page, and the header with it
+  $('#points').hidden = gamesAt() < 0 || at < gamesAt() || phase === 'write' || (phase === 'page' && SEQUENCE[at].dark);
   $('#ui-header').hidden = !headerOn();
   document.body.classList.toggle('with-header', headerOn());
 }
@@ -678,7 +679,7 @@ function showPhase(before = null, strip = null) {
 
 const gamesAt = () => SEQUENCE.findIndex(s => s.kind === 'games');
 
-// the strip of words won, from the games until writing, and the header, both inverted on a dark page; and
+// the strip of words won, from the games until writing, inverted on a dark page; and
 // writing, all white on black
 function showBars() {
   const strip = gamesAt() >= 0 && at >= gamesAt() && phase !== 'write';
@@ -873,9 +874,12 @@ function nextTask() {
 
 const stripGen = {};  // game key -> bumped on a retry or restart, so words and points still flying for it land nowhere
 
+const HUES = [0, 60, 120, 180, 240, 300];  // the hues a word won flashes through (hues in style.css)
+
 function chip(text, key) {
   const el = document.createElement('div');
   el.className = 'chip';
+  el.style.setProperty('--hue', `hsl(${HUES[Math.floor(Math.random() * HUES.length)]} 90% 45%)`);
   el.textContent = text;
   el.dataset.bin = words[takesOf(text)[0]]?.bin;
   el.dataset.game = key;
