@@ -162,27 +162,29 @@ async function applyClips() {
 
 // config/colours.json, from tools/colourpicker.html: lists of colours for the +1s (points, one at random each), a
 // word won's flash (flash, cycled in order) and its colour in the strip (strip, one at random), under default, and
-// under photos for a win on that photo. A list a photo leaves out comes from default, and one default leaves out
-// from COLOURS.
-const COLOURS = { points: ['#00ff00'], flash: ['#da0b0b', '#dada0b', '#0bda0b', '#0bdada', '#0b0bda', '#da0bda'] };
+// under games for a win anywhere in that game (pair it), and under photos for a win on that photo. A list they leave
+// out comes from default, and one default leaves out from COLOURS. success and fail (one colour each) are a play's
+// right and wrong: shapes found, a photo picked, a miss (--ok and --bad in minigames.css, set per play).
+const COLOURS = { points: ['#00ff00'], flash: ['#da0b0b', '#dada0b', '#0bda0b', '#0bdada', '#0b0bda', '#da0bda'],
+  success: ['#00ff00'], fail: ['#ff0000'] };
 COLOURS.strip = COLOURS.flash;
-let colours = { default: {}, photos: {} };
+let colours = { default: {}, games: {}, photos: {} };
 async function loadColours() {
   try {
     const r = await fetch('config/colours.json', { cache: 'no-cache' });
     if (!r.ok) return;  // no file: the colours in COLOURS
     const doc = await r.json();
-    colours = { default: doc.default ?? {}, photos: doc.photos ?? {} };
+    colours = { default: doc.default ?? {}, games: doc.games ?? {}, photos: doc.photos ?? {} };
   } catch (e) {
     warnings.push(`colours.json ignored, could not read it: ${e.message}`);
   }
 }
-// the colours for a win on these photos: a pair-it pair's are under 'A1.jpg + A2.jpg' (or failing that, its photos'
-// own lists together); then default's
-function coloursOf(photos) {
-  const out = {}, pair = colours.photos[photos.join(' + ')];
+// the colours for a win in game key on these photos: the game's, or else the photos' own lists together, or else
+// default's
+function coloursOf(key, photos) {
+  const out = {}, game = colours.games[key];
   for (const k of Object.keys(COLOURS)) {
-    const own = pair?.[k]?.length ? pair[k] : [...new Set(photos.flatMap(p => colours.photos[p]?.[k] ?? []))];
+    const own = game?.[k]?.length ? game[k] : [...new Set(photos.flatMap(p => colours.photos[p]?.[k] ?? []))];
     out[k] = own.length ? own : colours.default[k]?.length ? colours.default[k] : COLOURS[k];
   }
   return out;
@@ -836,25 +838,27 @@ function openTask() {
 function planRun(key) {
   const G = GAMES[key];
   const photo = name => `images/${name}`;
+  // a play's right and wrong colours, from its photos' (or the game's)
+  const feedback = photos => { const c = coloursOf(key, photos); return { ok: c.success[0], bad: c.fail[0] }; };
   if (key === 'find') {
     const all = shuffle(G.items.flatMap(item => item.targets.map(t => ({ item, t }))));
-    return all.map(({ item, t }) => ({ item, t, data: { photo: photo(item.photo), viewBox: item.viewBox,
+    return all.map(({ item, t }) => ({ item, t, data: { ...feedback([item.photo]), photo: photo(item.photo), viewBox: item.viewBox,
       shapes: t.shapes.map(s => s.el), target: t.target, prompt: t.prompt ?? `find the ${t.target}`,
       seconds: +G.seconds, tolerance: +G.tolerance } }));
   }
   if (key === 'find-all') {
     return G.items.map(item => {
       const rewards = findAllWords(item);
-      return { item, rewards, steps: steps(item, rewards), data: { photo: photo(item.photo), viewBox: item.viewBox,
+      return { item, rewards, steps: steps(item, rewards), data: { ...feedback([item.photo]), photo: photo(item.photo), viewBox: item.viewBox,
         shapes: item.shapes, target: item.target, prompt: item.prompt ?? `find the ${item.target}`, seconds: +G.seconds,
         tolerance: +G.tolerance, reach: item.reach, found: [] } };
     });
   }
   if (key === 'pair-it') {
-    return [{ pairs: G.items, data: { pairs: G.items.map(p => p.photos.map(photo)), prompt: String(G.prompt), seconds: +G.seconds } }];
+    return [{ pairs: G.items, data: { ...feedback([]), pairs: G.items.map(p => p.photos.map(photo)), prompt: String(G.prompt), seconds: +G.seconds } }];
   }
   const rounds = shuffle([...G.items]);
-  return [{ rounds, data: { rounds: rounds.map((r, k) => ({
+  return [{ rounds, data: { rounds: rounds.map((r, k) => ({ ...feedback([r.photo]),
     prompt: String(G.prompt).replaceAll('{caption}', r.caption), caption: r.caption,
     answer: photo(r.photo), options: shuffle([r.photo, ...r.decoys].map(photo)),
     seconds: G.seconds[Math.min(k, G.seconds.length - 1)] })) } }];
@@ -888,6 +892,9 @@ function startRun(key) {
   const next = k => {
     const upcoming = plays[k + 1]?.data.photo;
     if (upcoming) new Image().src = upcoming;
+    const play = plays[k];
+    if (key === 'caption-match') play.data.onRound = r => tintStrip(key, [play.rounds[r].photo]);
+    else tintStrip(key, key === 'pair-it' ? [] : [play.item.photo]);
     mounted = MINIGAMES[key].mount($('#mg-body'), plays[k].data, () => {
       mounted?.destroy();
       mounted = null;
@@ -909,7 +916,7 @@ function progress(k, ev) {
   const before = run.points, each = GAMES[run.key].points;
   let won = [];
   const photos = run.key === 'pair-it' ? p.pairs[ev.pair].photos : run.key === 'caption-match' ? [p.rounds[ev.round].photo] : [p.item.photo];
-  const pal = coloursOf(photos);
+  const pal = coloursOf(run.key, photos);
   if (run.key === 'find') {
     run.points += each;
     won = [findWord(p.t.target.toLowerCase())?.text];
@@ -969,6 +976,18 @@ function nextTask() {
 // ---------- the strip: words won in the games ----------
 
 const stripGen = {};  // game key -> bumped on a retry or restart, so words and points still flying for it land nowhere
+
+// The words in the strip take on the colours of the photo being played: each a random one of its strip colours,
+// fading there (the chip's colour transition). A word keeps its new colour after a reload.
+function tintStrip(key, photos) {
+  const list = coloursOf(key, photos).strip;
+  for (const el of $('#strip').children) {
+    const hue = pickOne(list), hues = results[el.dataset.game]?.hues ?? (run?.key === el.dataset.game ? run.hues : null);
+    el.style.setProperty('--hue', hue);
+    if (hues) hues[el.textContent] = hue;
+  }
+  save();
+}
 
 // hue: its colour in the strip; when writing, its bin's colour takes over
 function chip(text, key, hue = results[key]?.hues?.[text] ?? run?.hues[text] ?? pickOne(colours.default.strip ?? COLOURS.strip)) {

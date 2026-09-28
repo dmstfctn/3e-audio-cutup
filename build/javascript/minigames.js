@@ -22,6 +22,8 @@
 // the last one (find-all); the whole time if the timer ran out.
 // onComplete fires once, after the last reveal. Shapes are SVG elements in the photo's pixel space.
 // seconds: null plays with no timer (and no bar) until the game's done or destroyed.
+// ok, bad (optional, in data, or in each caption-match round): the colours of right and wrong, else minigames.css's.
+// caption-match's data.onRound(round index), optional, is called as each round's photos show.
 const MINIGAMES = (() => {
   'use strict';
 
@@ -97,6 +99,11 @@ const MINIGAMES = (() => {
   }
 
   // ---------- shared frame: timer bar, and everything destroy() has to undo ----------
+
+  // a play's right and wrong colours (data.ok, data.bad, optional), as --ok and --bad for minigames.css
+  function feedback(el, d) {
+    for (const [k, v] of [['ok', '--ok'], ['bad', '--bad']]) d?.[k] ? el.style.setProperty(v, d[k]) : el.style.removeProperty(v);
+  }
 
   function frame(container, html) {
     const root = document.createElement('div');
@@ -179,6 +186,7 @@ const MINIGAMES = (() => {
           </div>
         </div>
       </div>`);
+    feedback(g.root, data);
     const photo = g.$('.mg-photo'), overlay = g.$('.mg-overlay'), find = g.$('.mg-find'), prompt = g.$('.mg-prompt');
     const shapes = drawShapes(overlay, data.viewBox, data.shapes);
     g.bar(1);
@@ -227,6 +235,7 @@ const MINIGAMES = (() => {
     // the timer starts once the photos have loaded, so it never runs over blank boxes
     async function playRound() {
       const r = rounds[idx];
+      feedback(g.root, r);
       opts.replaceChildren();
       caption.textContent = 'loading…';
       g.bar(1);
@@ -244,6 +253,7 @@ const MINIGAMES = (() => {
         opts.append(b);
       }
       caption.replaceChildren(...promptNodes(r.prompt, r.caption));
+      data.onRound?.(idx);
       g.countdown(r.seconds, () => finish(null));
     }
 
@@ -282,6 +292,7 @@ const MINIGAMES = (() => {
         <p class="mg-prompt">loading…</p>
         <div class="mg-fitbox"><div class="mg-pairs"></div></div>
       </div>`);
+    feedback(g.root, data);
     const grid = g.$('.mg-pairs'), prompt = g.$('.mg-prompt');
     const matched = [];
     let picked = null, bad = [];
@@ -360,6 +371,7 @@ const MINIGAMES = (() => {
           </div>
         </div>
       </div>`);
+    feedback(g.root, data);
     const photo = g.$('.mg-photo'), overlay = g.$('.mg-overlay'), find = g.$('.mg-find');
     const line = g.$('.mg-prompt'), prompt = g.$('.mg-say'), count = g.$('.mg-count');
     const shapes = drawShapes(overlay, data.viewBox, data.shapes.map(s => s.el));

@@ -1,4 +1,6 @@
 /* the minigames (javascript/minigames.js) */
+/* right and wrong: shapes found, photos matched, and misses; config/colours.json's feedback sets them (main.js) */
+:root { --ok: #00ff00; --bad: #ff0000; }
 .mg-root { position: absolute; inset: 0; overflow: hidden; }
 /* the timer bar, at the very top of the screen, over the header */
 .mg-bar { position: fixed; top: 0; left: 0; width: 100%; height: 5px; background: black; transform-origin: left center; z-index: 2; }
@@ -9,13 +11,13 @@
 .mg-overlay { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
 /* shapes are invisible until revealed, whatever colours the SVG file gave them */
 .mg-overlay g * { fill: transparent; stroke: none; stroke-width: 3; vector-effect: non-scaling-stroke; }
-.mg-overlay g.ok * { fill: rgb(0 255 0 / .35); stroke: #00ff00; }
+.mg-overlay g.ok * { fill: color-mix(in srgb, var(--ok) 35%, transparent); stroke: var(--ok); }
 
 /* the room under the prompt; a photo is sized to fit it whole */
 .mg-fitbox { flex: 1; min-height: 0; align-self: stretch; margin: 0 16px; display: flex; align-items: center; justify-content: center; }
 .mg-find { position: relative; line-height: 0; cursor: crosshair; user-select: none; touch-action: none; }
 .mg-find .mg-photo { display: block; }
-.mg-miss { position: absolute; width: 18px; height: 18px; margin: -9px 0 0 -9px; border-radius: 50%; border: 3px solid #ff0000; pointer-events: none; animation: mg-fade .6s forwards; }
+.mg-miss { position: absolute; width: 18px; height: 18px; margin: -9px 0 0 -9px; border-radius: 50%; border: 3px solid var(--bad); pointer-events: none; animation: mg-fade .6s forwards; }
 @keyframes mg-fade { to { opacity: 0; transform: scale(1.8); } }
 
 .mg-opts { display: flex; gap: 16px; justify-content: center; }
@@ -23,8 +25,8 @@
 .mg-opt img { width: 100%; height: 100%; object-fit: contain; display: block; }
 .mg-opt:hover:not(:disabled) { box-shadow: 0 0 0 3px #bbb; }
 .mg-opt:disabled { cursor: default; }
-.mg-opt.ok { box-shadow: 0 0 0 5px #00ff00; }
-.mg-opt.bad { box-shadow: 0 0 0 5px #ff0000; }
+.mg-opt.ok { box-shadow: 0 0 0 5px var(--ok); }
+.mg-opt.bad { box-shadow: 0 0 0 5px var(--bad); }
 /* narrow screens: the photos stacked, each as big as a third of the room under the prompt allows */
 @media (max-width: 640px) {
   .mg-fitbox:has(.mg-opts) { container-type: size; }
@@ -42,8 +44,8 @@
 .mg-cell img { position: absolute; inset: 0; margin: auto; max-width: 100%; max-height: 100%; display: block; transition: box-shadow .15s, transform .35s ease-in; }
 .mg-cell:hover:not(:disabled) img { box-shadow: 0 0 0 3px #bbb; }
 .mg-cell.picked img, .mg-cell.picked:hover img { box-shadow: 0 0 0 5px #777; }
-.mg-cell.ok img, .mg-cell.ok:hover img { box-shadow: 0 0 0 5px #00ff00; }
-.mg-cell.bad img, .mg-cell.bad:hover img { box-shadow: 0 0 0 5px #ff0000; }
+.mg-cell.ok img, .mg-cell.ok:hover img { box-shadow: 0 0 0 5px var(--ok); }
+.mg-cell.bad img, .mg-cell.bad:hover img { box-shadow: 0 0 0 5px var(--bad); }
 .mg-cell.gone img { transform: scale(0); }
 .mg-cell.out { visibility: hidden; }
 /* narrow screens: 3 × 4, a 9:16 grid */

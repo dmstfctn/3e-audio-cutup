@@ -98,13 +98,14 @@ With the game served, open http://localhost:8000/tools/colourpicker.html. It sho
 
 - **+1:** each +1 that bursts from the click, one of these at random.
 - **flash:** the word won, outlined, cycles through these in order, 0.1 s each, while it grows and flies.
-- **strip:** the word landed in the strip, one of these at random.
+- **strip:** the words in the strip, one of these at random. As each photo comes up (each caption-match round), every word in the strip fades to one of that photo's strip colours.
 
 Pick **+1**, **flash** or **strip** at the top, then click a swatch or anywhere on a photo to add that colour to the photo's list. Shift-click adds it to the defaults. Drag a colour onto any list to add it there, or along its list to reorder it. Click a colour in a list to take it out. Each photo and the defaults show a preview of the three effects.
 
 - A photo with an empty list uses the defaults, and an empty default list uses the game's own colours (green +1s, six bright hues).
-- A pair-it pair is one card, with both photos, and its colours come from both. A pair matched uses its lists whichever photo was clicked first. In `colours.json` it's under `"pair-it/A1.jpg + pair-it/A2.jpg"`. Caption match uses the photo that answers the caption. Decoys are never won on, so they only supply colours for the defaults.
+- Pair it is one card, with all its photos, and its colours come from all of them. Every pair matched uses its lists. In `colours.json` they're under `games`, as `"pair-it"`. Caption match uses the photo that answers the caption. Decoys are never won on, so they only supply colours for the defaults.
 - **export colours.json** downloads the file. Move it to `build/config/colours.json` and reload the game. **import…** loads any exported file into the picker. Edits are kept in the browser until they're exported, and **revert** drops them.
+- **success** and **fail** are one colour each, set per photo (and for pair it as a whole) like the other effects, falling back to the defaults and then to green and red. A pick replaces the colour. They colour shapes found (find it, find them all), the border of a photo picked right or wrong (caption match, pair it), and the ring where a click misses. Caption match takes them from the round's answer photo.
 - When writing, words take their bin's colour as before.
 
 ## Fix word categories

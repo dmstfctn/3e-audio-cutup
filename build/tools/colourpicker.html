@@ -32,6 +32,8 @@
   .card h3 small { font-weight: normal; color: #666; }
   .thumb { position: relative; align-self: start; cursor: crosshair; line-height: 0; display: flex; gap: 4px; align-items: flex-start; }
   .thumb canvas { flex: 1; min-width: 0; height: auto; border: 1px solid #000; }
+  .thumb.many { display: grid; grid-template-columns: repeat(4, 1fr); }  /* a whole game's photos */
+  .thumb.many canvas { width: 100%; }
   .loupe { position: fixed; z-index: 4; width: 40px; height: 40px; border: 1px solid #000; pointer-events: none; display: none; }
   .row { display: flex; align-items: center; gap: 8px; min-height: 30px; margin: 2px 0; }
   .row > b { font: bold 12px Arial, sans-serif; width: 64px; flex: none; text-transform: uppercase; }
@@ -52,6 +54,8 @@
   .preview .point { font: 20px Arial, sans-serif; -webkit-text-stroke: 4px #000; paint-order: stroke fill; }
   .preview .bare { font: 28px Arial, sans-serif; color: transparent; -webkit-text-stroke: 3px #000; }
   .preview .chip { font: bold 16px Arial, sans-serif; }
+  .preview .fb-photo { width: 44px; height: 33px; margin: 5px; background: #bbb; }
+  .preview .fb-miss { width: 18px; height: 18px; border-radius: 50%; border: 3px solid; }
   @media (max-width: 700px) {
     .card { grid-template-columns: 1fr; }
     .thumb { max-width: 320px; }
@@ -65,6 +69,8 @@
     <input type="radio" name="effect" id="e-points" value="points" checked><label for="e-points">+1</label>
     <input type="radio" name="effect" id="e-flash" value="flash"><label for="e-flash">flash</label>
     <input type="radio" name="effect" id="e-strip" value="strip"><label for="e-strip">strip</label>
+    <input type="radio" name="effect" id="e-success" value="success"><label for="e-success">success</label>
+    <input type="radio" name="effect" id="e-fail" value="fail"><label for="e-fail">fail</label>
   </div>
   <label class="n">colours per photo <input type="range" id="n" min="3" max="16" value="8"><span id="n-out">8</span></label>
   <button id="export">export colours.json</button>
@@ -76,8 +82,9 @@
 <main>
   <p class="help">Click a swatch, or anywhere on a photo, to add its colour to that photo's list for the effect picked above
     (<b>+1</b>, <b>flash</b> or <b>strip</b>). Shift-click adds it to the defaults instead. Drag a colour onto any list to add it
-    there, or along its list to reorder it: the flash cycles through its list in order. Click a colour in a list to take it out.
-    A photo with an empty list uses the defaults, shown faded. A pair-it pair is one card: its colours come from both photos, and a pair matched uses them whichever photo was clicked first.</p>
+    there, or along its list to reorder it: the flash cycles through its list in order. <b>success</b> and <b>fail</b> are one
+    colour each (a pick replaces it): shapes found, the border of a photo picked right or wrong, and a miss's ring. Click a colour in a list to take it out.
+    A photo with an empty list uses the defaults, shown faded. Pair it is one card: its colours come from all its photos, and every pair matched uses its lists.</p>
   <div id="list"></div>
 </main>
 <div class="loupe"></div>
@@ -85,11 +92,14 @@
 // Every photo in config/games.yaml, with its common and vivid colours, and the colours picked for the three effects of a
 // win on it: the +1s (points), the word won's flash (flash) and its colour in the strip (strip). Export downloads
 // colours.json: put it in build/config/, where the game reads it. Edits are kept in this browser until exported.
-const EFFECTS = ['points', 'flash', 'strip'];
-const LABELS = { points: '+1', flash: 'flash', strip: 'strip' };
+const EFFECTS = ['points', 'flash', 'strip', 'success', 'fail'];
+// right and wrong in the games (shapes found, photos picked, misses): one colour each, a pick replacing it
+const SINGLE = ['success', 'fail'];
+const LABELS = { points: '+1', flash: 'flash', strip: 'strip', success: 'success', fail: 'fail' };
 // the game's own colours, used where colours.json has none (COLOURS in main.js)
 const BUILT_IN = { points: ['#00ff00'], flash: ['#da0b0b', '#dada0b', '#0bda0b', '#0bdada', '#0b0bda', '#da0bda'] };
 BUILT_IN.strip = BUILT_IN.flash;
+Object.assign(BUILT_IN, { success: ['#00ff00'], fail: ['#ff0000'] });
 const DRAFT_KEY = 'colourpicker';
 const $ = s => document.querySelector(s);
 let photos = [];        // [{ name, games, decoy }]
@@ -104,23 +114,23 @@ async function load() {
     fetch('../config/colours.json', { cache: 'no-cache' }).then(r => r.ok ? r.json() : null).catch(() => null),
   ]);
   photos = photosOf(jsyaml.load(yamlText));
-  fileState = joinPairs(clean(file ?? {}));
+  fileState = dropPairs(clean(file ?? {}));
   let draft = null;
   try { draft = JSON.parse(localStorage.getItem(DRAFT_KEY)); } catch {}
-  state = joinPairs(clean(draft ?? fileState));
+  state = dropPairs(clean(draft ?? fileState));
   build();
   status(file ? 'loaded config/colours.json' : 'no config/colours.json yet: the game uses its own colours');
 }
 
-// the photos each game can win on, in the games' order, as { name, files, games, decoy }; caption-match's decoys
-// last, as colours to pick from only. A pair-it pair is one entry, named 'A1.jpg + A2.jpg' as in colours.json,
-// since the game colours a pair matched the same whichever photo was clicked first.
-const PAIR = ' + ';
+// the photos each game can win on, in the games' order, as { name, files, games, decoy, title }; caption-match's
+// decoys last, as colours to pick from only. Pair it is one entry, named 'pair-it', with every one of its photos:
+// its colours are the game's, whichever pair is matched (under games in colours.json).
+const WHOLE_GAMES = ['pair-it'];
 function photosOf(doc) {
   const out = new Map();
-  const add = (name, game, decoy = false, files = [name]) => {
+  const add = (name, game, decoy = false, files = [name], title = name) => {
     if (!name) return;
-    const p = out.get(name) ?? { name, files, games: [], decoy };
+    const p = out.get(name) ?? { name, files, games: [], decoy, title };
     if (!p.games.includes(game)) p.games.push(game);
     p.decoy &&= decoy;
     out.set(name, p);
@@ -128,7 +138,8 @@ function photosOf(doc) {
   for (const key of ['pair-it', 'find', 'find-all', 'caption-match']) {
     const g = doc?.[key];
     if (!g) continue;
-    for (const pair of g.pairs ?? []) { const files = (pair.photos ?? []).map(String); add(files.join(PAIR), key, false, files); }
+    const all = (g.pairs ?? []).flatMap(pair => (pair.photos ?? []).map(String));
+    if (all.length) add(key, key, false, all, `${g.title ?? key}: all ${all.length} photos`);
     for (const ph of Object.keys(g.photos ?? {})) add(ph, key);
     for (const r of g.rounds ?? []) add(String(r.photo), key);
   }
@@ -136,29 +147,29 @@ function photosOf(doc) {
   return [...out.values()].sort((a, b) => a.decoy - b.decoy);
 }
 
-// a colours.json, or anything like one, as { default, photos } with only lists of hex colours
+// a colours.json, or anything like one, as { default, photos } with only lists of hex colours; a whole game's lists
+// (games in the file) are kept with the photos', under the game's key
 function clean(doc) {
   const lists = o => Object.fromEntries(EFFECTS.map(k => [k, [].concat(o?.[k] ?? []).map(hex).filter(Boolean)]));
   const out = { default: lists(doc.default), photos: {} };
   for (const [name, o] of Object.entries(doc.photos ?? {})) out.photos[name] = lists(o);
+  for (const [key, o] of Object.entries(doc.games ?? {})) out.photos[key] = lists(o);
+  // success / fail from when they were one pair of colours for every game (feedback) become the defaults'
+  for (const k of SINGLE) if (!out.default[k].length && hex(doc.feedback?.[k])) out.default[k] = [hex(doc.feedback[k])];
   return out;
 }
-// lists kept under a pair's photos one by one (from before pairs were joined) move to the pair, together
-function joinPairs(st) {
-  for (const p of photos) {
-    if (p.files.length < 2) continue;
-    const parts = p.files.map(f => st.photos[f]).filter(Boolean);
-    if (!parts.length) continue;
-    const pair = st.photos[p.name] ??= Object.fromEntries(EFFECTS.map(k => [k, []]));
-    for (const k of EFFECTS) if (!pair[k].length) pair[k] = [...new Set(parts.flatMap(o => o[k]))];
-    p.files.forEach(f => delete st.photos[f]);
-  }
+// lists from before pair it was one set, under its pairs ('A1.jpg + A2.jpg') or its photos, are dropped
+function dropPairs(st) {
+  const files = new Set(photos.filter(p => WHOLE_GAMES.includes(p.name)).flatMap(p => p.files));
+  for (const name of Object.keys(st.photos)) if (name.includes(' + ') || files.has(name)) delete st.photos[name];
   return st;
 }
 function exported() {
   const trim = o => Object.fromEntries(EFFECTS.filter(k => o?.[k]?.length).map(k => [k, o[k]]));
-  const out = { default: trim(state.default), photos: {} };
-  for (const [name, o] of Object.entries(state.photos)) if (Object.keys(trim(o)).length) out.photos[name] = trim(o);
+  const out = { default: trim(state.default), games: {}, photos: {} };
+  for (const [name, o] of Object.entries(state.photos)) {
+    if (Object.keys(trim(o)).length) out[WHOLE_GAMES.includes(name) ? 'games' : 'photos'][name] = trim(o);
+  }
   return out;
 }
 const hex = c => {
@@ -183,7 +194,7 @@ const exportedOf = s => { const keep = state; state = s; const out = exported();
 let baseStatus = '';
 function status(base) {
   if (base) baseStatus = base;
-  const n = Object.keys(exported().photos).length;
+  const out = exported(), n = Object.keys(out.photos).length + Object.keys(out.games).length;
   let unsaved = false;
   try { unsaved = localStorage.getItem(DRAFT_KEY) !== null; } catch {}
   $('#status').innerHTML = `${photos.length} photos and pairs · ${n} with their own colours · ${baseStatus}` +
@@ -211,8 +222,8 @@ function build() {
     }
     const el = document.createElement('section');
     el.className = 'card';
-    el.innerHTML = `<h3>${p.name} <small>— ${p.games.join(', ')}</small></h3>
-      <div class="thumb">${p.files.map(() => '<canvas></canvas>').join('')}</div><div><div class="row" title="the colours covering the most of the photo"><b>common</b><div class="swatches common"></div></div>
+    el.innerHTML = `<h3>${p.title} <small>— ${p.games.join(', ')}</small></h3>
+      <div class="thumb${p.files.length > 2 ? ' many' : ''}">${p.files.map(() => '<canvas></canvas>').join('')}</div><div><div class="row" title="the colours covering the most of the photo"><b>common</b><div class="swatches common"></div></div>
       <div class="row" title="the photo's saturated colours, however little of it they cover"><b>vivid</b><div class="swatches vivid"></div></div><div class="lists"></div></div>`;
     list.append(el);
     const card = { name: p.name, files: p.files, el, decoy: p.decoy };
@@ -292,7 +303,7 @@ function swatch(colour) {
 function pick(card, colour, toDefault) {
   const name = toDefault || card.decoy ? null : card.name;
   const lists = listsOf(name, true);
-  lists[effect()].push(colour);
+  if (SINGLE.includes(effect())) lists[effect()].splice(0, Infinity, colour); else lists[effect()].push(colour);
   changed();
   renderLists(cards.find(c => c.name === name));
   if (name === null) cards.forEach(renderLists);  // the photos without their own list show the defaults
@@ -358,8 +369,11 @@ function dropInto(card, k, list) {
     if (to < 0) to = own.length;
     const from = e.dataTransfer.getData('application/x-from');
     // a move within this list only if it started here (the index alone can't tell lists apart)
-    if (from !== '' && list.contains(dragged)) { const i = +from; own.splice(i, 1); if (i < to) to--; }
-    own.splice(to, 0, colour);
+    if (SINGLE.includes(k)) own.splice(0, Infinity, colour);
+    else {
+      if (from !== '' && list.contains(dragged)) { const i = +from; own.splice(i, 1); if (i < to) to--; }
+      own.splice(to, 0, colour);
+    }
     changed();
     rerender(card);
   });
@@ -393,6 +407,11 @@ function preview(name) {
     s.style.color = c;
     box.append(s);
   }
+  // a photo picked right and wrong, a shape found and a miss's ring, as the games draw them
+  const ok = effective(name, 'success')[0], bad = effective(name, 'fail')[0];
+  box.insertAdjacentHTML('beforeend', `<span class="fb-photo" style="box-shadow: 0 0 0 5px ${ok}"></span><span class="fb-photo" style="box-shadow: 0 0 0 5px ${bad}"></span>
+    <svg width="60" height="44" viewBox="0 0 60 44"><rect width="60" height="44" fill="#bbb"/><circle cx="30" cy="22" r="14" fill="${ok}" fill-opacity=".35" stroke="${ok}" stroke-width="3"/></svg>
+    <span class="fb-miss" style="border-color: ${bad}"></span>`);
   return box;
 }
 
