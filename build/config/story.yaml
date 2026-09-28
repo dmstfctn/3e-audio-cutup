@@ -37,25 +37,33 @@
 next: next
 
 sequence:
-  - page: light
+  - page: dark
     text: '[start]'
   - page: light
     text: |
+     ​
+
+
+
       you’re finally awake [next]
       when can you start? [log on]
   - try: pair-it
   - page: light
     text: |
       you’re a data labeller by day [next]
-      you train to speak the tangible, the real [keep going]
-  - try: pair-it
+      you check the rules [next]
   - page: light
     text: |
-      you check the rules [next]
-      1. rawdownload images
-      2. solve puzzles
-      3. unlock words
-      4. express yourself [rawdownload]     
+      1. rawdownload images 
+      2. solve puzzles 
+      3. learn new words [next]
+  #- try: pair-it
+  #- page: light
+  #  text: |
+  #    you check the rules [next]
+  #    1. rawdownload images 
+  #    2. solve puzzles 
+  #    3. unlock words [next]
   - page: light
     text: |     
       you rawdownload the lot and start training
@@ -64,26 +72,35 @@ sequence:
     last-button: finish training
     play: [metro]
   - page: light
-    text: training complete [next]
-  - page: dark
-    stop: [metro]
     text: |
-      you’re a rapper by night [next]
+     ​
+      well done [next]
+      training complete [next]
+      you are a data labeller by day [next]
+    stop: [metro]
+  - page: dark
+    text: |
+     ​
+      and a rapper by night [next]
+      you trained to speak the tangible, the real [next]
+      but you want to turn it around and make it poetic [next]
+  - page: dark
+    text: |
       george tavern 10pm next thursday [next]
       you've got a slot but no lines [next]
-      [start writing]
+      what's on your mind? [start writing]
   - write:
     unlock: [drone]
 
 # The lines at the end start empty. The tray has every recording of line's
 # words and of these.
 first:
-  line: this pages are my words and I
+  line: 
   words:
-    noun: [pages, words]
-    verb: [are, do]
-    pronoun: [this, I, my, nothing]
-    glue: [and]
+    noun: 
+    verb: [ ]
+    pronoun: [ ]
+    glue: [ ]
 
 # Writing: the lines, the first line's words, what the games won, and these,
 # every recording of each.
@@ -91,8 +108,8 @@ write:
   pauses: [0.25, 0.5, 1, 2, 4]   # beats: 1 = a quarter note, 4 = a bar
   yeahs: all                     # every yeah; or a list of them
   words:
-    noun: [pages, words, book, hashtag, ideas, mask, prison, vaporwave]
-    adjective: [shining]
-    verb: [are, do, is, needed, stop, tell, that’s, was, welcome, what’s]
-    pronoun: [it, its, them, this, what]
+    noun: [ ]
+    adjective: [ ]
+    verb: [ ]
+    pronoun: [I, it, my, nothing, them, this, what]
     glue: [a, an, and, also, at, but, by, down, for, if, just, no, not, of, on, out, that, the, to, with, there]

@@ -35,8 +35,8 @@ const TRY_MS = 1000;                            // how long a try's win shows be
 // What a score unlocks beyond the words is under each game's unlocks, and the tracks under tracks.
 const GAME_DEFAULTS = {
   'find': { seconds: 5, tolerance: 10, points: 1 },
-  'pair-it': { seconds: 15, prompt: 'click two photos with the same energy', points: 1 },
-  'caption-match': { seconds: [6, 4, 3], prompt: 'select the image that shows: "{caption}"', points: 1 },
+  'pair-it': { seconds: 15, prompt: 'pair two', points: 1 },
+  'caption-match': { seconds: [6, 4, 3], prompt: 'choose one: "{caption}"', points: 1 },
   'find-all': { seconds: 15, tolerance: 10, points: 1 },
 };
 // tracks that have the others in them: while one is on, the others are muted
@@ -759,12 +759,12 @@ function planRun(key) {
   if (key === 'find') {
     const all = shuffle(G.items.flatMap(item => item.targets.map(t => ({ item, t }))));
     return all.map(({ item, t }) => ({ item, t, data: { photo: photo(item.photo), viewBox: item.viewBox,
-      shapes: t.shapes.map(s => s.el), target: t.target, prompt: t.prompt ?? `find: ${t.target}`,
+      shapes: t.shapes.map(s => s.el), target: t.target, prompt: t.prompt ?? `find the ${t.target}`,
       seconds: +G.seconds, tolerance: +G.tolerance } }));
   }
   if (key === 'find-all') {
     return G.items.map(item => ({ item, steps: steps(item), data: { photo: photo(item.photo), viewBox: item.viewBox,
-      shapes: item.shapes, target: item.target, prompt: item.prompt ?? `find all: ${item.target}`, seconds: +G.seconds,
+      shapes: item.shapes, target: item.target, prompt: item.prompt ?? `find the ${item.target}`, seconds: +G.seconds,
       tolerance: +G.tolerance, reach: item.reach, found: [] } }));
   }
   if (key === 'pair-it') {
