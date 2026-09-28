@@ -13,7 +13,5 @@ data/audio.wav
 data/clips/
 data/demucs/
 
-# claude
-HANDOVER.md
 # Ableton analysis files
 *.asd
