@@ -68,9 +68,14 @@ sequence:
     last-button: finish training
     play: [metro]
   - page: light
-    text: you trained to speak the tangible, the real, but you want to turn it around and make it poetic [next]
-  - page: dark
+    text: |
+      well done [next]
+      you trained to speak the tangible, the real [next]
     stop: [metro]
+  - page: light
+    text: |
+      but you want to turn it around and make it poetic [next]
+  - page: dark
     text: |
       you’re a rapper by night [next]
       george tavern 10pm next thursday [next]
