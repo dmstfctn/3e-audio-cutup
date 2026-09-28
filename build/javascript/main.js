@@ -569,7 +569,8 @@ function toggle(name) {
 // When writing, the header: play / pause and a toggle per track unlocked
 function renderTracks() {
   $('#play').hidden = phase !== 'write';
-  $('#play').textContent = paused ? 'play' : 'pause';
+  $('#play').innerHTML = paused ? PLAY_ICON : PAUSE_ICON;
+  $('#play').title = paused ? 'play' : 'pause';
   $('#toggles').replaceChildren(...(phase === 'write' ? unlockedTracks() : []).map(([name]) => {
     const b = toggle(name);
     b.addEventListener('click', () => { trackOn[name] = !trackOn[name]; save(); renderTracks(); applyGains(); });
@@ -578,6 +579,10 @@ function renderTracks() {
   $('#ui-header').hidden = phase !== 'write';
   document.body.classList.toggle('with-header', phase === 'write');
 }
+
+// the play / pause button's icons: a triangle, or two bars
+const PLAY_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4l13 8-13 8z" fill="currentColor"/></svg>';
+const PAUSE_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4h4v16H6zM14 4h4v16h-4z" fill="currentColor"/></svg>';
 
 // paused stops the loop; playing starts it again from the first line
 function togglePlay() {
@@ -1213,7 +1218,7 @@ function onPaletteDrop(e) {
   if (dragging && dragging.from !== null) removeWord(dragging.from, dragging.index);
 }
 
-// Each line in a row: a handle to move it (shown with more than 2 lines), and after it its on / off button
+// Each line in a row: a handle to move it, and after it its on / off button
 function buildLines() {
   const container = $('#lines');
   for (let i = 0; i < MAX_LINES; i++) {
@@ -1245,10 +1250,9 @@ function buildLines() {
   container.append(rowMarker);
 }
 
-// the lines showing, the handles when there are more than 2, and + / − when they can add or remove one
+// the lines showing, and + / − when they can add or remove one
 function showLines() {
   rowEls.forEach((el, i) => el.hidden = i >= nLines);
-  $('#lines').classList.toggle('movable', nLines > MIN_LINES);
   for (let i = 0; i < MAX_LINES; i++) renderLine(i);
   $('#more').hidden = nLines >= MAX_LINES;
   $('#fewer').hidden = nLines <= MIN_LINES;
@@ -1275,7 +1279,7 @@ $('#fewer').addEventListener('click', () => {
 // it plays over the bars of its new place.
 let rowDrag = null;  // { from, to }
 function startRowDrag(e, from) {
-  if (e.button > 0 || nLines <= MIN_LINES) return;
+  if (e.button > 0) return;
   e.preventDefault();
   const handle = e.currentTarget;
   handle.setPointerCapture(e.pointerId);

@@ -45,7 +45,8 @@ html { overscroll-behavior: none; }  /* no rubber-banding of a page that doesn't
   .toggle { font-size: 12px; height: 26px; line-height: 24px; padding: 0 5px; }
 }
 /* plain bold text: play / pause, submit, and the − / + under the lines that removes or adds one */
-#play { min-width: 3em; text-align: left; }  /* the same width either way, so the toggles don't shift */
+#play { width: 20px; height: 20px; }  /* a play or pause icon */
+#play svg { display: block; width: 100%; height: 100%; }
 #play, #submit, #more, #fewer { background: none; border: 0; padding: 0; font: bold 16px Arial, sans-serif; color: black; cursor: pointer; }
 /* − at the left, under the handles, and + at the right, under the on / off buttons; each keeps its place when hidden */
 #more-lines { display: flex; justify-content: space-between; margin-top: 8px; }
@@ -56,14 +57,13 @@ html { overscroll-behavior: none; }  /* no rubber-banding of a page that doesn't
 #submit[hidden], #more-lines[hidden] { display: none; }
 
 #lines { position: relative; padding: 8px 0; display: flex; flex-direction: column; gap: 8px; }
-/* a line's row: its handle (only with more than 2 lines, its room kept so the lines don't change width), the
+/* a line's row: its handle, the
    line, and its on / off button, all standing on the line */
 .row { display: flex; gap: 8px; align-items: flex-end; }
 .row[hidden] { display: none; }
 .row .line { flex: 1; min-width: 0; }
 .handle { flex: none; width: 1em; text-align: center; font: 20px Arial, sans-serif; cursor: grab;
-          visibility: hidden; user-select: none; -webkit-user-select: none; touch-action: none; }
-#lines.movable .handle { visibility: visible; }
+          user-select: none; -webkit-user-select: none; touch-action: none; }
 .row.moving { opacity: .4; }
 #row-marker { position: absolute; left: 0; right: 0; height: 2px; background: var(--ink, black); display: none; pointer-events: none; }
 /* on / off: small uppercase Arial, the same width either way; a line off fades */
