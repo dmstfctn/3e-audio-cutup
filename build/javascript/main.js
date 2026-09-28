@@ -114,7 +114,7 @@ async function load() {
       const b = Math.min(voice.duration, w.end + PAD);
       words[w.id] = { id: w.id, text: w.word.toLowerCase(), raw: w.raw.toLowerCase(), bin: w.bin, line: w.line, a, d: b - a };
     }
-    await applyClips();
+    await Promise.all([applyClips(), loadColours()]);
     await applyBinOverrides();
     for (const w of Object.values(words)) (takes[w.text] ??= []).push(w.id);
     loadStory(story);
@@ -159,6 +159,35 @@ async function applyClips() {
   }
   if (unknown.length) warnings.push(`clips.json: not in the recording: ${unknown.join(', ')}`);
 }
+
+// config/colours.json, from tools/colourpicker.html: lists of colours for the +1s (points, one at random each), a
+// word won's flash (flash, cycled in order) and its colour in the strip (strip, one at random), under default, and
+// under photos for a win on that photo. A list a photo leaves out comes from default, and one default leaves out
+// from COLOURS.
+const COLOURS = { points: ['#00ff00'], flash: ['#da0b0b', '#dada0b', '#0bda0b', '#0bdada', '#0b0bda', '#da0bda'] };
+COLOURS.strip = COLOURS.flash;
+let colours = { default: {}, photos: {} };
+async function loadColours() {
+  try {
+    const r = await fetch('config/colours.json', { cache: 'no-cache' });
+    if (!r.ok) return;  // no file: the colours in COLOURS
+    const doc = await r.json();
+    colours = { default: doc.default ?? {}, photos: doc.photos ?? {} };
+  } catch (e) {
+    warnings.push(`colours.json ignored, could not read it: ${e.message}`);
+  }
+}
+// the colours for a win on these photos: a pair-it pair's are under 'A1.jpg + A2.jpg' (or failing that, its photos'
+// own lists together); then default's
+function coloursOf(photos) {
+  const out = {}, pair = colours.photos[photos.join(' + ')];
+  for (const k of Object.keys(COLOURS)) {
+    const own = pair?.[k]?.length ? pair[k] : [...new Set(photos.flatMap(p => colours.photos[p]?.[k] ?? []))];
+    out[k] = own.length ? own : colours.default[k]?.length ? colours.default[k] : COLOURS[k];
+  }
+  return out;
+}
+const pickOne = a => a[Math.floor(Math.random() * a.length)];
 
 // bins.yaml maps bin -> [words] and moves every occurrence of each word (ignoring case)
 // into that bin; words it doesn't list keep the bin from words.json.
@@ -853,7 +882,7 @@ function possibleOf(key, plays) {
 function startRun(key) {
   clearStrip(key);
   const plays = planRun(key);
-  run = { key, plays, points: 0, total: totalOf(key, plays), possible: possibleOf(key, plays), words: [], tracks: [], given: new Set(), state: new Map() };
+  run = { key, plays, points: 0, total: totalOf(key, plays), possible: possibleOf(key, plays), words: [], tracks: [], hues: {}, given: new Set(), state: new Map() };
   showGame();
   $('#mg-card').hidden = true;
   const next = k => {
@@ -863,7 +892,7 @@ function startRun(key) {
       mounted?.destroy();
       mounted = null;
       if (k + 1 < plays.length) return next(k + 1);
-      results[key] = { points: run.points, total: run.total, possible: run.possible, words: run.words, tracks: run.tracks };
+      results[key] = { points: run.points, total: run.total, possible: run.possible, words: run.words, tracks: run.tracks, hues: run.hues };
       run = null;
       save();
       showSummary(key);
@@ -879,6 +908,8 @@ function progress(k, ev) {
   const p = run.plays[k];
   const before = run.points, each = GAMES[run.key].points;
   let won = [];
+  const photos = run.key === 'pair-it' ? p.pairs[ev.pair].photos : run.key === 'caption-match' ? [p.rounds[ev.round].photo] : [p.item.photo];
+  const pal = coloursOf(photos);
   if (run.key === 'find') {
     run.points += each;
     won = [findWord(p.t.target.toLowerCase())?.text];
@@ -896,8 +927,9 @@ function progress(k, ev) {
   }
   const fresh = won.filter(t => t && !run.words.includes(t));
   run.words.push(...fresh);
-  flyWords(fresh, ev.x, ev.y, run.key);
-  burstPoints(run.points - before, ev.x, ev.y, run.key);
+  for (const t of fresh) run.hues[t] = pickOne(pal.strip);
+  flyWords(fresh, ev.x, ev.y, run.key, pal.flash);
+  burstPoints(run.points - before, ev.x, ev.y, run.key, pal.points);
   const percent = run.total ? run.points / run.total * 100 : 0;
   for (const u of REWARDS[run.key] ?? []) {
     if (!(percent > u.above) || run.given.has(u)) continue;
@@ -938,12 +970,11 @@ function nextTask() {
 
 const stripGen = {};  // game key -> bumped on a retry or restart, so words and points still flying for it land nowhere
 
-const HUES = [0, 60, 120, 180, 240, 300];  // the hues a word won flashes through (hues in style.css)
-
-function chip(text, key) {
+// hue: its colour in the strip; when writing, its bin's colour takes over
+function chip(text, key, hue = results[key]?.hues?.[text] ?? run?.hues[text] ?? pickOne(colours.default.strip ?? COLOURS.strip)) {
   const el = document.createElement('div');
   el.className = 'chip';
-  el.style.setProperty('--hue', `hsl(${HUES[Math.floor(Math.random() * HUES.length)]} 90% 45%)`);
+  el.style.setProperty('--hue', hue);
   el.textContent = text;
   el.dataset.bin = words[takesOf(text)[0]]?.bin;
   el.dataset.game = key;
@@ -973,15 +1004,30 @@ function fillStrip() {
   $('#strip').replaceChildren(...GAME_ORDER.flatMap(key => (results[key]?.words ?? []).map(t => chip(t, key))));
 }
 
-function flyWords(texts, x, y, key) {
+function flyWords(texts, x, y, key, flash) {
   const gen = stripGen[key];
-  texts.forEach((t, k) => setTimeout(() => { if (stripGen[key] === gen) flyWord(t, x, y, key); }, k * FLY_GAP));
+  texts.forEach((t, k) => setTimeout(() => { if (stripGen[key] === gen) flyWord(t, x, y, key, flash); }, k * FLY_GAP));
+}
+
+// a word won's flash through its colours, 0.1 s each: made once per list of colours, as a CSS animation, which
+// animates the outline's colour where the Web Animations API may not
+const flashes = {};  // colours joined -> the name of their @keyframes
+function flashAnimation(list) {
+  const key = list.join(' ');
+  if (!flashes[key]) {
+    flashes[key] = `flash-${Object.keys(flashes).length}`;
+    const stops = [...list, list[0]].map((c, i, a) => `${(i / (a.length - 1) * 100).toFixed(2)}% { -webkit-text-stroke-color: ${c}; }`);
+    const style = document.createElement('style');
+    style.textContent = `@keyframes ${flashes[key]} { ${stops.join(' ')} }`;
+    document.head.append(style);
+  }
+  return `${flashes[key]} ${list.length * 0.1}s linear infinite`;
 }
 
 // The word takes its place at the right of the strip, the others sliding left to make room, and a copy
-// flies there from (x, y): bare text, big and cycling through the hues, shrinking to its place, where it
+// flies there from (x, y): bare text, big and cycling through the flash colours, shrinking to its place, where it
 // gets its block.
-function flyWord(text, x, y, key) {
+function flyWord(text, x, y, key, flash) {
   const strip = $('#strip');
   const olds = [...strip.children], lefts = olds.map(c => c.getBoundingClientRect().left);
   const place = chip(text, key);
@@ -993,18 +1039,20 @@ function flyWord(text, x, y, key) {
   });
   const bare = chip(text, key);
   bare.classList.add('bare');
+  bare.style.animation = flashAnimation(flash);
   fly(bare, () => place.isConnected ? place : null, x, y, WORD_FLY_MS, () => place.style.visibility = '', { scale: WORD_FLY_SCALE, grow: WORD_GROW_MS, hold: WORD_HOLD_MS });
 }
 
 // Each point bursts out from (x, y) as a +1 and fades: in any direction but down and to the right, where the
 // words won go. Many at once (find-all's reach) are spread over at most FLY_GAP each.
-function burstPoints(n, x, y, key) {
+function burstPoints(n, x, y, key, hues) {
   const gen = stripGen[key], gap = Math.min(FLY_GAP, 600 / n);
   for (let k = 0; k < n; k++) setTimeout(() => {
     if (stripGen[key] !== gen) return;
     const plus = document.createElement('div');
     plus.className = 'point flying';
     plus.textContent = '+1';
+    plus.style.color = pickOne(hues);
     document.body.append(plus);
     plus.style.left = `${x - plus.offsetWidth / 2}px`;
     plus.style.top = `${y - plus.offsetHeight / 2}px`;
@@ -1604,7 +1652,8 @@ function restore() {
       const r = s.results?.[key];
       if (!r) continue;
       results[key] = { points: +r.points || 0, total: +r.total || 0, possible: +r.possible || 0, words: texts(r.words),
-        tracks: [].concat(r.tracks ?? []).filter(t => TRACKS.some(([n]) => n === t)) };
+        tracks: [].concat(r.tracks ?? []).filter(t => TRACKS.some(([n]) => n === t)),
+        hues: Object.fromEntries(Object.entries(r.hues ?? {}).filter(([, c]) => typeof c === 'string')) };
     }
     retried = [].concat(s.retried ?? []).filter(key => GAME_ORDER.includes(key));
     picks = {};

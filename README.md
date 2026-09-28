@@ -28,12 +28,14 @@ The game started as a copy of prototype-09 (see [Two lines, live rewards](#two-l
   - `games.yaml`: the games' photos, shapes, words, settings and unlocks, and the tracks
   - `story.yaml`: the order the game runs in (pages of text, tries, games, the end), the first line and its words, and the words given for writing
   - `bins.yaml`: word category fixes (see [Fix word categories](#fix-word-categories))
+  - `colours.json`: the colours of the +1s, a word won's flash and its colour in the strip, per photo, from the colour picker (see [Pick the effects' colours](#pick-the-effects-colours)). Optional.
   - `clips.json`: trims and recordings switched off, from the clip picker (see [Trim and pick recordings](#trim-and-pick-recordings)). Optional.
 - `build/javascript/`: `main.js` runs the page, `minigames.js` the games, and `lib/` holds js-yaml
 - `build/style/`: the page's styles (`style.css`) and the games' (`minigames.css`)
 - `build/audio/`: the cut-up recording (`words.mp3`, `words.json`; `words.wav` is kept) and the tracks
 - `build/images/`: the photos and their shapes
 - `build/tools/clippicker.html`: the clip picker
+- `build/tools/colourpicker.html`: the colour picker
 
 ## Run the prototypes
 
@@ -89,6 +91,21 @@ With the game served, open http://localhost:8000/tools/clippicker.html. It lists
 - Edits are kept in the browser until they're exported. **revert** drops them and goes back to `config/clips.json`.
 
 Without `clips.json`, every recording plays from `PAD` before its aligned start to `PAD` after its end. The tray picks its `TAKES` recordings of a word from those left on. Re-running preprocessing can renumber the recordings. The game then leaves out the entries whose word no longer matches, with a warning above the lines.
+
+## Pick the effects' colours
+
+With the game served, open http://localhost:8000/tools/colourpicker.html. It shows every photo in `games.yaml` with two rows of its colours (8 by default, 3–16 with the slider), and the colours picked for the three effects of a win on that photo. **common** is the colours covering the most of the photo, the most common first. **vivid** is its saturated colours, however little of the photo they cover, the most saturated first, so a small bright detail gets its own swatch. It may show fewer, because colours that look nearly the same are left out, and none for a photo that's nearly grey. Each swatch is a colour that's really in the photo, not an average. The three effects are:
+
+- **+1:** each +1 that bursts from the click, one of these at random.
+- **flash:** the word won, outlined, cycles through these in order, 0.1 s each, while it grows and flies.
+- **strip:** the word landed in the strip, one of these at random.
+
+Pick **+1**, **flash** or **strip** at the top, then click a swatch or anywhere on a photo to add that colour to the photo's list. Shift-click adds it to the defaults. Drag a colour onto any list to add it there, or along its list to reorder it. Click a colour in a list to take it out. Each photo and the defaults show a preview of the three effects.
+
+- A photo with an empty list uses the defaults, and an empty default list uses the game's own colours (green +1s, six bright hues).
+- A pair-it pair is one card, with both photos, and its colours come from both. A pair matched uses its lists whichever photo was clicked first. In `colours.json` it's under `"pair-it/A1.jpg + pair-it/A2.jpg"`. Caption match uses the photo that answers the caption. Decoys are never won on, so they only supply colours for the defaults.
+- **export colours.json** downloads the file. Move it to `build/config/colours.json` and reload the game. **import…** loads any exported file into the picker. Edits are kept in the browser until they're exported, and **revert** drops them.
+- When writing, words take their bin's colour as before.
 
 ## Fix word categories
 

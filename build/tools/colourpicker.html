@@ -1,0 +1,560 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Colour picker</title>
+<script src="../javascript/lib/js-yaml.min.js"></script>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: Times, 'Times New Roman', serif; background: #fff; color: #000; }
+  header { position: sticky; top: 0; z-index: 3; background: #fff; border-bottom: 1px solid #000; padding: 8px 16px;
+    display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; }
+  header h1 { font-size: 18px; margin: 0; }
+  button, .effect label { font: bold 13px Arial, sans-serif; background: #fff; color: #000; border: 1px solid #000; border-radius: 0;
+    padding: 2px 8px; cursor: pointer; }
+  button:hover { background: #eee; }
+  .effect { display: flex; }
+  .effect input { position: absolute; opacity: 0; pointer-events: none; }
+  .effect label + input + label { border-left: none; }
+  .effect input:checked + label { background: #000; color: #fff; }
+  .effect input:focus-visible + label { outline: 2px solid #00ff00; }
+  header .n { font: 13px Arial, sans-serif; display: flex; align-items: center; gap: 6px; }
+  #status { font-size: 14px; flex: 1 1 100%; }
+  #status .changed { color: #ff0000; }
+  main { padding: 8px 16px 64px; }
+  h2 { font: bold 16px Arial, sans-serif; margin: 24px 0 4px; }
+  h2 small { font-weight: normal; font-size: 13px; color: #666; }
+  .help { font-size: 14px; margin: 4px 0 0; max-width: 60em; }
+  .card { display: grid; grid-template-columns: 240px 1fr; gap: 12px 16px; border-top: 1px solid #000; padding: 12px 0; }
+  .card.default { grid-template-columns: 1fr; }
+  .card h3 { font: bold 14px Arial, sans-serif; margin: 0 0 6px; grid-column: 1 / -1; }
+  .card h3 small { font-weight: normal; color: #666; }
+  .thumb { position: relative; align-self: start; cursor: crosshair; line-height: 0; display: flex; gap: 4px; align-items: flex-start; }
+  .thumb canvas { flex: 1; min-width: 0; height: auto; border: 1px solid #000; }
+  .loupe { position: fixed; z-index: 4; width: 40px; height: 40px; border: 1px solid #000; pointer-events: none; display: none; }
+  .row { display: flex; align-items: center; gap: 8px; min-height: 30px; margin: 2px 0; }
+  .row > b { font: bold 12px Arial, sans-serif; width: 64px; flex: none; text-transform: uppercase; }
+  .swatches { font: 12px Arial, sans-serif; color: #999; }
+  .swatches, .list { display: flex; flex-wrap: wrap; gap: 4px; min-height: 28px; align-items: center; }
+  .list { flex: 1; padding: 2px; border: 1px dashed transparent; }
+  .list.over { border-color: #000; }
+  .list .ghost { font: 12px Arial, sans-serif; color: #999; }
+  .sw { width: 26px; height: 26px; border: 1px solid #000; cursor: pointer; flex: none; }
+  .swatches .sw:hover { outline: 2px solid #000; outline-offset: 1px; }
+  .list .sw { position: relative; }
+  .list .sw:hover::after { content: '×'; position: absolute; inset: 0; display: grid; place-items: center;
+    font: bold 16px Arial, sans-serif; color: #fff; -webkit-text-stroke: 2px #000; paint-order: stroke fill; }
+  .list .sw.inherited { opacity: 0.35; cursor: default; }
+  .list .sw.inherited:hover::after { content: none; }
+  .clear { font-size: 11px; padding: 1px 4px; }
+  .preview { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; min-height: 48px; margin-top: 4px; }
+  .preview .point { font: 20px Arial, sans-serif; -webkit-text-stroke: 4px #000; paint-order: stroke fill; }
+  .preview .bare { font: 28px Arial, sans-serif; color: transparent; -webkit-text-stroke: 3px #000; }
+  .preview .chip { font: bold 16px Arial, sans-serif; }
+  @media (max-width: 700px) {
+    .card { grid-template-columns: 1fr; }
+    .thumb { max-width: 320px; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>Colour picker</h1>
+  <div class="effect" role="radiogroup" aria-label="a click adds to">
+    <input type="radio" name="effect" id="e-points" value="points" checked><label for="e-points">+1</label>
+    <input type="radio" name="effect" id="e-flash" value="flash"><label for="e-flash">flash</label>
+    <input type="radio" name="effect" id="e-strip" value="strip"><label for="e-strip">strip</label>
+  </div>
+  <label class="n">colours per photo <input type="range" id="n" min="3" max="16" value="8"><span id="n-out">8</span></label>
+  <button id="export">export colours.json</button>
+  <button id="import">import…</button>
+  <input type="file" id="import-file" accept=".json,application/json" hidden>
+  <button id="revert" title="forget the edits in this browser and go back to config/colours.json">revert</button>
+  <div id="status">loading…</div>
+</header>
+<main>
+  <p class="help">Click a swatch, or anywhere on a photo, to add its colour to that photo's list for the effect picked above
+    (<b>+1</b>, <b>flash</b> or <b>strip</b>). Shift-click adds it to the defaults instead. Drag a colour onto any list to add it
+    there, or along its list to reorder it: the flash cycles through its list in order. Click a colour in a list to take it out.
+    A photo with an empty list uses the defaults, shown faded. A pair-it pair is one card: its colours come from both photos, and a pair matched uses them whichever photo was clicked first.</p>
+  <div id="list"></div>
+</main>
+<div class="loupe"></div>
+<script>
+// Every photo in config/games.yaml, with its common and vivid colours, and the colours picked for the three effects of a
+// win on it: the +1s (points), the word won's flash (flash) and its colour in the strip (strip). Export downloads
+// colours.json: put it in build/config/, where the game reads it. Edits are kept in this browser until exported.
+const EFFECTS = ['points', 'flash', 'strip'];
+const LABELS = { points: '+1', flash: 'flash', strip: 'strip' };
+// the game's own colours, used where colours.json has none (COLOURS in main.js)
+const BUILT_IN = { points: ['#00ff00'], flash: ['#da0b0b', '#dada0b', '#0bda0b', '#0bdada', '#0b0bda', '#da0bda'] };
+BUILT_IN.strip = BUILT_IN.flash;
+const DRAFT_KEY = 'colourpicker';
+const $ = s => document.querySelector(s);
+let photos = [];        // [{ name, games, decoy }]
+let state = null;       // { default: { effect: [hex] }, photos: { name: { effect: [hex] } } }
+let fileState = null;   // config/colours.json as loaded
+const cards = [];       // { name, el, img, pixels } per photo, and the default card
+const effect = () => document.querySelector('input[name=effect]:checked').value;
+
+async function load() {
+  const [yamlText, file] = await Promise.all([
+    fetch('../config/games.yaml', { cache: 'no-cache' }).then(r => r.text()),
+    fetch('../config/colours.json', { cache: 'no-cache' }).then(r => r.ok ? r.json() : null).catch(() => null),
+  ]);
+  photos = photosOf(jsyaml.load(yamlText));
+  fileState = joinPairs(clean(file ?? {}));
+  let draft = null;
+  try { draft = JSON.parse(localStorage.getItem(DRAFT_KEY)); } catch {}
+  state = joinPairs(clean(draft ?? fileState));
+  build();
+  status(file ? 'loaded config/colours.json' : 'no config/colours.json yet: the game uses its own colours');
+}
+
+// the photos each game can win on, in the games' order, as { name, files, games, decoy }; caption-match's decoys
+// last, as colours to pick from only. A pair-it pair is one entry, named 'A1.jpg + A2.jpg' as in colours.json,
+// since the game colours a pair matched the same whichever photo was clicked first.
+const PAIR = ' + ';
+function photosOf(doc) {
+  const out = new Map();
+  const add = (name, game, decoy = false, files = [name]) => {
+    if (!name) return;
+    const p = out.get(name) ?? { name, files, games: [], decoy };
+    if (!p.games.includes(game)) p.games.push(game);
+    p.decoy &&= decoy;
+    out.set(name, p);
+  };
+  for (const key of ['pair-it', 'find', 'find-all', 'caption-match']) {
+    const g = doc?.[key];
+    if (!g) continue;
+    for (const pair of g.pairs ?? []) { const files = (pair.photos ?? []).map(String); add(files.join(PAIR), key, false, files); }
+    for (const ph of Object.keys(g.photos ?? {})) add(ph, key);
+    for (const r of g.rounds ?? []) add(String(r.photo), key);
+  }
+  for (const r of doc?.['caption-match']?.rounds ?? []) for (const d of r.decoys ?? []) add(String(d), 'caption-match decoy', true);
+  return [...out.values()].sort((a, b) => a.decoy - b.decoy);
+}
+
+// a colours.json, or anything like one, as { default, photos } with only lists of hex colours
+function clean(doc) {
+  const lists = o => Object.fromEntries(EFFECTS.map(k => [k, [].concat(o?.[k] ?? []).map(hex).filter(Boolean)]));
+  const out = { default: lists(doc.default), photos: {} };
+  for (const [name, o] of Object.entries(doc.photos ?? {})) out.photos[name] = lists(o);
+  return out;
+}
+// lists kept under a pair's photos one by one (from before pairs were joined) move to the pair, together
+function joinPairs(st) {
+  for (const p of photos) {
+    if (p.files.length < 2) continue;
+    const parts = p.files.map(f => st.photos[f]).filter(Boolean);
+    if (!parts.length) continue;
+    const pair = st.photos[p.name] ??= Object.fromEntries(EFFECTS.map(k => [k, []]));
+    for (const k of EFFECTS) if (!pair[k].length) pair[k] = [...new Set(parts.flatMap(o => o[k]))];
+    p.files.forEach(f => delete st.photos[f]);
+  }
+  return st;
+}
+function exported() {
+  const trim = o => Object.fromEntries(EFFECTS.filter(k => o?.[k]?.length).map(k => [k, o[k]]));
+  const out = { default: trim(state.default), photos: {} };
+  for (const [name, o] of Object.entries(state.photos)) if (Object.keys(trim(o)).length) out.photos[name] = trim(o);
+  return out;
+}
+const hex = c => {
+  if (typeof c !== 'string') return null;
+  const g = document.createElement('canvas').getContext('2d');
+  g.fillStyle = '#010203';
+  g.fillStyle = c;
+  return g.fillStyle === '#010203' && c.toLowerCase() !== '#010203' ? null : g.fillStyle;
+};
+const toHex = (r, g, b) => '#' + [r, g, b].map(v => Math.round(v).toString(16).padStart(2, '0')).join('');
+
+function changed() {
+  const out = exported();
+  try {
+    if (JSON.stringify(out) === JSON.stringify(exportedOf(fileState))) localStorage.removeItem(DRAFT_KEY);
+    else localStorage.setItem(DRAFT_KEY, JSON.stringify(out));
+  } catch {}
+  status();
+}
+const exportedOf = s => { const keep = state; state = s; const out = exported(); state = keep; return out; };
+
+let baseStatus = '';
+function status(base) {
+  if (base) baseStatus = base;
+  const n = Object.keys(exported().photos).length;
+  let unsaved = false;
+  try { unsaved = localStorage.getItem(DRAFT_KEY) !== null; } catch {}
+  $('#status').innerHTML = `${photos.length} photos and pairs · ${n} with their own colours · ${baseStatus}` +
+    (unsaved ? ' · <span class="changed">edits not exported yet</span>' : '');
+}
+
+// ---------- the cards ----------
+
+function build() {
+  const list = $('#list');
+  list.textContent = '';
+  cards.length = 0;
+  const def = document.createElement('section');
+  def.className = 'card default';
+  def.innerHTML = `<h3>defaults <small>— for every photo without its own list; empty, the game's own colours (faded)</small></h3><div class="lists"></div>`;
+  list.append(def);
+  cards.push({ name: null, el: def });
+  let decoys = false;
+  for (const p of photos) {
+    if (p.decoy && !decoys) {
+      decoys = true;
+      const h = document.createElement('h2');
+      h.innerHTML = 'decoys <small>— never won on, so they have no lists: shift-click their colours into the defaults</small>';
+      list.append(h);
+    }
+    const el = document.createElement('section');
+    el.className = 'card';
+    el.innerHTML = `<h3>${p.name} <small>— ${p.games.join(', ')}</small></h3>
+      <div class="thumb">${p.files.map(() => '<canvas></canvas>').join('')}</div><div><div class="row" title="the colours covering the most of the photo"><b>common</b><div class="swatches common"></div></div>
+      <div class="row" title="the photo's saturated colours, however little of it they cover"><b>vivid</b><div class="swatches vivid"></div></div><div class="lists"></div></div>`;
+    list.append(el);
+    const card = { name: p.name, files: p.files, el, decoy: p.decoy };
+    cards.push(card);
+    loadPhoto(card);
+  }
+  cards.forEach(renderLists);
+}
+
+// the card's photos (a pair's two), drawn, their pixels in card.datas, and their colours found from all of them
+async function loadPhoto(card) {
+  const canvases = [...card.el.querySelectorAll('.thumb canvas')];
+  try {
+    card.datas = await Promise.all(card.files.map((f, k) => drawPhoto(f, canvases[k])));
+  } catch (e) { card.el.querySelector('.swatches.common').textContent = e.message; return; }
+  renderSwatches(card);
+  canvases.forEach((c, k) => pickFrom(card, c, card.datas[k]));
+}
+
+async function drawPhoto(file, canvas) {
+  const img = new Image();
+  img.src = `../images/${file}`;
+  try { await img.decode(); } catch { throw new Error(`couldn't load images/${file}`); }
+  const scale = Math.min(1, 480 / Math.max(img.naturalWidth, img.naturalHeight));
+  canvas.width = Math.round(img.naturalWidth * scale); canvas.height = Math.round(img.naturalHeight * scale);
+  const g = canvas.getContext('2d', { willReadFrequently: true });
+  g.drawImage(img, 0, 0, canvas.width, canvas.height);
+  return g.getImageData(0, 0, canvas.width, canvas.height);
+}
+
+// the colour under the pointer, picked on click
+function pickFrom(card, canvas, data) {
+  const loupe = $('.loupe');
+  const at = e => {
+    const r = canvas.getBoundingClientRect();
+    const x = Math.floor((e.clientX - r.left) / r.width * canvas.width), y = Math.floor((e.clientY - r.top) / r.height * canvas.height);
+    const i = (Math.max(0, Math.min(canvas.height - 1, y)) * canvas.width + Math.max(0, Math.min(canvas.width - 1, x))) * 4;
+    return toHex(data.data[i], data.data[i + 1], data.data[i + 2]);
+  };
+  canvas.addEventListener('pointermove', e => {
+    loupe.style.display = 'block';
+    loupe.style.background = at(e);
+    loupe.style.left = `${e.clientX + 16}px`; loupe.style.top = `${e.clientY + 16}px`;
+  });
+  canvas.addEventListener('pointerleave', () => loupe.style.display = 'none');
+  canvas.addEventListener('click', e => pick(card, at(e), e.shiftKey));
+}
+
+function renderSwatches(card) {
+  if (!card.datas) return;
+  const n = +$('#n').value;
+  card.found ??= {};  // n -> the swatches, so the slider and the effect buttons don't cluster again
+  card.found[n] ??= { common: common(card, n), vivid: vivid(card, n) };
+  for (const [kind, colours] of Object.entries(card.found[n])) {
+    const box = card.el.querySelector(`.swatches.${kind}`);
+    box.textContent = colours.length ? '' : 'none: the photo is nearly grey';
+    for (const { colour, share } of colours) {
+      const sw = swatch(colour);
+      const pc = share * 100;
+      sw.title = `${colour} · ${pc < 1 ? pc.toFixed(1) : Math.round(pc)}% of the photo · click: this photo's ${LABELS[effect()]}, shift-click: the defaults'`;
+      sw.addEventListener('click', e => pick(card, colour, e.shiftKey));
+      box.append(sw);
+    }
+  }
+}
+
+function swatch(colour) {
+  const sw = document.createElement('div');
+  sw.className = 'sw';
+  sw.style.background = colour;
+  sw.draggable = true;
+  sw.addEventListener('dragstart', e => e.dataTransfer.setData('text/plain', colour));
+  return sw;
+}
+
+// a colour clicked: onto this photo's list for the effect picked, or the defaults' (shift, or a decoy)
+function pick(card, colour, toDefault) {
+  const name = toDefault || card.decoy ? null : card.name;
+  const lists = listsOf(name, true);
+  lists[effect()].push(colour);
+  changed();
+  renderLists(cards.find(c => c.name === name));
+  if (name === null) cards.forEach(renderLists);  // the photos without their own list show the defaults
+}
+
+function listsOf(name, make = false) {
+  if (name === null) return state.default;
+  if (make) state.photos[name] ??= Object.fromEntries(EFFECTS.map(k => [k, []]));
+  return state.photos[name] ?? Object.fromEntries(EFFECTS.map(k => [k, []]));
+}
+// what the game uses for a win on this photo (or with none, the defaults)
+const effective = (name, k) => (name !== null && state.photos[name]?.[k]?.length) ? state.photos[name][k]
+  : state.default[k].length ? state.default[k] : BUILT_IN[k];
+
+function renderLists(card) {
+  if (card.decoy) return;
+  const box = card.el.querySelector('.lists');
+  box.textContent = '';
+  const lists = listsOf(card.name);
+  for (const k of EFFECTS) {
+    const row = document.createElement('div');
+    row.className = 'row';
+    row.innerHTML = `<b>${LABELS[k]}</b><div class="list"></div><button class="clear" title="empty this list">clear</button>`;
+    const list = row.querySelector('.list');
+    const own = lists[k];
+    own.forEach((c, i) => {
+      const sw = swatch(c);
+      sw.title = `${c} · click to take it out, drag to reorder`;
+      sw.addEventListener('dragstart', e => e.dataTransfer.setData('application/x-from', String(i)));
+      sw.addEventListener('click', () => { own.splice(i, 1); changed(); rerender(card); });
+      list.append(sw);
+    });
+    if (!own.length) {
+      for (const c of effective(card.name === null ? null : '', k)) {
+        const sw = document.createElement('div');
+        sw.className = 'sw inherited';
+        sw.style.background = c;
+        sw.title = `${c} · from the ${card.name === null ? "game's own colours" : 'defaults'}`;
+        list.append(sw);
+      }
+    }
+    row.querySelector('.clear').hidden = !own.length;
+    row.querySelector('.clear').addEventListener('click', () => { own.length = 0; changed(); rerender(card); });
+    dropInto(card, k, list);
+    box.append(row);
+  }
+  box.append(preview(card.name));
+}
+const rerender = card => card.name === null ? cards.forEach(renderLists) : renderLists(card);
+
+// dropping a colour adds it where it lands; one dragged from the same list moves there
+function dropInto(card, k, list) {
+  list.addEventListener('dragover', e => { e.preventDefault(); list.classList.add('over'); });
+  list.addEventListener('dragleave', () => list.classList.remove('over'));
+  list.addEventListener('drop', e => {
+    e.preventDefault();
+    list.classList.remove('over');
+    const colour = e.dataTransfer.getData('text/plain');
+    if (!hex(colour)) return;
+    const own = listsOf(card.name, true)[k];
+    const sws = [...list.querySelectorAll('.sw:not(.inherited)')];
+    let to = sws.findIndex(sw => { const r = sw.getBoundingClientRect(); return e.clientY < r.bottom && e.clientX < r.left + r.width / 2; });
+    if (to < 0) to = own.length;
+    const from = e.dataTransfer.getData('application/x-from');
+    // a move within this list only if it started here (the index alone can't tell lists apart)
+    if (from !== '' && list.contains(dragged)) { const i = +from; own.splice(i, 1); if (i < to) to--; }
+    own.splice(to, 0, colour);
+    changed();
+    rerender(card);
+  });
+}
+let dragged = null;
+document.addEventListener('dragstart', e => dragged = e.target);
+document.addEventListener('dragend', () => dragged = null);
+
+// the three effects as the game draws them, in this photo's colours
+function preview(name) {
+  const box = document.createElement('div');
+  box.className = 'preview';
+  const pts = effective(name, 'points');
+  for (let i = 0; i < 4; i++) {
+    const s = document.createElement('span');
+    s.className = 'point';
+    s.textContent = '+1';
+    s.style.color = pts[i % pts.length];
+    box.append(s);
+  }
+  const flash = effective(name, 'flash');
+  const w = document.createElement('span');
+  w.className = 'bare';
+  w.textContent = 'word';
+  w.style.animation = flashAnimation(flash);
+  box.append(w);
+  for (const c of effective(name, 'strip')) {
+    const s = document.createElement('span');
+    s.className = 'chip';
+    s.textContent = 'won';
+    s.style.color = c;
+    box.append(s);
+  }
+  return box;
+}
+
+// as flashAnimation() in main.js: the Web Animations API doesn't animate the outline's colour
+const flashes = {};
+function flashAnimation(list) {
+  const key = list.join(' ');
+  if (!flashes[key]) {
+    flashes[key] = `flash-${Object.keys(flashes).length}`;
+    const stops = [...list, list[0]].map((c, i, a) => `${(i / (a.length - 1) * 100).toFixed(2)}% { -webkit-text-stroke-color: ${c}; }`);
+    const style = document.createElement('style');
+    style.textContent = `@keyframes ${flashes[key]} { ${stops.join(' ')} }`;
+    document.head.append(style);
+  }
+  return `${flashes[key]} ${list.length * 0.1}s linear infinite`;
+}
+
+// ---------- the photo's colours: k-means in Lab ----------
+// Colours are compared in CIE Lab, where distance roughly follows how different two colours look, rather than in
+// RGB. Each swatch is a real pixel of the photo, the one nearest its cluster's centre, not the cluster's average,
+// which is greyer than any pixel in it.
+
+const VIVID_CHROMA = 20;  // Lab chroma a pixel needs to count as vivid (grey is 0, the brightest reds ~100)
+const VIVID_APART = 12;   // Lab distance under which two vivid swatches count as the same colour
+
+// sRGB (0–255) -> Lab (D65)
+function lab(r, g, b) {
+  const lin = v => (v /= 255) <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+  const [R, G, B] = [lin(r), lin(g), lin(b)];
+  const f = t => t > 216 / 24389 ? Math.cbrt(t) : (24389 / 27 * t + 16) / 116;
+  const x = f((0.4124 * R + 0.3576 * G + 0.1805 * B) / 0.95047), y = f(0.2126 * R + 0.7152 * G + 0.0722 * B),
+    z = f((0.0193 * R + 0.1192 * G + 0.9505 * B) / 1.08883);
+  return [116 * y - 16, 500 * (x - y), 200 * (y - z)];
+}
+
+// about 12,000 of the card's pixels, evenly spread, each with its Lab and chroma; made once per card. A pair's two
+// photos give 6,000 each, so each counts the same whatever its size.
+function pixelsOf(card) {
+  if (card.px) return card.px;
+  const px = [];
+  for (const data of card.datas) {
+    const step = Math.max(1, Math.floor(data.width * data.height / (12000 / card.datas.length)));
+    for (let i = 0; i < data.width * data.height; i += step) {
+      const j = i * 4;
+      if (data.data[j + 3] < 128) continue;
+      const rgb = [data.data[j], data.data[j + 1], data.data[j + 2]], l = lab(...rgb);
+      px.push({ rgb, lab: l, chroma: Math.hypot(l[1], l[2]) });
+    }
+  }
+  return card.px = px;
+}
+
+// k-means++ then 12 rounds of k-means over pixels in Lab, each pixel counting weight(p); the same result for the
+// same pixels each time. Returns the clusters that have pixels: { centre, members }.
+function kmeans(px, n, weight = () => 1) {
+  n = Math.min(n, px.length);
+  if (!n) return [];
+  let seed = 1;
+  const rand = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  const d2 = (a, b) => (a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2 + (a[2] - b[2]) ** 2;
+  const w = px.map(weight);
+  // each new centre picked at random, likelier the farther a pixel is from the centres so far (and the heavier)
+  const centres = [px[Math.floor(rand() * px.length)].lab];
+  const dist = px.map(p => d2(p.lab, centres[0]));
+  while (centres.length < n) {
+    const total = dist.reduce((t, d, k) => t + d * w[k], 0);
+    if (!total) break;
+    let r = rand() * total, i = 0;
+    while ((r -= dist[i] * w[i]) > 0 && i < px.length - 1) i++;
+    centres.push(px[i].lab);
+    px.forEach((p, k) => dist[k] = Math.min(dist[k], d2(p.lab, px[i].lab)));
+  }
+  let groups;
+  for (let iter = 0; iter < 12; iter++) {
+    groups = centres.map(() => ({ sum: [0, 0, 0], w: 0, members: [] }));
+    px.forEach((p, k) => {
+      let best = 0, bd = Infinity;
+      centres.forEach((c, j) => { const d = d2(p.lab, c); if (d < bd) { bd = d; best = j; } });
+      const g = groups[best];
+      for (let a = 0; a < 3; a++) g.sum[a] += p.lab[a] * w[k];
+      g.w += w[k];
+      g.members.push(p);
+    });
+    groups.forEach((g, j) => { if (g.w) centres[j] = g.sum.map(v => v / g.w); });
+  }
+  return groups.map((g, j) => ({ centre: centres[j], members: g.members })).filter(g => g.members.length);
+}
+
+// a cluster's swatch: the real pixel nearest its centre
+function nearest(g) {
+  let best = g.members[0], bd = Infinity;
+  for (const p of g.members) {
+    const d = (p.lab[0] - g.centre[0]) ** 2 + (p.lab[1] - g.centre[1]) ** 2 + (p.lab[2] - g.centre[2]) ** 2;
+    if (d < bd) { bd = d; best = p; }
+  }
+  return best;
+}
+
+// common: n colours covering the most of the photo, the most common first, with their share of it
+function common(card, n) {
+  const px = pixelsOf(card);
+  return kmeans(px, n).map(g => ({ colour: toHex(...nearest(g).rgb), share: g.members.length / px.length }))
+    .sort((a, b) => b.share - a.share);
+}
+
+// vivid: up to n colours from the photo's saturated pixels only, each pixel weighted by its chroma, so a small
+// bright detail makes its own colour rather than being averaged into its surroundings. Each swatch is its cluster's
+// pixel at the 90th percentile of chroma (the cluster's colour at its brightest, but not a stray pixel), leaving out
+// any that look nearly the same as one before it; the most saturated first.
+function vivid(card, n) {
+  const all = pixelsOf(card);
+  const px = all.filter(p => p.chroma >= VIVID_CHROMA && p.lab[0] > 15 && p.lab[0] < 95);
+  if (px.length < 20) return [];
+  const found = kmeans(px, n, p => p.chroma)
+    .filter(g => g.members.length / px.length >= 0.01)  // specks aren't a colour of the photo
+    .map(g => {
+      const by = [...g.members].sort((a, b) => a.chroma - b.chroma);
+      return { p: by[Math.floor(by.length * 0.9)], n: g.members.length };
+    })
+    .sort((a, b) => b.p.chroma - a.p.chroma);
+  const kept = [];
+  for (const c of found) if (kept.every(k => Math.hypot(...k.p.lab.map((v, i) => v - c.p.lab[i])) >= VIVID_APART)) kept.push(c);
+  return kept.map(c => ({ colour: toHex(...c.p.rgb), share: c.n / all.length }));
+}
+
+// ---------- header ----------
+
+$('#n').addEventListener('input', e => { $('#n-out').textContent = e.target.value; cards.forEach(renderSwatches); });
+document.querySelectorAll('input[name=effect]').forEach(r => r.addEventListener('change', () => cards.forEach(renderSwatches)));
+
+$('#export').addEventListener('click', () => {
+  const blob = new Blob([JSON.stringify(exported(), null, 2) + '\n'], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'colours.json';
+  a.click();
+  URL.revokeObjectURL(a.href);
+  status('exported: move colours.json into build/config/ and reload the game');
+});
+
+$('#import').addEventListener('click', () => $('#import-file').click());
+$('#import-file').addEventListener('change', async e => {
+  const f = e.target.files[0];
+  e.target.value = '';
+  if (!f) return;
+  try {
+    state = clean(JSON.parse(await f.text()));
+  } catch (err) { status(`couldn't import ${f.name}: ${err.message}`); return; }
+  changed();
+  cards.forEach(renderLists);
+  status(`imported ${f.name}`);
+});
+
+$('#revert').addEventListener('click', () => {
+  if (!confirm('Forget the edits in this browser and go back to config/colours.json?')) return;
+  try { localStorage.removeItem(DRAFT_KEY); } catch {}
+  state = clean(exportedOf(fileState));
+  cards.forEach(renderLists);
+  status();
+});
+
+load().catch(e => { $('#status').textContent = `could not load: serve build/ (python3 -m http.server) and open /tools/colourpicker.html · ${e.message}`; throw e; });
+</script>
+</body>
+</html>

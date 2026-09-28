@@ -130,7 +130,7 @@ body:has(#minigame:not([hidden])), body:has(#show:not([hidden])) { overflow: hid
 #strip { position: fixed; left: 0; right: 0; bottom: 0; height: var(--strip); z-index: 12; box-sizing: border-box; background: white;
          padding: 0 16px; display: flex; justify-content: flex-end; align-items: center; gap: 4px; overflow: hidden; }
 #strip[hidden] { display: none; }
-/* a word won is bold text in one of the hues it flashed through (--hue, picked by chip()); it becomes a block in the tray */
+/* a word won is bold text in one of its photo's strip colours (--hue, set by chip()); it becomes a block in the tray */
 .chip { flex: none; box-sizing: border-box; height: 2em; line-height: calc(2em - 2px); padding: 0 8px; border: 1px solid transparent; background: none;
         color: var(--hue, black); white-space: nowrap; font: bold 16px Arial, sans-serif; }
 /* on a dark page (where the header hides) the strip inverts, and the words won go grey */
@@ -161,14 +161,10 @@ body.writing #show-lines span.said { color: #ccc; }
 .cover { position: fixed; inset: 0; z-index: 11; background: black; pointer-events: none; }
 /* a word on its way to the strip, or a point bursting from a click */
 .flying { position: fixed; z-index: 13; margin: 0; pointer-events: none; }
-/* a word won flies as outlined text cycling through the hues, and gets its block when it lands; it's scaled
-   by its font size, so its padding is in em and its outline stays 6px */
-.chip.bare { padding: 0 .5em; font-weight: normal; background: none; border-color: transparent; color: transparent; -webkit-text-stroke-width: 6px;
-             animation: hues .6s linear infinite; }
-@keyframes hues { 0%, 100% { -webkit-text-stroke-color: hsl(0 90% 45%); } 17% { -webkit-text-stroke-color: hsl(60 90% 45%); }
-                  33% { -webkit-text-stroke-color: hsl(120 90% 45%); } 50% { -webkit-text-stroke-color: hsl(180 90% 45%); }
-                  67% { -webkit-text-stroke-color: hsl(240 90% 45%); } 83% { -webkit-text-stroke-color: hsl(300 90% 45%); } }
-/* each +1: bare text, green with a black outline */
+/* a word won flies as outlined text cycling through the flash colours (flashAnimation() in main.js), and gets its
+   block when it lands; it's scaled by its font size, so its padding is in em and its outline stays 6px */
+.chip.bare { padding: 0 .5em; font-weight: normal; background: none; border-color: transparent; color: transparent; -webkit-text-stroke-width: 6px; }
+/* each +1: bare text with a black outline, green unless config/colours.json says otherwise */
 .point { font: 20px Arial, sans-serif; color: #00ff00; -webkit-text-stroke: 4px black; paint-order: stroke fill; white-space: nowrap; }
 
 
