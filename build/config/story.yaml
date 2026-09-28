@@ -11,9 +11,12 @@
 #          points, with retry and next task; last-button is the button after
 #          the last game.
 #     write: the end: the lines, the tray and the tracks.
-#   Any step can have play: [tracks] and stop: [tracks], track names from
-#   games.yaml. A track played is unlocked from then on and comes on; stop
-#   switches it off, and the player can still switch it back on.
+#   Any step can have play: [tracks], unlock: [tracks] and stop: [tracks],
+#   track names from games.yaml. A track played is unlocked from then on and
+#   comes on; one unlocked is there to switch on when writing, off; stop
+#   switches it off, and the player can still switch it back on. The track
+#   toggles only show when writing.
+#   write: is the end on its own, or write: with unlock: etc. under it.
 # - A page's text shows a line at a time. A line ends with its button in
 #   [square brackets], which shows the next line; the last line's button moves
 #   on to the next step. Lines without a button show along with the next line
@@ -37,7 +40,6 @@ sequence:
   - page: light
     text: '[start]'
   - page: light
-    play: [drone]
     text: |
       you’re finally awake [next]
       when can you start? [log on]
@@ -53,7 +55,9 @@ sequence:
       1. rawdownload images
       2. solve puzzles
       3. unlock words
-      4. express yourself [rawdownload]
+      4. express yourself [rawdownload]     
+  - page: light
+    text: |     
       you rawdownload the lot and start training
       [start]
   - games: [pair-it, find, find-all, caption-match]
@@ -68,11 +72,11 @@ sequence:
       george tavern 10pm next thursday [next]
       you've got a slot but no lines [next]
       [start writing]
-  - write
+  - write:
+    unlock: [drone]
 
-# The lines at the end start with the first filled in with line (always with
-# the first recording of each word). The tray has every recording of the
-# line's words and of these.
+# The lines at the end start empty. The tray has every recording of line's
+# words and of these.
 first:
   line: this pages are my words and I
   words:

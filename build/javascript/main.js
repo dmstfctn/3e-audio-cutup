@@ -10,20 +10,25 @@ const ENTER_SPREAD = 1.2;                       // seconds over which the words 
 const MORPH_MS = 900, MORPH_SPREAD = 300;       // the strip growing into the tray, and the most its words are staggered by
 const JITTER = 30;                              // px: a point, word or track won flies from a random spot this near the click
 const FLY_GAP = 120;                            // the gap between words won together flying to the strip
-// how long a point, a word and a track take to fly to the counter, the strip and the bar: each 10% slower than the last
-const POINT_FLY_MS = 700, WORD_FLY_MS = POINT_FLY_MS * 1.1, TRACK_FLY_MS = WORD_FLY_MS * 1.1;
+// how long a point and a word take to fly to the counter and the strip, the word 10% slower
+const POINT_FLY_MS = 700, WORD_FLY_MS = POINT_FLY_MS * 1.1;
+// a word won grows from nothing to this many times its size in the strip (or as big as fits on screen), holds,
+// then flies; each in ms
+const WORD_FLY_SCALE = 12, WORD_GROW_MS = 200, WORD_HOLD_MS = 500;
 const SHRINK_MS = 250, SHRINK_GAP = 60;         // a word a retry clears shrinking out of the strip, and the gap between words
 const DROP_MS = 700, DROP_SPREAD = 1.5;         // a point a retry takes back dropping from the counter, and the most time they all take
+const LINE_GAP = 350;                           // ms between the rows a page's button reveals together
+const BUTTON_GAP = 600;                         // ms from the last of them to the next button
 const TRY_MS = 1000;                            // how long a try's win shows before the story goes on
 // The game runs through the steps of story.yaml's sequence (see its comments), each one of these kinds:
 //   page:  a screen of text, shown a line at a time, each line with its own button
 //   try:   a game played with no timer until its first win, winning nothing
 //   games: the games in GAME_ORDER, each played through once, with its points after and a retry; words won fly
 //          to the strip at the bottom, which shows from here until writing, and points to the counter
-//   write: the lines, the first filled in, its words, what the games won, the write words, and the
+//   write: the lines, empty, the first line's words, what the games won, the write words, and the
 //          tracks unlocked; the lines play over the tracks, and submit plays them once on their own
-// A step can play or stop tracks. The header shows once a track is unlocked, and the tracks loop from
-// then on.
+// A step can play, unlock or stop tracks, and a track loops from when it's unlocked. The header shows from
+// the games on, with the points counter; play / pause and the track toggles only show when writing.
 // Minigames (javascript/minigames.js). Their photos, shapes, words and settings come from
 // config/games.yaml; these are the settings a game gets when games.yaml leaves one out. points is what
 // each thing found, pair or round matched, or shape found is worth.
@@ -72,7 +77,6 @@ let trackOn = {};  // track name -> whether its toggle is on
 let paused = false;  // the loop stopped with the play / pause button
 let shownPoints = 0;  // the counter at the top right: the points that have landed there
 let landed = {};      // game key -> its points that have landed on the counter, so a retry takes back as many
-const flyingTracks = new Set();  // tracks unlocked whose toggle is still flying to the bar, kept hidden till it lands
 let last = null;   // [line, index] of the word added last, where a clicked word goes after
 let nLines = MIN_LINES;  // how many lines are showing and played
 const lines = Array.from({ length: MAX_LINES }, () => []);
@@ -249,7 +253,7 @@ function readSequence(list, next, problems) {
     const s = typeof raw === 'string' ? { [raw]: null } : raw;
     const kind = ['page', 'try', 'games', 'write'].find(key => s && key in s);
     if (!kind) { problems.push(`${where}: expected page, try, games or write`); continue; }
-    const step = { kind, play: tracks(where, s.play), stop: tracks(where, s.stop) };
+    const step = { kind, play: tracks(where, s.play), unlock: tracks(where, s.unlock), stop: tracks(where, s.stop) };
     if (kind === 'page') {
       if (!['light', 'dark'].includes(s.page)) problems.push(`${where}: page should be light or dark`);
       step.dark = s.page === 'dark';
@@ -285,7 +289,7 @@ function readSequence(list, next, problems) {
     out.push(step);
   }
   problems.push('sequence: no write step, so one is added at the end');
-  out.push({ kind: 'write', play: [], stop: [] });
+  out.push({ kind: 'write', play: [], unlock: [], stop: [] });
   return out;
 }
 
@@ -397,8 +401,7 @@ async function loadGames(doc) {
           if (!pairs.length) problems.push(`${where}: nothing to find`);
           if (!targets.length) continue;
           game.items.push({ photo, viewBox: shapes.viewBox, targets,
-            rewards: rewards(where, p.rewards, targets.map(t => t.target)),
-            findWords: targets.map(t => findWord(t.target.toLowerCase())?.text).filter(Boolean) });
+            rewards: rewards(where, p.rewards, targets.map(t => t.target)) });
         } else {
           const target = p?.find == null ? '' : String(p.find);
           if (!target) { problems.push(`${where}: nothing to find`); continue; }
@@ -480,8 +483,7 @@ function known(id) {
 }
 const yeahTexts = () => [...new Set(Object.values(words).filter(w => w.bin === 'yeah').map(w => w.text))];
 
-// a new game: the first line filled in, always with each word's first recording (cut to fit, with a
-// warning), and the words given with it
+// a new game: empty lines, and the first line's words given
 function newGame() {
   at = 0;
   phase = SEQUENCE[0].kind;
@@ -495,14 +497,7 @@ function newGame() {
   shownPoints = 0;
   lines.forEach(l => l.length = 0);
   nLines = MIN_LINES;
-  lines[0] = STORY.first.line.map(t => takesOf(t)[0]).filter(id => id != null);
-  let cut = 0;
-  while (lineDur(0) > LINE_DUR + 1e-6) { lines[0].pop(); cut++; }
-  if (cut) {
-    warnings.push(`story.yaml: the first line is too long for 2 bars, ${cut} word${cut === 1 ? '' : 's'} cut`);
-    $('#status').textContent = warnings.join(' · ');
-  }
-  last = lines[0].length ? [0, lines[0].length - 1] : null;
+  last = null;
   start = [...new Set([...STORY.first.line, ...STORY.first.words])];
   save();
 }
@@ -524,7 +519,7 @@ function paletteWords() {
 
 // the tracks unlocked, played by the steps so far or by the games played and the one being played, in TRACKS order
 function unlockedTracks() {
-  const won = new Set([...SEQUENCE.slice(0, at + 1).flatMap(s => s.play), ...[...Object.values(results), run ?? { tracks: [] }].flatMap(r => r.tracks)]);
+  const won = new Set([...SEQUENCE.slice(0, at + 1).flatMap(s => [...s.play, ...s.unlock]), ...[...Object.values(results), run ?? { tracks: [] }].flatMap(r => r.tracks)]);
   return TRACKS.filter(([name]) => won.has(name));
 }
 
@@ -537,15 +532,13 @@ function toggle(name) {
   return b;
 }
 
-// play / pause, when there's something to play; a toggle per track unlocked, hidden while it's still
-// flying there; and from the games until writing, the points counter. The header shows once there's a track.
+// When writing, play / pause and a toggle per track unlocked; from the games until writing, the points
+// counter. The header shows when either does.
 function renderTracks() {
-  const any = unlockedTracks().length > 0;
-  $('#play').hidden = !any && phase !== 'write';
+  $('#play').hidden = phase !== 'write';
   $('#play').textContent = paused ? 'play' : 'pause';
-  $('#toggles').replaceChildren(...unlockedTracks().map(([name]) => {
+  $('#toggles').replaceChildren(...(phase === 'write' ? unlockedTracks() : []).map(([name]) => {
     const b = toggle(name);
-    if (flyingTracks.has(name)) b.style.visibility = 'hidden';
     b.addEventListener('click', () => { trackOn[name] = !trackOn[name]; save(); renderTracks(); applyGains(); });
     return b;
   }));
@@ -554,7 +547,7 @@ function renderTracks() {
   $('#ui-header').hidden = !headerOn();
   document.body.classList.toggle('with-header', headerOn());
 }
-const headerOn = () => unlockedTracks().length > 0 || phase === 'write';
+const headerOn = () => !$('#points').hidden || phase === 'write';
 
 // paused stops the loop; playing starts it again from the first line
 function togglePlay() {
@@ -585,15 +578,6 @@ function applyGains() {
   }
 }
 
-// A track a game just unlocked starts off, but joins the loop (see joinLoop). Its toggle flies to the bar
-// from (x, y), where the click that unlocked it was.
-function newTrack(name, x, y) {
-  flyingTracks.add(name);
-  renderTracks();
-  fly(toggle(name), () => $(`#toggles [data-track="${name}"]`), x, y, TRACK_FLY_MS, () => { flyingTracks.delete(name); renderTracks(); });
-  joinLoop(name);
-}
-
 // a track just unlocked joins the lines already scheduled from now, so toggling it on is heard straight away
 function joinLoop(name) {
   const buf = trackBufs[TRACKS.find(([n]) => n === name)?.[1]];
@@ -616,16 +600,23 @@ function showScreen() {
   if (!on) return;
   $('#screen').classList.toggle('dark', s.dark);
   const rows = s.lines.slice(0, shown).flatMap((l, k) => l.rows.map(r => [r, k === shown - 1]));
+  let n = 0;  // the new rows come in one after another
   $('#screen-text').replaceChildren(...rows.map(([r, fresh]) => {
     const d = document.createElement('div');
     d.textContent = r.trim() ? r : ' ';  // a blank row keeps its space
-    if (fresh) d.className = 'new';
+    if (fresh) {
+      d.className = 'new';
+      d.style.animationDelay = `${n++ * LINE_GAP}ms`;
+    }
     return d;
   }));
-  const go = $('#screen-go');
+  // the button comes in BUTTON_GAP after the last new row, and can't be pressed before it shows
+  const go = $('#screen-go'), delay = n && (n - 1) * LINE_GAP + BUTTON_GAP, ready = performance.now() + delay;
   go.textContent = s.lines[shown - 1].button;
   go.disabled = false;
+  go.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 400, delay, easing: 'ease-out', fill: 'backwards' });
   go.onclick = () => {
+    if (performance.now() < ready) return;
     if (shown < s.lines.length) { shown++; return showScreen(); }
     enter(at + 1);
   };
@@ -686,10 +677,12 @@ function showPhase(before = null, strip = null) {
 
 const gamesAt = () => SEQUENCE.findIndex(s => s.kind === 'games');
 
-// the strip of words won, from the games until writing, and the header, both inverted on a dark page
+// the strip of words won, from the games until writing, and the header, both inverted on a dark page; and
+// writing, all white on black
 function showBars() {
   const strip = gamesAt() >= 0 && at >= gamesAt() && phase !== 'write';
   document.body.classList.toggle('dark', phase === 'page' && SEQUENCE[at].dark);
+  document.body.classList.toggle('writing', phase === 'write');
   document.body.classList.toggle('with-strip', strip);
   $('#strip').hidden = !strip;
   renderTracks();
@@ -814,31 +807,16 @@ function startRun(key) {
   next(0);
 }
 
-// 1 for taking up to half the time, down to 0 at a second before the end (or at the end, for a game under 2 seconds)
-function quickness(taken, seconds) {
-  const half = seconds / 2, none = Math.max(half, seconds - 1);
-  if (!(taken >= 0)) return 1;  // no time reported
-  return none > half ? Math.min(1, Math.max(0, (none - taken) / (none - half))) : +(taken <= half);
-}
-
 // A win in play k of the run: its points, its words (flown to the strip from the click) and any unlock it passes.
-// find: a thing found wins its own word, and a share of its photo's other words (the photo's things share
-// them out) scaled by how quick it was found (see quickness). find-all: a photo's words come at its steps.
-// pair-it and caption-match: a pair or round matched wins its words.
+// find: a thing found wins its own word. caption-match: a round matched wins its first word. find-all: a
+// photo's words come at its steps. pair-it: a pair matched wins its words.
 function progress(k, ev) {
   const p = run.plays[k];
   const before = run.points, each = GAMES[run.key].points;
   let won = [];
   if (run.key === 'find') {
     run.points += each;
-    const item = p.item;
-    if (!run.state.has(item)) run.state.set(item, { others: shuffle(item.rewards.filter(w => !item.findWords.includes(w))),
-      plays: run.plays.filter(q => q.item === item).length, shares: 0, given: 0 });
-    const s = run.state.get(item);
-    s.shares += quickness(ev.seconds, p.data.seconds);
-    const due = Math.round(s.others.length * s.shares / s.plays);
-    won = [findWord(p.t.target.toLowerCase())?.text, ...s.others.slice(s.given, due)];
-    s.given = Math.max(s.given, due);
+    won = [findWord(p.t.target.toLowerCase())?.text];
   } else if (run.key === 'find-all') {
     run.points += each * ev.found.length;
     const n = (run.state.get(k) ?? 0) + ev.found.length;
@@ -849,12 +827,11 @@ function progress(k, ev) {
     won = p.pairs[ev.pair].rewards;
   } else {
     run.points += each;
-    won = p.rounds[ev.round].rewards;
+    won = p.rounds[ev.round].rewards.slice(0, 1);
   }
   const fresh = won.filter(t => t && !run.words.includes(t));
   run.words.push(...fresh);
   flyWords(fresh, ev.x, ev.y, run.key);
-  sayWords(fresh);
   flyPoints(run.points - before, ev.x, ev.y, run.key);
   const percent = run.total ? run.points / run.total * 100 : 0;
   for (const u of REWARDS[run.key] ?? []) {
@@ -863,7 +840,7 @@ function progress(k, ev) {
     if (!u.track || run.tracks.includes(u.track)) continue;
     const had = unlockedTracks().some(([name]) => name === u.track);
     run.tracks.push(u.track);
-    if (!had) newTrack(u.track, ev.x, ev.y);
+    if (!had) joinLoop(u.track);  // off, but in the loop, for its toggle when writing
   }
 }
 
@@ -933,7 +910,8 @@ function flyWords(texts, x, y, key) {
 }
 
 // The word takes its place at the right of the strip, the others sliding left to make room, and a copy
-// flies there from (x, y).
+// flies there from (x, y): bare text, big and cycling through the hues, shrinking to its place, where it
+// gets its block.
 function flyWord(text, x, y, key) {
   const strip = $('#strip');
   const olds = [...strip.children], lefts = olds.map(c => c.getBoundingClientRect().left);
@@ -944,7 +922,9 @@ function flyWord(text, x, y, key) {
     const dx = lefts[i] - c.getBoundingClientRect().left;
     if (dx) c.animate([{ transform: `translateX(${dx}px)` }, { transform: 'none' }], { duration: 300, easing: 'ease-out' });
   });
-  fly(chip(text, key), () => place.isConnected ? place : null, x, y, WORD_FLY_MS, () => place.style.visibility = '');
+  const bare = chip(text, key);
+  bare.classList.add('bare');
+  fly(bare, () => place.isConnected ? place : null, x, y, WORD_FLY_MS, () => place.style.visibility = '', { scale: WORD_FLY_SCALE, grow: WORD_GROW_MS, hold: WORD_HOLD_MS });
 }
 
 // Each point flies from (x, y) to the counter as a +1, and counts when it lands. Many at once
@@ -987,23 +967,34 @@ function dropPoints(key) {
   }, k * gap);
 }
 
-// el flies from near (x, y) to where target() is, taking ms, following it as it moves, then land() is called. If
-// target() comes back empty on the way, el vanishes where it is and land() is still called.
-function fly(el, target, x, y, ms, land) {
+// el appears near (x, y) at scale, growing from nothing over grow ms if given, and waits there for hold ms. Then it
+// flies to where target() is, taking ms, following it as it moves, and shrinking to its own size, then land() is
+// called. If target() comes back empty on the way, el vanishes where it is and land() is still called. Scaled up, it
+// stays whole on screen: nudged in from the edges, and smaller if it can't fit.
+function fly(el, target, x, y, ms, land, { scale = 1.4, grow = 0, hold = 0 } = {}) {
   // from a random spot near (x, y), so things won together don't all start from one point
   const a = Math.random() * 2 * Math.PI, r = JITTER * Math.sqrt(Math.random());
   x += r * Math.cos(a);
   y += r * Math.sin(a);
   el.classList.add('flying');
   document.body.append(el);
-  const fx = x - el.offsetWidth / 2, fy = y - el.offsetHeight / 2, t0 = performance.now();
+  const w = el.offsetWidth, h = el.offsetHeight, m = 8;
+  const vw = document.documentElement.clientWidth, vh = innerHeight;
+  scale = Math.max(1, Math.min(scale, (vw - 2 * m) / w, (vh - 2 * m) / h));
+  const inside = (c, size, room) => Math.max(m + size / 2, Math.min(room - m - size / 2, c));
+  x = inside(x, w * scale, vw);
+  y = inside(y, h * scale, vh);
+  const fx = x - w / 2, fy = y - h / 2, start = performance.now(), t0 = start + grow + hold;
   const frame = now => {
-    const t = Math.min(1, (now - t0) / ms), e = 1 - (1 - t) ** 3;
+    const t = Math.max(0, Math.min(1, (now - t0) / ms)), e = 1 - (1 - t) ** 3;
+    const g = grow ? 1 - (1 - Math.min(1, (now - start) / grow)) ** 3 : 1;
     const to = target()?.getBoundingClientRect();
     if (to) {
       el.style.left = `${fx + (to.left - fx) * e}px`;
       el.style.top = `${fy + (to.top - fy) * e}px`;
-      el.style.transform = `scale(${1.4 - 0.4 * e})`;
+      const k = (scale - (scale - 1) * e) * g;
+      el.style.transform = `scale(${k})`;
+      el.style.setProperty('--scale', Math.max(k, 0.01));
     }
     if (t < 1 && to) return requestAnimationFrame(frame);
     el.remove();
@@ -1079,10 +1070,21 @@ function restart() {
 
 // ---------- layout ----------
 
+// the words' room in line i, inside its padding: where it starts, and its width
+function lineRoom(i) {
+  const s = getComputedStyle(lineEls[i]), left = parseFloat(s.paddingLeft);
+  return { left, width: lineEls[i].clientWidth - left - parseFloat(s.paddingRight) };
+}
+// where t seconds into line i is, from the line's left edge
+function lineX(i, t) {
+  const { left, width } = lineRoom(i);
+  return left + t / LINE_DUR * width;
+}
+
 function sizeToWindow() {
-  // one line (2 bars) spans the line box, so px-per-second follows from its width
-  const pps = lineEls[0].clientWidth / LINE_DUR;
-  if (!pps) return;  // hidden behind the intro
+  // one line (2 bars) spans the words' room in a line, so px-per-second follows from its width
+  const pps = lineRoom(0).width / LINE_DUR;
+  if (!(pps > 0)) return;  // hidden behind the intro
   document.documentElement.style.setProperty('--pps', pps);
   document.documentElement.style.setProperty('--beat', pps * 60 / BPM);
 }
@@ -1099,11 +1101,8 @@ function wordEl(w) {
   return el;
 }
 
-// The tray: a section per bin, its words wrapping under its label, in a panel that scrolls up and down.
-// The labels stick, stacking at the top for the sections scrolled past and at the bottom for those
-// still to come, so every label shows, and clicking one scrolls to its section.
-// On narrow screens, tabs in two rows (the shorter on top) take the labels' place, and only the chosen
-// bin's words show, in a panel as tall as the tallest bin's.
+// The tray: tabs in two rows (the shorter on top), a bin each, and the chosen bin's words, in a panel as
+// tall as the tallest bin's that scrolls up and down.
 const trayHome = new Map();  // id -> its word in the tray, which the morph flies to
 let tab = null;  // the bin whose tab is chosen
 let morphing = new Set();  // ids hidden in the tray while a word from the strip flies to them
@@ -1120,7 +1119,6 @@ function buildPalette(before = null, delay = 0) {
   const step = fresh.length && Math.min(0.06, ENTER_SPREAD / fresh.length);
   const enterDelays = new Map(fresh.map((w, k) => [w.id, delay + k * step]));
   const bins = binOrder.filter(bin => offered.some(w => w.bin === bin));
-  palette.style.setProperty('--bins', bins.length);
   if (!bins.includes(tab)) tab = bins[0];
   const tabs = document.createElement('div');
   tabs.className = 'tabs';
@@ -1131,10 +1129,6 @@ function buildPalette(before = null, delay = 0) {
     const binWords = offered.filter(w => w.bin === bin);
     // pauses go shortest to longest; words go alphabetically, a word's recordings in recording order
     binWords.sort(bin === 'rest' ? (a, b) => a.d - b.d : (a, b) => a.text.localeCompare(b.text));
-    const label = document.createElement('div');
-    label.className = 'bin-label';
-    label.textContent = BIN_LABELS[bin] ?? bin;
-    label.style.setProperty('--k', k);
     const list = document.createElement('div');
     list.className = 'bin-words';
     list.dataset.bin = bin;
@@ -1150,8 +1144,6 @@ function buildPalette(before = null, delay = 0) {
       palette.scrollTop = 0;
     });
     rows[+(k >= Math.floor(bins.length / 2))].append(tabEl);
-    // scrolled to, the section's words start just under its label, stacked under the labels before it
-    label.addEventListener('click', () => palette.scrollTo({ top: list.offsetTop - (k + 1) * label.offsetHeight, behavior: 'smooth' }));
     list.append(...binWords.map(w => {
       const el = wordEl(w);
       el.addEventListener('dragstart', e => startDrag(e, { id: w.id, from: null }));
@@ -1165,7 +1157,7 @@ function buildPalette(before = null, delay = 0) {
       trayHome.set(w.id, el);
       return el;
     }));
-    palette.append(label, list);
+    palette.append(list);
   });
 }
 
@@ -1344,7 +1336,7 @@ function insertIndex(i, clientX) {
 function showMarker(i, x) {
   if (!dragging || !fits(i)) return false;
   const ids = lines[i].slice(0, insertIndex(i, x));
-  markerEls[i].style.left = ids.reduce((t, id) => t + words[id].d, 0) / LINE_DUR * lineEls[i].clientWidth + 'px';
+  markerEls[i].style.left = lineX(i, ids.reduce((t, id) => t + words[id].d, 0)) + 'px';
   markerEls[i].style.display = 'block';
   return true;
 }
@@ -1533,20 +1525,6 @@ function playWord(id, when = ctx.currentTime) {
   if (w.a !== null) playSlice(wordsBuf, when, w.a, w.d, FADE);
 }
 
-// Words won are each said once, in turn, with twice the shortest pause writing gives between them. Words won
-// while others are still being said wait their turn.
-let sayFree = 0;  // audio-clock time the last word queued ends, with its pause
-function sayWords(texts) {
-  const rests = STORY.write.pauses, gap = rests.length ? 2 * Math.min(...rests) * 60 / BPM : 0;
-  for (const t of texts) {
-    const id = takesOf(t)[0];
-    if (!id) continue;
-    const at = Math.max(ctx.currentTime + 0.02, sayFree);
-    playWord(id, at);
-    sayFree = at + words[id].d + gap;
-  }
-}
-
 // The tracks loop, line by line; when writing, the lines play over them.
 const looping = () => !submitting && !paused;
 let nextTime = null;   // audio-clock time the next line starts
@@ -1604,7 +1582,7 @@ function drawPlayhead() {
   const current = scheduled.find(s => s.voice && s.t0 <= now);
   playheadEls.forEach((el, i) => {
     if (current && current.line === i && !submitting) {
-      el.style.left = (now - current.t0) / LINE_DUR * lineEls[i].clientWidth + 'px';
+      el.style.left = lineX(i, now - current.t0) + 'px';
       el.style.display = 'block';
     } else {
       el.style.display = 'none';
