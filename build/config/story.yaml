@@ -22,6 +22,14 @@
 #   on to the next step. Lines without a button show along with the next line
 #   that has one. A button on a line of its own shows with no new text. Blank
 #   lines show as a gap.
+# - A row that's ![](story/hand.jpg) is an image, from build/images/, up to 40%
+#   of the screen high. It comes in with the rows around it, and can have a
+#   [button] after it like any row.
+# - A page that's one image, up to 60% of the screen high:
+#     - page: dark
+#       image: story/hand.jpg
+#       button: next      # optional; with none, clicking the image moves on
+#   A page's images load a step or two before it.
 # - Words are grouped by bin (noun, verb…). Words match as in bins.yaml, and
 #   apostrophes are ignored (that’s = thats). A word shows in the bin bins.yaml
 #   gives it. Listing it under another bin still offers it, with a warning
@@ -46,11 +54,20 @@ sequence:
 
 
       you’re finally awake [next]
+  - page: light
+    image: story/work.png
+    button: next # or remove this to click image to move on
+  - page: light
+    text: | 
+      
+      
+      
       when can you start? [log on]
   - try: pair-it
   - page: light
     text: |
       you’re a data labeller by day [next]
+      ![work](story/work.png)[next]
       you check the rules [next]
   - page: light
     text: |

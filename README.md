@@ -26,14 +26,14 @@ The game started as a copy of prototype-09 (see [Two lines, live rewards](#two-l
 - `build/index.html`: the page
 - `build/config/`: what to edit to change the content. Each file's comments explain it.
   - `games.yaml`: the games' photos, shapes, words, settings and unlocks, and the tracks
-  - `story.yaml`: the order the game runs in (pages of text, tries, games, the end), the first line and its words, the words given for writing, and the text shown once the lines are submitted
+  - `story.yaml`: the order the game runs in (pages of text and images, tries, games, the end), the first line and its words, the words given for writing, and the text shown once the lines are submitted
   - `bins.yaml`: word category fixes (see [Fix word categories](#fix-word-categories))
   - `colours.json`: the colours of the +1s, a word won's flash and its colour in the strip, per photo, from the colour picker (see [Pick the effects' colours](#pick-the-effects-colours)). Optional.
   - `clips.json`: trims and recordings switched off, from the clip picker (see [Trim and pick recordings](#trim-and-pick-recordings)). Optional.
 - `build/javascript/`: `main.js` runs the page, `minigames.js` the games, and `lib/` holds js-yaml
 - `build/style/`: the page's styles (`style.css`) and the games' (`minigames.css`)
 - `build/audio/`: the cut-up recording (`words.mp3`, `words.json`; `words.wav` is kept) and the tracks
-- `build/images/`: the photos and their shapes
+- `build/images/`: the photos and their shapes, and the story's images in `story/`
 - `build/tools/clippicker.html`: the clip picker
 - `build/tools/colourpicker.html`: the colour picker
 

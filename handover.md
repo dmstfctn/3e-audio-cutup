@@ -48,32 +48,12 @@ Times, black 1px borders and square corners. Green `#00ff00` means right and red
 - At time-up a game's prompt keeps its height (`g.say`), so the photo under it doesn't move.
 - The recording loads from `words.mp3`, made from `words.wav` with `lame -V 2` (see the README). In Chrome it lines up with the WAV to the sample, because LAME's header lets the browser trim the encoder delay.
 - Submit: "submit your lines" in the header plays the lines once on their own (`#show`), with [back to writing] and [submit your lines] under them, as underlined story text, and `submitted` from `story.yaml` under those (paragraphs at blank lines, `[text](url)` a link in a new tab, no url just text); `#show` scrolls if it doesn't fit. The second [submit your lines] does nothing yet. The user put a `* ` before the first paragraph in `story.yaml`; it shows as a literal asterisk (only links are supported), so ask what it's for if it comes up. Nothing is sent anywhere: the lines stay in the player's browser. The old [restart] button is gone (`restart()` remains, unused).
+- Images on pages (see `story.yaml`'s comments): a row `![](story/x.jpg)` is an image from `build/images/`, up to 40% of the screen high (`40svh`), fading in like a row; a page with `image:` instead of `text:` is one image up to 60% high, shown whole with no border, moving on by its `button:` or, with none, a click on the image (`#screen-text.whole` / `.click`). The alt text is always empty. `preloadImages()` loads the images of the step shown and the next two. On phones only the width shrinks them; two images and text on one page nearly fill a 390×844 screen.
 - Play/pause (and the space bar) stops the loop. It's not saved.
 - The end doesn't scroll unless it has to: `#game` is fixed and scrolls only if the lines don't fit, and the tray scrolls when its words overflow (with every word in one panel, it usually does). On touch, a tray word drags straight away unless the tray scrolls, when it has to be held for `HOLD_MS` first. The page doesn't rubber-band (`overscroll-behavior: none`).
 - The word won grows by its font size, not a transform, because iOS Safari pixellated the transform.
 - Words won are not said. A clicked tray word is always said (`playWord`).
 - About 4.7 MB loads before [start] is enabled: `words.mp3` 3.2 MB, all four tracks 1.2 MB, the find/find-all shape `.svg`s 190 KB (mostly `12.svg`), the rest small. Photos load when their game starts.
-
-## Next task: images in the story
-
-The user wants images in the narrative moments (`page` steps), two ways:
-
-1. **Among the text, as if they were lines:** an image takes a row's place and comes in with the rows around it.
-2. **A page of its own:** one image filling the screen, moving on with a button, or by clicking the image itself.
-
-Nothing is built yet. Ask the user how they want to write it before building, and offer a notation, for example:
-- inline: a row of its own like `![](story/hand.jpg)`, with or without a `[button]` after it, as rows are now;
-- a page of its own: a new step kind, e.g. `- image: story/hand.jpg` with optional `button:` (none: clicking the image moves on), `dark` or light, and `play` / `stop` like other steps.
-
-Also worth asking: where the files go (e.g. `build/images/story/`), how big an image is (it needs a max height on phones), whether a whole-page image is cropped to fill or shown whole, and alt text.
-
-Where things are:
-- `readSequence()` in `main.js` parses `sequence`. A page's text is split on newlines into rows. A row ending in `[button]` closes a line (`{ rows, button }`), and rows without one join the next line with one. `![alt](src)` ends in `)`, so it doesn't clash with the button regex. A new step kind needs adding to the kinds list there, to `showStep()`, and to `showScreen()`, which renders the current page.
-- `showScreen()` renders each row as a `<div>` in `#screen-text` using `textContent`, so images need their own element. New rows fade in `LINE_GAP` apart (`.new`, with `animationDelay`), and `#screen-go` comes in `BUTTON_GAP` after the last. Clicks before it shows are ignored (`ready`).
-- `#screen` is fixed between the header and the strip (`inset: var(--top) 0 var(--strip) 0`), centred, and doesn't scroll, so a tall image plus text must fit. The strip shows on pages from the games on. Dark pages are `#screen.dark`; leaving one runs `fadeFromDark()`.
-- Nothing on pages is preloaded. Load an image during the step before it, or at start, so it doesn't pop in. Photos for the games load when their game starts; `new Image().src = …` is how the next play's photo is preloaded in `startRun`.
-- Saves hold `at` (the step's index) and `phase` (its kind). Adding a step shifts the indexes, and `restore()` then resets saves whose kind doesn't match. That's fine, but tell the user their progress will reset.
-- Update `story.yaml`'s header comments, the README, and this file with the notation.
 
 ## Open
 

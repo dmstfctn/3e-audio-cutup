@@ -10,6 +10,12 @@ html { overscroll-behavior: none; }  /* no rubber-banding of a page that doesn't
 #screen { position: fixed; inset: var(--top) 0 var(--strip) 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; padding: 16px; text-align: center; }
 #screen-text { max-width: 32em; }
 #screen-text:empty { display: none; }
+/* a page's images: in the text, a row up to 40% of the screen high, half a line above and below; a page that's one image, up to 60% */
+#screen-text img { display: block; margin: .5lh auto; max-width: 100%; max-height: 40svh; }
+#screen-text.whole { max-width: 100%; }
+#screen-text.click { cursor: pointer; }  /* no button: the image moves on */
+#screen-text.whole img { max-height: 60svh; margin: 0 auto; }
+#screen-go[hidden] { display: none; }
 #screen-text .new { animation: line-in .4s ease-out backwards; }  /* backwards: hidden while it waits its turn (LINE_GAP) */
 @keyframes line-in { from { opacity: 0; } }
 #screen.dark { background: black; color: #ccc; }  /* a page: dark */

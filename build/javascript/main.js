@@ -25,6 +25,7 @@ const BUTTON_GAP = 600;                         // ms from the last of them to t
 const TRY_MS = 1000;                            // how long a try's win shows before the story goes on
 // The game runs through the steps of story.yaml's sequence (see its comments), each one of these kinds:
 //   page:  a screen of text, shown a line at a time, each line with its own button
+//          (its rows can be images), or one image
 //   try:   a game played with no timer until its first win, winning nothing
 //   games: the games in GAME_ORDER, each played through once, with the words it won after and one retry; words
 //          won fly to the strip at the bottom, which shows from here until writing, and points burst from the click
@@ -319,17 +320,30 @@ function readSequence(list, next, problems) {
     if (kind === 'page') {
       if (!['light', 'dark'].includes(s.page)) problems.push(`${where}: page should be light or dark`);
       step.dark = s.page === 'dark';
-      // a line ends with its [button]; lines without one show with the next that has one
+      // a page that's one image: its button, or with none a click on the image, moves on
+      if (s.image != null) {
+        if (s.text != null) problems.push(`${where}: a page with an image shows no text`);
+        step.image = `images/${s.image}`;
+        step.lines = [{ rows: [], button: s.button == null ? null : String(s.button) }];
+        out.push(step);
+        continue;
+      }
+      // a line ends with its [button]; lines without one show with the next that has one. A row
+      // that's ![](story/x.jpg) is an image, from images/
+      const row = r => {
+        const m = /^\s*!\[[^\]]*\]\(([^)\s]+)\)\s*$/.exec(r);
+        return m ? { src: `images/${m[1]}` } : r;
+      };
       step.lines = [];
       let rows = [];
-      for (const row of String(s.text ?? '').trim().split('\n')) {
-        const m = /^(.*?)\s*\[([^\]]*)\]\s*$/.exec(row);
-        if (!m) { rows.push(row); continue; }
-        if (m[1]) rows.push(m[1]);
+      for (const r of String(s.text ?? '').trim().split('\n')) {
+        const m = /^(.*?)\s*\[([^\]]*)\]\s*$/.exec(r);
+        if (!m) { rows.push(row(r)); continue; }
+        if (m[1]) rows.push(row(m[1]));
         step.lines.push({ rows, button: m[2] });
         rows = [];
       }
-      if (rows.some(r => r.trim())) step.lines.push({ rows, button: next });
+      if (rows.some(r => r.src || r.trim())) step.lines.push({ rows, button: next });
       if (!step.lines.length) { problems.push(`${where}: no text`); step.lines.push({ rows: [], button: next }); }
     } else if (kind === 'try') {
       step.game = String(s.try);
@@ -683,11 +697,13 @@ function showScreen() {
   $('#game').hidden = phase !== 'write';
   if (!on) return;
   $('#screen').classList.toggle('dark', s.dark);
-  const rows = s.lines.slice(0, shown).flatMap((l, k) => l.rows.map(r => [r, k === shown - 1]));
+  $('#screen-text').classList.toggle('whole', !!s.image);
+  const rows = s.image ? [[{ src: s.image }, true]] : s.lines.slice(0, shown).flatMap((l, k) => l.rows.map(r => [r, k === shown - 1]));
   let n = 0;  // the new rows come in one after another
   $('#screen-text').replaceChildren(...rows.map(([r, fresh]) => {
     const d = document.createElement('div');
-    d.textContent = r.trim() ? r : ' ';  // a blank row keeps its space
+    if (r.src) d.append(Object.assign(new Image(), { src: r.src, alt: '' }));
+    else d.textContent = r.trim() ? r : ' ';  // a blank row keeps its space
     if (fresh) {
       d.className = 'new';
       d.style.animationDelay = `${n++ * LINE_GAP}ms`;
@@ -696,7 +712,9 @@ function showScreen() {
   }));
   // the button comes in BUTTON_GAP after the last new row, and can't be pressed before it shows
   const go = $('#screen-go'), delay = n && (n - 1) * LINE_GAP + BUTTON_GAP, ready = performance.now() + delay;
-  go.textContent = s.lines[shown - 1].button;
+  const button = s.lines[shown - 1].button;
+  go.textContent = button ?? '';
+  go.hidden = button == null;
   go.disabled = false;
   go.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 400, delay, easing: 'ease-out', fill: 'backwards' });
   go.onclick = () => {
@@ -704,6 +722,22 @@ function showScreen() {
     if (shown < s.lines.length) { shown++; return showScreen(); }
     enter(at + 1);
   };
+  // an image page with no button moves on from a click on the image
+  $('#screen-text').onclick = s.image && button == null ? go.onclick : null;
+  $('#screen-text').classList.toggle('click', !!s.image && button == null);
+  preloadImages(at + 1, at + 2);
+}
+
+// the story's images load a step or two before they show, so they don't pop in
+const preloaded = new Set();
+function preloadImages(...ks) {
+  for (const s of ks.map(k => SEQUENCE[k]).filter(s => s?.kind === 'page')) {
+    for (const src of s.image ? [s.image] : s.lines.flatMap(l => l.rows).map(r => r.src).filter(Boolean)) {
+      if (preloaded.has(src)) continue;
+      preloaded.add(src);
+      new Image().src = src;
+    }
+  }
 }
 
 // moves the game on to step k: the tracks it plays come on, and those it stops go off
@@ -739,6 +773,7 @@ function fadeFromDark() {
 
 // shows the step the game is at, from its start; before and strip as for showPhase
 function showStep(before = null, strip = null) {
+  preloadImages(at, at + 1, at + 2);
   showScreen();
   showBars();
   if (phase === 'try') return startTry(SEQUENCE[at].game);
