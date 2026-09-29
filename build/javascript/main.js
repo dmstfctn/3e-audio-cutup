@@ -23,7 +23,6 @@ const BURST = [240, 480];                      // px (times UNIT()): how far a +
 const LINE_GAP = 350;                           // ms between the rows a page's button reveals together
 const BUTTON_GAP = 600;                         // ms from the last of them to the next button
 const TRY_MS = 1000;                            // how long a try's win shows before the story goes on
-const CUT_MARK = '..';                          // ends a word cut short in a line (see markCut)
 const TILT = 0;                               // degrees a word's box, and its text, lean either way at most
 // The game runs through the steps of story.yaml's sequence (see its comments), each one of these kinds:
 //   page:  a screen of text, shown a line at a time, each line with its own button
@@ -1614,25 +1613,21 @@ function renderLine(i) {
   markCut(line);
 }
 
-// A word in a line too short for its text is cut short, ending in CUT_MARK, if it's more than 2 letters and at
-// least its first letter and the mark fit, and otherwise shows none (the title goes too, so it doesn't double the
-// peek); the mouse over it, or a long press, shows it whole at the tray's size just above the pointer. A pause
+// A word in a line too short for its text is squeezed across until it fits (the title goes, so it doesn't double
+// the peek); the mouse over it, or a long press, shows it whole at the tray's size just above the pointer. A pause
 // shows the ~s that fit.
 function markCut(within = $('#lines')) {
-  const fits = el => el.scrollWidth <= el.clientWidth + 1;
   for (const el of within.querySelectorAll('.word')) {
-    const span = el.firstElementChild, text = words[el.dataset.id].text;
-    span.textContent = text;
-    el.classList.remove('cut', 'short');
-    if (el.dataset.bin === 'rest' || fits(el)) continue;
+    const span = el.firstElementChild;
+    span.style.scale = '';
+    el.classList.remove('cut');
+    if (el.dataset.bin === 'rest') continue;
+    const pad = getComputedStyle(el), room = el.clientWidth - parseFloat(pad.paddingLeft) - parseFloat(pad.paddingRight);
+    const w = span.offsetWidth;  // its width before any scale
+    if (w <= room + 1) continue;
     el.removeAttribute('title');
-    let n = text.length > 2 ? text.length - 1 : 0;
-    for (; n > 0; n--) {
-      span.textContent = text.slice(0, n) + CUT_MARK;
-      if (fits(el)) break;
-    }
-    if (n) el.classList.add('short');
-    else { span.textContent = text; el.classList.add('cut'); }
+    span.style.scale = `${Math.max(room, 0) / w} 1`;
+    el.classList.add('cut');
   }
 }
 let peekEl = null;
@@ -1649,7 +1644,7 @@ function peek(el, x, y) {
 }
 function unpeek() { peekEl?.remove(); peekEl = null; }
 function peekable(el) {
-  const isCut = () => el.matches('.cut, .short');
+  const isCut = () => el.matches('.cut');
   el.addEventListener('pointermove', e => { if (e.pointerType === 'mouse' && isCut()) peek(el, e.clientX, e.clientY); });
   el.addEventListener('pointerleave', e => { if (e.pointerType === 'mouse') unpeek(); });
   el.addEventListener('dragstart', unpeek);

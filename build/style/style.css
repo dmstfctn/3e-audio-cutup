@@ -182,8 +182,9 @@ html { overscroll-behavior: none; }  /* no rubber-banding of a page that doesn't
 
 /* in the tray a word is at least as wide as its text, so it can be read; in the lines it's its duration */
 #palette .word, .word.dragged, .word.peek { min-width: max-content; padding: 0 .25em; }
-/* a word in a line cut short hides its text, or ends in CUT_MARK (.short); the peek shows it (markCut() in main.js) */
-.line .word.cut > span { visibility: hidden; }
+/* a word in a line too short for it is squeezed across from its left edge, where text too wide for its box starts;
+   the peek shows it (markCut() in main.js) */
+.line .word.cut > span { transform-origin: left; }
 /* narrow screens: smaller text in the tray, where words are narrow, the box keeping its height; and the
    tray no more than 40% of the screen */
 @media (max-width: 640px) {
