@@ -1,10 +1,13 @@
 /* --top: the header, once a track plays; --strip: the words won, from the games until writing;
    --tray: the tray's height, set from the page as it changes */
 :root { --top: 0px; --strip: 0px; --tray: 0px; }
-:root { --mute-w: 34px; }  /* the on button's width, and the gutter left of the lines that matches it */
-body.with-header { --top: 45px; }
-body.with-strip { --strip: 58px; }
-body { font: 16px "Times New Roman", Times, serif; margin: 16px; }
+/* --u: 1px up to a 2560 × 1440 window; past it, grows with the window, so a bigger screen shows that layout
+   scaled up (UNIT in main.js is the same) */
+:root { --u: max(1px, min(100vw / 2560, 100vh / 1440)); }
+:root { --mute-w: calc(34 * var(--u)); }  /* the on button's width, and the gutter left of the lines that matches it */
+body.with-header { --top: calc(45 * var(--u)); }
+body.with-strip { --strip: calc(58 * var(--u)); }
+body { font: calc(16 * var(--u)) "Times New Roman", Times, serif; margin: 16px; }
 /* the words' font: the tray, the lines, the strip and the words won, and submit's lines */
 /*@font-face { font-family: "Just Another Hand"; src: url(../fonts/JustAnotherHand-Regular.ttf) format("truetype"); font-display: block;
              size-adjust: 140%; }  /* it runs small: bigger letters in the same boxes */
@@ -13,7 +16,7 @@ html { overscroll-behavior: none; }  /* no rubber-banding of a page that doesn't
 * { touch-action: manipulation; }  /* no double-tap zoom (pinch still zooms); .handle sets its own */
 
 /* the story's screens: text and button centred on the page, the text shown a line at a time */
-#screen { position: fixed; inset: var(--top) 0 var(--strip) 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; padding: 16px; text-align: center; }
+#screen { position: fixed; inset: var(--top) 0 var(--strip) 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1em; padding: 1em; text-align: center; }
 #screen-text { max-width: 32em; }
 #screen-text:empty { display: none; }
 /* a page's images: in the text, a row up to 40% of the screen high, half a line above and below; a page that's one image, up to 60% */
@@ -33,47 +36,47 @@ html { overscroll-behavior: none; }  /* no rubber-banding of a page that doesn't
 /* when writing, always on top: at the left play / pause; in the middle the tracks unlocked, each a toggle
    looking like a word in grey; at the right submit */
 #ui-header { position: fixed; top: 0; left: 0; right: 0; height: var(--top); z-index: 12; box-sizing: border-box; background: white;
-          padding: 0 16px; display: flex; justify-content: space-between; align-items: center; }
+          padding: 0 calc(16 * var(--u)); display: flex; justify-content: space-between; align-items: center; }
 #ui-header[hidden] { display: none; }
 /* centred whatever is either side */
-#toggles { position: absolute; left: 50%; transform: translateX(-50%); display: flex; gap: 2px; }
+#toggles { position: absolute; left: 50%; transform: translateX(-50%); display: flex; gap: calc(2 * var(--u)); }
 #play[hidden] { display: none; }
 /* the bars' colours change as a dark page comes and goes, as long as the tray takes to grow (MORPH_MS) */
 #ui-header, #strip, .toggle, .chip, #play, #submit { transition: background-color .9s, color .9s, border-color .9s, -webkit-text-stroke-color .9s; }
-.toggle { box-sizing: border-box; height: 2em; line-height: calc(2em - 2px); padding: 0 8px; border: 1px solid black; border-radius: 0;
-          background: lightgray; color: black; font: 16px Times, serif; white-space: nowrap; cursor: pointer; user-select: none; }
+.toggle { box-sizing: border-box; height: 2em; line-height: calc(2em - 2px); padding: 0 .5em; border: 1px solid black; border-radius: 0;
+          background: lightgray; color: black; font: 1em Times, serif; white-space: nowrap; cursor: pointer; user-select: none; }
 .toggle[aria-pressed="false"] { opacity: .4; }  /* off */
 
 /* the lines centred between the header and the tray, scrolling only if they don't fit (the auto margins
    centre them without cutting off the top when they overflow) */
-#game { position: fixed; inset: 0; box-sizing: border-box; padding: calc(var(--top) + 16px) 8px calc(var(--tray) + 16px);
+#game { position: fixed; inset: 0; box-sizing: border-box; padding: calc(var(--top) + 16 * var(--u)) calc(8 * var(--u)) calc(var(--tray) + 16 * var(--u));
         overflow-y: auto; overscroll-behavior: contain; display: flex; flex-direction: column; }
 #game::before, #game::after { content: ''; margin: auto; }
 /* when they scroll, the lines fade out under the header and over the tray, as the tray's words do (.scrolled,
    .more: fades() in main.js); fixed to the screen, over the lines, under the tray */
-#lines::before, #lines::after { content: ''; position: fixed; z-index: 4; left: 0; right: 0; height: 32px; pointer-events: none;
+#lines::before, #lines::after { content: ''; position: fixed; z-index: 4; left: 0; right: 0; height: calc(32 * var(--u)); pointer-events: none;
                                 opacity: 0; transition: opacity .2s; }
 #lines::before { top: var(--top); background: linear-gradient(var(--page-bg, white), transparent); }
 #lines::after { bottom: var(--tray); background: linear-gradient(transparent, var(--page-bg, white)); }
 #game.scrolled #lines::before, #game.more #lines::after { opacity: 1; }
 @media (max-width: 640px) { #lines::before, #lines::after { height: 24px; } }
-#status { margin-bottom: 16px; }
+#status { margin-bottom: 1em; }
 #status:empty { display: none; }
-#submit { margin-left: 12px; white-space: nowrap; }
+#submit { margin-left: calc(12 * var(--u)); white-space: nowrap; }
 @media (max-width: 640px) {
   /* smaller toggles, left after play / pause rather than centred, so they fit before submit */
   .toggle { font-size: 12px; height: 26px; line-height: 24px; padding: 0 4px; }
   #toggles { position: static; transform: none; margin: 0 auto 0 10px; }  /* the room left goes after them */
 }
 /* plain bold text: play / pause, submit, and the − / + under the lines that removes or adds one */
-#play { width: 20px; height: 20px; flex: none; }  /* a play or pause icon, never squeezed by the toggles */
+#play { width: calc(20 * var(--u)); height: calc(20 * var(--u)); flex: none; }  /* a play or pause icon, never squeezed by the toggles */
 #play svg { display: block; width: 100%; height: 100%; }
-#play, #submit, #more, #fewer { background: none; border: 0; padding: 0; font: bold 16px Times, serif; color: black; cursor: pointer; }
+#play, #submit, #more, #fewer { background: none; border: 0; padding: 0; font: bold 1em Times, serif; color: black; cursor: pointer; }
 #more, #fewer { font-family: Arial, sans-serif; }
 /* − and + together at the right, + under the on buttons; each keeps its place when hidden, so + never moves */
-#more-lines { display: flex; justify-content: flex-end; align-items: center; gap: 4px; margin-top: 8px; }
-#more, #fewer { font-size: 20px; }
-#fewer { width: 20px; text-align: center; }
+#more-lines { display: flex; justify-content: flex-end; align-items: center; gap: calc(4 * var(--u)); margin-top: calc(8 * var(--u)); }
+#more, #fewer { font-size: calc(20 * var(--u)); }
+#fewer { width: calc(20 * var(--u)); text-align: center; }
 #more { width: var(--mute-w); text-align: left; }   /* on's width, starting where its text does */
 #more[hidden], #fewer[hidden] { display: block; visibility: hidden; }
 #submit[hidden], #more-lines[hidden] { display: none; }
@@ -102,10 +105,10 @@ html { overscroll-behavior: none; }  /* no rubber-banding of a page that doesn't
   #game::before { margin: 0; }
   #game::after { margin: auto 0 0; }
 }
-#lines { position: relative; padding: 8px 0; display: flex; flex-direction: column; gap: 8px; }
+#lines { position: relative; padding: calc(8 * var(--u)) 0; display: flex; flex-direction: column; gap: calc(8 * var(--u)); }
 /* a line's row: the line, then its on button, standing on the line; the gutter on the left (as wide as
    on) keeps the lines centred. The handles (.handle) are switched off in buildLines(). */
-.row { display: flex; gap: 8px; align-items: flex-end; padding-left: calc(var(--mute-w) + 8px); }
+.row { display: flex; gap: calc(8 * var(--u)); align-items: flex-end; padding-left: calc(var(--mute-w) + 8 * var(--u)); }
 .row[hidden] { display: none; }
 .row .line { flex: 1; min-width: 0; }
 .handle { flex: none; width: 1em; text-align: center; font: 20px Times, serif; cursor: grab;
@@ -113,7 +116,7 @@ html { overscroll-behavior: none; }  /* no rubber-banding of a page that doesn't
 .row.moving { opacity: .4; }
 #row-marker { position: absolute; left: 0; right: 0; height: 2px; background: var(--ink, black); display: none; pointer-events: none; }
 /* on: small uppercase, greyed out (faded as its line is) while the line's off */
-.line-on { flex: none; width: var(--mute-w); padding: 0; border: 0; background: none; color: inherit; font: 12px Arial, sans-serif; text-transform: uppercase; text-align: left; cursor: pointer;
+.line-on { flex: none; width: var(--mute-w); padding: 0; border: 0; background: none; color: inherit; font: calc(12 * var(--u)) Arial, sans-serif; text-transform: uppercase; text-align: left; cursor: pointer;
            line-height: 1; position: relative; top: 1px; }  /* its letters' foot on the line's bottom edge, not its box's */
 .line-on[aria-pressed="false"] { opacity: .3; }
 .line.off { opacity: .3; }
@@ -129,13 +132,13 @@ html { overscroll-behavior: none; }  /* no rubber-banding of a page that doesn't
    and the bar line after 4. The line reaches 3px past the words' room at each end, and words sit 2px
    above it. The beat ticks are placed in the words' room, 3px in. */
 .line {
-  position: relative; display: flex; height: 2em; margin: 0 -3px; padding: 0 3px 2px; border-bottom: 2px solid var(--ink, black);
+  position: relative; display: flex; height: 2em; margin: 0 -3px; padding: 0 3px 2px; border-bottom: calc(2 * var(--u)) solid var(--ink, black);
   background:
-    linear-gradient(var(--ink, black), var(--ink, black)) left bottom / 2px 6px no-repeat,
-    linear-gradient(var(--ink, black), var(--ink, black)) right bottom / 2px 6px no-repeat,
-    linear-gradient(var(--ink, black), var(--ink, black)) calc(3px + var(--beat) * 4px - 1px) bottom / 2px 6px no-repeat,
+    linear-gradient(var(--ink, black), var(--ink, black)) left bottom / 2px calc(6 * var(--u)) no-repeat,
+    linear-gradient(var(--ink, black), var(--ink, black)) right bottom / 2px calc(6 * var(--u)) no-repeat,
+    linear-gradient(var(--ink, black), var(--ink, black)) calc(3px + var(--beat) * 4px - 1px) bottom / 2px calc(6 * var(--u)) no-repeat,
     repeating-linear-gradient(to right, transparent 0 calc(var(--beat) * 1px - 1px), #888 calc(var(--beat) * 1px - 1px) calc(var(--beat) * 1px))
-      3px bottom / calc(var(--beat) * 7px) 6px no-repeat;  /* the first 7 beats: the 8th is the end's */
+      3px bottom / calc(var(--beat) * 7px) calc(6 * var(--u)) no-repeat;  /* the first 7 beats: the 8th is the end's */
 }
 /* a word in a line takes up its duration, its block 2px narrower, so there's 2px between words */
 .line .word { width: calc(var(--d) * var(--pps) * 1px - 2px); margin: 0 1px; border: 0; line-height: 2em; }  /* no border in a line */
@@ -147,15 +150,15 @@ html { overscroll-behavior: none; }  /* no rubber-banding of a page that doesn't
            max-height: 66svh; background: white; border-top: 1px solid black; overflow-y: auto; overscroll-behavior: contain; }
 /* fades over the tray's bottom and top, about a word high, while there's more to scroll to that way (.more,
    .scrolled: fades() in main.js) */
-#palette::before, #palette::after { content: ''; position: sticky; display: block; height: 32px; pointer-events: none; opacity: 0; transition: opacity .2s; }
-#palette::before { top: 0; margin-bottom: -32px; z-index: 1; background: linear-gradient(var(--tray-bg, white), transparent); }
-#palette::after { bottom: 0; margin-top: -32px; background: linear-gradient(transparent, var(--tray-bg, white)); }
+#palette::before, #palette::after { content: ''; position: sticky; display: block; height: calc(32 * var(--u)); pointer-events: none; opacity: 0; transition: opacity .2s; }
+#palette::before { top: 0; margin-bottom: calc(-32 * var(--u)); z-index: 1; background: linear-gradient(var(--tray-bg, white), transparent); }
+#palette::after { bottom: 0; margin-top: calc(-32 * var(--u)); background: linear-gradient(transparent, var(--tray-bg, white)); }
 #palette.scrolled::before, #palette.more::after { opacity: 1; }
 @media (max-width: 640px) {
   #palette::before { height: 24px; margin-bottom: -24px; }
   #palette::after { height: 24px; margin-top: -24px; }
 }
-.tray-words { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; padding: 14px 16px; }
+.tray-words { display: flex; flex-wrap: wrap; justify-content: center; gap: calc(4 * var(--u)); padding: calc(14 * var(--u)) calc(16 * var(--u)); }
 
 .word {
   box-sizing: border-box; flex: none; height: 2em; line-height: calc(2em - 2px);
@@ -164,7 +167,7 @@ html { overscroll-behavior: none; }  /* no rubber-banding of a page that doesn't
   font-family: var(--hand);
   cursor: pointer; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
   rotate: var(--tilt, 0deg);  /* set per word by tilt() */
-  letter-spacing: 0.5px;
+  letter-spacing: calc(.5 * var(--u));
 }
 /* a word's text leans apart from its box, in the tray, the lines and the strip */
 .word > span, .chip > span, #show-lines span { display: inline-block; rotate: var(--text-tilt, 0deg); }
@@ -173,7 +176,7 @@ html { overscroll-behavior: none; }  /* no rubber-banding of a page that doesn't
 .word.dragged { z-index: 13; box-shadow: 0 4px 8px rgb(0 0 0 / .3); }
 
 /* in the tray a word is at least as wide as its text, so it can be read; in the lines it's its duration */
-#palette .word, .word.dragged, .word.peek { min-width: max-content; padding: 0 4px; }
+#palette .word, .word.dragged, .word.peek { min-width: max-content; padding: 0 .25em; }
 /* a word in a line cut short hides its text, or ends in CUT_MARK (.short); the peek shows it (markCut() in main.js) */
 .line .word.cut > span { visibility: hidden; }
 /* narrow screens: smaller text in the tray, where words are narrow, the box keeping its height; and the
@@ -223,17 +226,17 @@ html { overscroll-behavior: none; }  /* no rubber-banding of a page that doesn't
 #minigame[hidden], #mg-card[hidden], #mg-retry[hidden] { display: none; }
 body:has(#minigame:not([hidden])), body:has(#show:not([hidden])) { overflow: hidden; }  /* the page underneath doesn't scroll */
 #mg-body { position: relative; flex: 1; overflow: hidden; }
-#mg-card { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; padding: 16px; text-align: center; }
+#mg-card { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1em; padding: 1em; text-align: center; }
 #mg-card p { margin: 0; font-family: Times, serif; max-width: 32em; white-space: pre-line; }
-#mg-buttons { display: flex; gap: 24px; }
+#mg-buttons { display: flex; gap: 1.5em; }
 
 /* the words won in the games, newest on the right, the oldest pushed off the left */
 #strip { position: fixed; left: 0; right: 0; bottom: 0; height: var(--strip); z-index: 12; box-sizing: border-box; background: white;
-         padding: 0 16px; display: flex; justify-content: flex-end; align-items: center; gap: 4px; overflow: hidden; }
+         padding: 0 calc(16 * var(--u)); display: flex; justify-content: flex-end; align-items: center; gap: calc(4 * var(--u)); overflow: hidden; }
 #strip[hidden] { display: none; }
 /* a word won is bold text in one of its photo's strip colours (--hue, set by chip()); it becomes a block in the tray */
 .chip { flex: none; box-sizing: border-box; height: 2em; line-height: calc(2em - 2px); padding: 0 8px; border: 1px solid transparent; background: none;
-        color: var(--hue, black); white-space: nowrap; font: bold 20px var(--hand); }
+        color: var(--hue, black); white-space: nowrap; font: bold calc(20 * var(--u)) var(--hand); }
 /* on a dark page (where the header hides) the strip inverts, and the words won go grey */
 body.dark #strip { background: black; border-color: #ccc; color: #ccc; }
 body.dark .chip, .chip.grey, body.writing .chip.grey[data-bin] { background: transparent; border-color: transparent; color: #777; }
@@ -264,21 +267,21 @@ body.writing #show-lines span.said { color: #ccc; }
 .flying { position: fixed; z-index: 13; margin: 0; pointer-events: none; }
 /* a word won flies as outlined text cycling through the flash colours (flashAnimation() in main.js), and gets its
    block when it lands; it's scaled by its font size, so its padding is in em and its outline stays 6px */
-.chip.bare { padding: 0 .5em; font-weight: normal; background: none; border-color: transparent; color: transparent; -webkit-text-stroke-width: 6px; }
+.chip.bare { padding: 0 .5em; font-weight: normal; background: none; border-color: transparent; color: transparent; -webkit-text-stroke-width: calc(6 * var(--u)); }
 /* each +1: bare text with a black outline, green unless config/colours.json says otherwise */
-.point { font: 20px Times, serif; color: #00ff00; -webkit-text-stroke: 4px black; paint-order: stroke fill; white-space: nowrap; }
+.point { font: calc(20 * var(--u)) Times, serif; color: #00ff00; -webkit-text-stroke: calc(4 * var(--u)) black; paint-order: stroke fill; white-space: nowrap; }
 
 
 /* submit: the lines on their own, centred, lit word by word as they play */
-#show { position: fixed; inset: var(--top) 0 0 0; z-index: 11; background: white; display: flex; flex-direction: column; align-items: center; justify-content: safe center; gap: 32px; padding: 16px; text-align: center; overflow-y: auto; }
+#show { position: fixed; inset: var(--top) 0 0 0; z-index: 11; background: white; display: flex; flex-direction: column; align-items: center; justify-content: safe center; gap: 2em; padding: 1em; text-align: center; overflow-y: auto; }
 #show[hidden] { display: none; }
-#show-buttons { display: flex; gap: 24px; }
+#show-buttons { display: flex; gap: 1.5em; }
 #show-buttons button { background: none; border: 0; padding: 0; font: inherit; color: inherit; text-decoration: underline; cursor: pointer; }
 /* under the buttons: story.yaml's submitted text, left-aligned paragraphs; the screen scrolls if it has to */
-#show-text { flex: none; max-width: 34em; margin-top: 4.2em; text-align: left; font-size: 14px; line-height: 1.4; }  /* 3 lines lower */
+#show-text { flex: none; max-width: 34em; margin-top: 4.2em; text-align: left; font-size: calc(14 * var(--u)); line-height: 1.4; }  /* 3 lines lower */
 #show-text:empty { display: none; }
 #show-text p { margin: 0 0 1em; }
 #show-text a { color: inherit; }
-#show-lines { display: flex; flex-direction: column; gap: 16px; font: clamp(22px, 4vw, 40px) var(--hand); }
+#show-lines { display: flex; flex-direction: column; gap: 16px; font: clamp(22px, 4vw, calc(40 * var(--u))) var(--hand); }
 #show-lines span { color: #bbb; transition: color .1s; }
 #show-lines span.said { color: black; }

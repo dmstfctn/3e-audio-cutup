@@ -11,7 +11,7 @@ const FADE = 0.008;                             // seconds of fade in/out on eac
 const LOOKAHEAD = 0.15;                         // how far ahead lines are scheduled
 const ENTER_SPREAD = 1.2;                       // seconds over which the words won drop into the tray
 const MORPH_MS = 900, MORPH_SPREAD = 300;       // the strip growing into the tray, and the most its words are staggered by
-const JITTER = 30;                              // px: a point, word or track won flies from a random spot this near the click
+const JITTER = 30;                              // px (times UNIT()): a point, word or track won flies from a random spot this near the click
 const FLY_GAP = 120;                            // the gap between words won together flying to the strip
 // how long a +1 takes to burst out, and a word to fly to the strip, the word 10% slower
 const POINT_FLY_MS = 700, WORD_FLY_MS = POINT_FLY_MS * 1.1;
@@ -19,7 +19,7 @@ const POINT_FLY_MS = 700, WORD_FLY_MS = POINT_FLY_MS * 1.1;
 // then flies; each in ms
 const WORD_FLY_SCALE = 12, WORD_GROW_MS = 200, WORD_HOLD_MS = 500;
 const SHRINK_MS = 250, SHRINK_GAP = 60;         // a word a retry clears shrinking out of the strip, and the gap between words
-const BURST = [240, 480];                      // px: how far a +1 flies out from the click, at least and at most
+const BURST = [240, 480];                      // px (times UNIT()): how far a +1 flies out from the click, at least and at most
 const LINE_GAP = 350;                           // ms between the rows a page's button reveals together
 const BUTTON_GAP = 600;                         // ms from the last of them to the next button
 const TRY_MS = 1000;                            // how long a try's win shows before the story goes on
@@ -48,6 +48,8 @@ const GAME_DEFAULTS = {
 };
 // tracks that have the others in them: while one is on, the others are muted
 const SOLO_TRACKS = ['all'];
+// 1 up to a 2560 × 1440 window, then growing with it: style.css's --u, for the px above
+const UNIT = () => Math.max(1, Math.min(innerWidth / 2560, innerHeight / 1440));
 const COARSE = matchMedia('(pointer: coarse)').matches;  // a touch screen
 const BIN_ORDER = ['yeah', 'noun', 'verb', 'describer', 'pronoun', 'glue', 'other', 'rest'];
 const BIN_LABELS = { rest: 'pause' };
@@ -1185,7 +1187,7 @@ function burstPoints(n, x, y, key, hues) {
     plus.style.left = `${x - plus.offsetWidth / 2}px`;
     plus.style.top = `${y - plus.offsetHeight / 2}px`;
     // screen angles run clockwise from the right, so 90°–360° leaves out down-right
-    const a = (90 + Math.random() * 270) * Math.PI / 180, r = BURST[0] + Math.random() * (BURST[1] - BURST[0]);
+    const a = (90 + Math.random() * 270) * Math.PI / 180, r = (BURST[0] + Math.random() * (BURST[1] - BURST[0])) * UNIT();
     plus.animate([{ transform: 'none', opacity: 1 }, { opacity: 1, offset: .5 },
       { transform: `translate(${r * Math.cos(a)}px, ${r * Math.sin(a)}px)`, opacity: 0 }],
       { duration: POINT_FLY_MS, easing: 'ease-out', fill: 'forwards' }).onfinish = () => plus.remove();
@@ -1199,7 +1201,7 @@ function burstPoints(n, x, y, key, hues) {
 // transform, which iOS Safari draws at the size it started and blows up, pixellated.
 function fly(el, target, x, y, ms, land, { scale = 1.4, grow = 0, hold = 0 } = {}) {
   // from a random spot near (x, y), so things won together don't all start from one point
-  const a = Math.random() * 2 * Math.PI, r = JITTER * Math.sqrt(Math.random());
+  const a = Math.random() * 2 * Math.PI, r = JITTER * UNIT() * Math.sqrt(Math.random());
   x += r * Math.cos(a);
   y += r * Math.sin(a);
   el.classList.add('flying');
