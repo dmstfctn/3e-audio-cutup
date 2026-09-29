@@ -303,7 +303,8 @@ const MINIGAMES = (() => {
     let picked = null, bad = [];
     g.bar(1);
     const clearBad = () => { bad.forEach(c => c.classList.remove('bad')); bad = []; };
-
+    const wrongSound = () => document.dispatchEvent(new Event('mg-miss'));   // NEW: main.js plays click-wrong.mp3
+    
     const cells = shuffle(data.pairs.flatMap((pair, k) => pair.map(src => {
       const b = document.createElement('button');
       b.className = 'mg-cell';
@@ -341,8 +342,8 @@ const MINIGAMES = (() => {
       if (!c || c.disabled || !g.running() || e.button > 0) return;
       e.preventDefault();
       clearBad();  // a click during the red flash is a new first pick
-      if (c === picked) { c.classList.remove('picked'); picked = null; return; }
-      if (!picked) { c.classList.add('picked'); picked = c; return; }
+      if (c === picked) { c.classList.remove('picked'); picked = null; wrongSound(); return; }
+      if (!picked) { c.classList.add('picked'); picked = c; wrongSound(); return; }
       const pair = [picked, c];
       picked = null;
       pair[0].classList.remove('picked');
@@ -355,6 +356,7 @@ const MINIGAMES = (() => {
       } else {
         pair.forEach(p => p.classList.add('bad'));
         bad = pair;
+        wrongSound();
         g.later(() => { if (bad[0] === pair[0]) clearBad(); }, BAD_MS);
       }
     });
