@@ -23,7 +23,7 @@ const BURST = [240, 480];                      // px: how far a +1 flies out fro
 const LINE_GAP = 350;                           // ms between the rows a page's button reveals together
 const BUTTON_GAP = 600;                         // ms from the last of them to the next button
 const TRY_MS = 1000;                            // how long a try's win shows before the story goes on
-const TILT = 1;                               // degrees a word's box, and its text, lean either way at most
+const TILT = 0;                               // degrees a word's box, and its text, lean either way at most
 // The game runs through the steps of story.yaml's sequence (see its comments), each one of these kinds:
 //   page:  a screen of text, shown a line at a time, each line with its own button
 //          (its rows can be images), or one image

@@ -6,9 +6,9 @@ body.with-header { --top: 45px; }
 body.with-strip { --strip: 58px; }
 body { font: 16px "Times New Roman", Times, serif; margin: 16px; }
 /* the words' font: the tray, the lines, the strip and the words won, and submit's lines */
-@font-face { font-family: "Just Another Hand"; src: url(../fonts/JustAnotherHand-Regular.ttf) format("truetype"); font-display: block;
+/*@font-face { font-family: "Just Another Hand"; src: url(../fonts/JustAnotherHand-Regular.ttf) format("truetype"); font-display: block;
              size-adjust: 140%; }  /* it runs small: bigger letters in the same boxes */
-:root { --hand: "Just Another Hand", "Times New Roman", Times, serif; }
+:root { --hand: /*"Just Another Hand", */"Times New Roman", Times, serif; }
 html { overscroll-behavior: none; }  /* no rubber-banding of a page that doesn't scroll (iOS) */
 
 /* the story's screens: text and button centred on the page, the text shown a line at a time */
@@ -150,7 +150,7 @@ body:has(#minigame:not([hidden])), body:has(#show:not([hidden])) { overflow: hid
 #strip[hidden] { display: none; }
 /* a word won is bold text in one of its photo's strip colours (--hue, set by chip()); it becomes a block in the tray */
 .chip { flex: none; box-sizing: border-box; height: 2em; line-height: calc(2em - 2px); padding: 0 8px; border: 1px solid transparent; background: none;
-        color: var(--hue, black); white-space: nowrap; font: 16px var(--hand); }
+        color: var(--hue, black); white-space: nowrap; font: bold 24px var(--hand); }
 /* on a dark page (where the header hides) the strip inverts, and the words won go grey */
 body.dark #strip { background: black; border-color: #ccc; color: #ccc; }
 body.dark .chip, .chip.grey, body.writing .chip.grey[data-bin] { background: transparent; border-color: transparent; color: #777; }
