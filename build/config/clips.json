@@ -4,10 +4,16 @@
     "start": 13.135,
     "end": 13.683
   },
+  "22": {
+    "word": "yeah",
+    "start": 46.437,
+    "end": 46.816
+  },
   "30": {
     "word": "a",
     "start": 68.454,
-    "end": 68.518
+    "end": 68.518,
+    "off": true
   },
   "31": {
     "word": "market",
@@ -16,8 +22,8 @@
   },
   "34": {
     "word": "and",
-    "start": 69.825,
-    "end": 69.935
+    "start": 69.814,
+    "end": 69.92
   },
   "35": {
     "word": "fruits",
@@ -26,13 +32,26 @@
   },
   "36": {
     "word": "for",
-    "start": 70.239,
+    "start": 70.16,
     "end": 70.355
   },
   "38": {
     "word": "a",
     "start": 71.425,
-    "end": 71.489
+    "end": 71.489,
+    "off": true
+  },
+  "39": {
+    "word": "rich",
+    "off": true
+  },
+  "41": {
+    "word": "but",
+    "off": true
+  },
+  "42": {
+    "word": "the",
+    "off": true
   },
   "43": {
     "word": "bread",
@@ -46,7 +65,8 @@
   "46": {
     "word": "a",
     "start": 74.322,
-    "end": 74.388
+    "end": 74.388,
+    "off": true
   },
   "48": {
     "word": "an",
@@ -56,7 +76,8 @@
   "51": {
     "word": "there",
     "start": 76.1,
-    "end": 76.29
+    "end": 76.29,
+    "off": true
   },
   "52": {
     "word": "is",
@@ -65,7 +86,8 @@
   "55": {
     "word": "a",
     "start": 77.744,
-    "end": 77.823
+    "end": 77.823,
+    "off": true
   },
   "57": {
     "word": "is",
@@ -78,22 +100,33 @@
   "59": {
     "word": "a",
     "start": 78.934,
-    "end": 79.027
+    "end": 79.027,
+    "off": true
   },
   "60": {
     "word": "prison",
     "start": 79.04,
     "end": 79.409
   },
+  "61": {
+    "word": "to",
+    "off": true
+  },
   "62": {
     "word": "a",
     "start": 79.58,
-    "end": 79.669
+    "end": 79.669,
+    "off": true
+  },
+  "63": {
+    "word": "coin",
+    "off": true
   },
   "64": {
     "word": "a",
     "start": 81.04,
-    "end": 81.092
+    "end": 81.092,
+    "off": true
   },
   "65": {
     "word": "smooth",
@@ -116,12 +149,14 @@
   "70": {
     "word": "a",
     "start": 82.794,
-    "end": 82.889
+    "end": 82.889,
+    "off": true
   },
   "72": {
     "word": "a",
     "start": 84.361,
-    "end": 84.413
+    "end": 84.413,
+    "off": true
   },
   "75": {
     "word": "but",
@@ -150,7 +185,8 @@
   "83": {
     "word": "but",
     "start": 89.03,
-    "end": 89.143
+    "end": 89.143,
+    "off": true
   },
   "84": {
     "word": "it",
@@ -163,7 +199,12 @@
   "87": {
     "word": "a",
     "start": 91.053,
-    "end": 91.222
+    "end": 91.222,
+    "off": true
+  },
+  "90": {
+    "word": "but",
+    "off": true
   },
   "91": {
     "word": "behind",
@@ -176,8 +217,8 @@
   },
   "94": {
     "word": "what",
-    "start": 94.742,
-    "end": 94.895
+    "start": 94.71,
+    "end": 94.885
   },
   "95": {
     "word": "if",
@@ -217,12 +258,14 @@
   "104": {
     "word": "what",
     "start": 97.583,
-    "end": 97.693
+    "end": 97.701,
+    "off": true
   },
   "105": {
     "word": "if",
     "start": 97.687,
-    "end": 97.841
+    "end": 97.841,
+    "off": true
   },
   "106": {
     "word": "a",
@@ -251,23 +294,27 @@
   },
   "112": {
     "word": "and",
-    "start": 99.088,
-    "end": 99.186
+    "start": 99.081,
+    "end": 99.191,
+    "off": true
   },
   "114": {
     "word": "alone",
     "start": 100.763,
-    "end": 101.104
+    "end": 101.104,
+    "off": true
   },
   "117": {
     "word": "but",
     "start": 102.743,
-    "end": 102.94
+    "end": 102.92,
+    "off": true
   },
   "121": {
     "word": "but",
     "start": 105.464,
-    "end": 105.634
+    "end": 105.634,
+    "off": true
   },
   "125": {
     "word": "green",
@@ -286,8 +333,8 @@
   },
   "130": {
     "word": "by",
-    "start": 111.164,
-    "end": 111.31
+    "start": 111.138,
+    "end": 111.343
   },
   "131": {
     "word": "words",
@@ -297,7 +344,8 @@
   "132": {
     "word": "of",
     "start": 111.704,
-    "end": 111.79
+    "end": 111.79,
+    "off": true
   },
   "133": {
     "word": "unruly",
@@ -330,6 +378,10 @@
     "end": 115.933,
     "off": true
   },
+  "141": {
+    "word": "just",
+    "off": true
+  },
   "143": {
     "word": "its",
     "start": 117.125,
@@ -338,22 +390,31 @@
   "144": {
     "word": "not",
     "start": 117.285,
-    "end": 117.469
+    "end": 117.469,
+    "off": true
   },
   "147": {
     "word": "but",
     "start": 118.585,
-    "end": 118.74
+    "end": 118.74,
+    "off": true
   },
   "150": {
     "word": "welcome",
     "start": 119.965,
-    "end": 120.327
+    "end": 120.327,
+    "off": true
   },
   "151": {
     "word": "to",
     "start": 120.345,
-    "end": 120.465
+    "end": 120.477,
+    "off": true
+  },
+  "152": {
+    "word": "the",
+    "start": 120.441,
+    "end": 120.605
   },
   "153": {
     "word": "vaporwave",
@@ -368,61 +429,116 @@
   "156": {
     "word": "say",
     "start": 123.426,
-    "end": 123.655
+    "end": 123.599
   },
   "159": {
     "word": "welcome",
     "start": 125.186,
-    "end": 125.534
+    "end": 125.526
   },
   "160": {
     "word": "to",
-    "start": 125.586,
-    "end": 125.726
+    "start": 125.557,
+    "end": 125.723
   },
   "161": {
     "word": "club",
     "start": 125.726,
-    "end": 125.967
+    "end": 125.967,
+    "off": true
+  },
+  "162": {
+    "word": "vaporwave",
+    "off": true
   },
   "163": {
     "word": "hashtag",
     "start": 127.286,
-    "end": 127.765
+    "end": 127.765,
+    "off": true
   },
   "164": {
     "word": "say",
     "start": 127.826,
-    "end": 128.068
+    "end": 128.068,
+    "off": true
+  },
+  "165": {
+    "word": "nothing",
+    "off": true
+  },
+  "167": {
+    "word": "it",
+    "off": true
+  },
+  "168": {
+    "word": "is",
+    "off": true
   },
   "169": {
     "word": "what",
     "start": 130.187,
-    "end": 130.334
+    "end": 130.334,
+    "off": true
+  },
+  "170": {
+    "word": "it",
+    "off": true
+  },
+  "171": {
+    "word": "is",
+    "off": true
   },
   "172": {
     "word": "it",
     "start": 131.568,
-    "end": 131.707
+    "end": 131.707,
+    "off": true
+  },
+  "173": {
+    "word": "is",
+    "off": true
   },
   "174": {
     "word": "what",
     "off": true
   },
+  "175": {
+    "word": "it",
+    "off": true
+  },
+  "176": {
+    "word": "is",
+    "off": true
+  },
   "177": {
     "word": "i",
     "start": 133.221,
-    "end": 133.367
+    "end": 133.367,
+    "off": true
+  },
+  "178": {
+    "word": "do",
+    "off": true
+  },
+  "179": {
+    "word": "this",
+    "off": true
   },
   "180": {
     "word": "for",
-    "start": 133.667,
-    "end": 133.821
+    "start": 133.642,
+    "end": 133.821,
+    "off": true
   },
   "181": {
     "word": "a",
     "start": 133.848,
     "end": 133.927,
+    "off": true
+  },
+  "182": {
+    "word": "living",
     "off": true
   },
   "183": {
@@ -450,7 +566,8 @@
   "190": {
     "word": "them",
     "start": 136.808,
-    "end": 136.972
+    "end": 136.972,
+    "off": true
   },
   "191": {
     "word": "what's",
@@ -461,7 +578,12 @@
   "193": {
     "word": "i",
     "start": 138.193,
-    "end": 138.313
+    "end": 138.313,
+    "off": true
+  },
+  "194": {
+    "word": "tell",
+    "off": true
   },
   "196": {
     "word": "what's",
@@ -479,7 +601,7 @@
   },
   "201": {
     "word": "for",
-    "start": 140.308,
+    "start": 140.3,
     "end": 140.432
   },
   "202": {
@@ -496,14 +618,23 @@
     "word": "what",
     "off": true
   },
+  "207": {
+    "word": "it",
+    "off": true
+  },
+  "208": {
+    "word": "is",
+    "off": true
+  },
   "209": {
     "word": "a",
     "off": true
   },
   "212": {
     "word": "a",
-    "start": 144.869,
-    "end": 144.973
+    "start": 144.864,
+    "end": 144.973,
+    "off": true
   },
   "214": {
     "word": "laying",
@@ -527,7 +658,8 @@
   "219": {
     "word": "a",
     "start": 149.149,
-    "end": 149.25
+    "end": 149.25,
+    "off": true
   },
   "220": {
     "word": "person",
@@ -561,5 +693,10 @@
     "word": "piece",
     "start": 151.289,
     "end": 151.541
+  },
+  "229": {
+    "word": "of",
+    "start": 151.528,
+    "end": 151.679
   }
 }
