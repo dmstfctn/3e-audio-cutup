@@ -1,10 +1,14 @@
 /* --top: the header, once a track plays; --strip: the words won, from the games until writing;
    --tray: the tray's height, set from the page as it changes */
 :root { --top: 0px; --strip: 0px; --tray: 0px; }
-:root { --mute-w: 34px; }
+:root { --mute-w: 34px; }  /* the on button's width, and the gutter left of the lines that matches it */
 body.with-header { --top: 45px; }
 body.with-strip { --strip: 58px; }
 body { font: 16px "Times New Roman", Times, serif; margin: 16px; }
+/* the words' font: the tray, the lines, the strip and the words won, and submit's lines */
+@font-face { font-family: "Just Another Hand"; src: url(../fonts/JustAnotherHand-Regular.ttf) format("truetype"); font-display: block;
+             size-adjust: 140%; }  /* it runs small: bigger letters in the same boxes */
+:root { --hand: "Just Another Hand", "Times New Roman", Times, serif; }
 html { overscroll-behavior: none; }  /* no rubber-banding of a page that doesn't scroll (iOS) */
 
 /* the story's screens: text and button centred on the page, the text shown a line at a time */
@@ -56,19 +60,18 @@ html { overscroll-behavior: none; }  /* no rubber-banding of a page that doesn't
 #play { width: 20px; height: 20px; flex: none; }  /* a play or pause icon, never squeezed by the toggles */
 #play svg { display: block; width: 100%; height: 100%; }
 #play, #submit, #more, #fewer { background: none; border: 0; padding: 0; font: bold 16px Times, serif; color: black; cursor: pointer; }
-/* − at the left, under the handles, and + at the right, under the on / off buttons; each keeps its place when hidden */
-/* − and + together at the right, under the mute buttons; each keeps its place when hidden, so + never moves */
+/* − and + together at the right, + under the on buttons; each keeps its place when hidden, so + never moves */
 #more-lines { display: flex; justify-content: flex-end; gap: 4px; margin-top: 8px; }
 #more, #fewer { font-size: 20px; }
 #fewer { width: 20px; text-align: center; }
-#more { width: var(--mute-w); text-align: left; }   /* mute's width, starting where its text does */
+#more { width: var(--mute-w); text-align: left; }   /* on's width, starting where its text does */
 #more[hidden], #fewer[hidden] { display: block; visibility: hidden; }
 #submit[hidden], #more-lines[hidden] { display: none; }
 @media (max-width: 640px) { #submit { font-size: 14px; margin-left: 8px; } }  /* after five toggles, it just fits at 390px */
 
 #lines { position: relative; padding: 8px 0; display: flex; flex-direction: column; gap: 8px; }
-/* a line's row: its handle, the
-   line, and its on / off button, all standing on the line */
+/* a line's row: the line, then its on button, standing on the line; the gutter on the left (as wide as
+   on) keeps the lines centred. The handles (.handle) are switched off in buildLines(). */
 .row { display: flex; gap: 8px; align-items: flex-end; padding-left: calc(var(--mute-w) + 8px); }
 .row[hidden] { display: none; }
 .row .line { flex: 1; min-width: 0; }
@@ -76,10 +79,13 @@ html { overscroll-behavior: none; }  /* no rubber-banding of a page that doesn't
           user-select: none; -webkit-user-select: none; touch-action: none; }
 .row.moving { opacity: .4; }
 #row-marker { position: absolute; left: 0; right: 0; height: 2px; background: var(--ink, black); display: none; pointer-events: none; }
-/* mute: small uppercase, underlined while its line is muted (the line itself fades) */
+/* on: small uppercase, greyed out (faded as its line is) while the line's off */
 .line-on { flex: none; width: var(--mute-w); padding: 0; border: 0; background: none; color: inherit; font: 12px Times, serif; text-transform: uppercase; text-align: left; cursor: pointer; }
-.line-on[aria-pressed="true"] { opacity: .3; }
+.line-on[aria-pressed="false"] { opacity: .3; }
 .line.off { opacity: .3; }
+/* a line in a notebook, with ticks standing on it: grey for the 8 beats, black and wider at both ends
+   and the bar line after 4. The line reaches 3px past the words' room at each end, and words sit 2px
+   above it. The beat ticks are placed in the words' room, 3px in. */
 .line {
   position: relative; display: flex; height: 2em; margin: 0 -3px; padding: 0 3px 2px; border-bottom: 2px solid var(--ink, black);
   background:
@@ -103,9 +109,13 @@ html { overscroll-behavior: none; }  /* no rubber-banding of a page that doesn't
   box-sizing: border-box; flex: none; height: 2em; line-height: calc(2em - 2px);
   width: calc(var(--d) * var(--pps) * 1px);
   border: 1px solid black; padding: 0 1px; background: white; overflow: hidden; white-space: nowrap; text-align: center;
-  font-family: "Times New Roman", Times, serif;
+  font-family: var(--hand);
   cursor: pointer; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
+  rotate: var(--tilt, 0deg);  /* set per word by tilt() */
+  letter-spacing: 0.5px;
 }
+/* a word's text leans apart from its box, in the tray, the lines and the strip */
+.word > span, .chip > span, #show-lines span { display: inline-block; rotate: var(--text-tilt, 0deg); }
 /* dragged by a finger: the word stays behind, faded, and a copy follows the finger */
 .word.lifted { opacity: .3; }
 .word.dragged { z-index: 13; box-shadow: 0 4px 8px rgb(0 0 0 / .3); }
@@ -140,7 +150,7 @@ body:has(#minigame:not([hidden])), body:has(#show:not([hidden])) { overflow: hid
 #strip[hidden] { display: none; }
 /* a word won is bold text in one of its photo's strip colours (--hue, set by chip()); it becomes a block in the tray */
 .chip { flex: none; box-sizing: border-box; height: 2em; line-height: calc(2em - 2px); padding: 0 8px; border: 1px solid transparent; background: none;
-        color: var(--hue, black); white-space: nowrap; font: bold 16px Times, serif; }
+        color: var(--hue, black); white-space: nowrap; font: 16px var(--hand); }
 /* on a dark page (where the header hides) the strip inverts, and the words won go grey */
 body.dark #strip { background: black; border-color: #ccc; color: #ccc; }
 body.dark .chip, .chip.grey, body.writing .chip.grey[data-bin] { background: transparent; border-color: transparent; color: #777; }
@@ -186,6 +196,6 @@ body.writing #show-lines span.said { color: #ccc; }
 #show-text:empty { display: none; }
 #show-text p { margin: 0 0 1em; }
 #show-text a { color: inherit; }
-#show-lines { display: flex; flex-direction: column; gap: 16px; font-size: clamp(22px, 4vw, 40px); }
+#show-lines { display: flex; flex-direction: column; gap: 16px; font: clamp(22px, 4vw, 40px) var(--hand); }
 #show-lines span { color: #bbb; transition: color .1s; }
 #show-lines span.said { color: black; }

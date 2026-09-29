@@ -23,6 +23,7 @@ const BURST = [240, 480];                      // px: how far a +1 flies out fro
 const LINE_GAP = 350;                           // ms between the rows a page's button reveals together
 const BUTTON_GAP = 600;                         // ms from the last of them to the next button
 const TRY_MS = 1000;                            // how long a try's win shows before the story goes on
+const TILT = 1;                               // degrees a word's box, and its text, lean either way at most
 // The game runs through the steps of story.yaml's sequence (see its comments), each one of these kinds:
 //   page:  a screen of text, shown a line at a time, each line with its own button
 //          (its rows can be images), or one image
@@ -753,7 +754,7 @@ function enter(k) {
   shown = 1;
   if (phase === 'games') { task = 0; results = {}; retried = []; $('#strip').replaceChildren(); }
   if (phase === 'write') stopLoop();  // the lines start from the first
-  // NEW: line 1 starts as pause 2 + pause 1 + a yeah
+  // line 1 starts as a 2-beat pause, a 1-beat pause and a yeah
   if (phase === 'write' && lines.every(l => l.length === 0)) {
     const yeah = paletteWords().find(w => w.bin === 'yeah');  // one the tray offers
     lines[0] = [restId(2), restId(1), ...(yeah ? [yeah.id] : [])];
@@ -1042,7 +1043,8 @@ function chip(text, key, hue = results[key]?.hues?.[text] ?? run?.hues[text] ?? 
   const el = document.createElement('div');
   el.className = 'chip';
   el.style.setProperty('--hue', hue);
-  el.textContent = text;
+  el.style.setProperty('--text-tilt', `${randomTilt()}deg`);
+  el.append(textSpan(text));
   el.dataset.bin = words[takesOf(text)[0]]?.bin;
   el.dataset.game = key;
   return el;
@@ -1076,7 +1078,7 @@ function flyWords(texts, x, y, key, flash) {
   texts.forEach((t, k) => setTimeout(() => {
     if (stripGen[key] === gen) {
       flyWord(t, x, y, key, flash);
-      playUnlock();   // <-- new
+      playUnlock();
     }
   }, k * FLY_GAP));
 }
@@ -1197,8 +1199,8 @@ $('#submit').addEventListener('click', async () => {
     const line = document.createElement('div');
     for (const [id, at] of playLine(i, t, true)) {
       if (words[id].bin === 'rest') continue;
-      const span = document.createElement('span');
-      span.textContent = words[id].text;
+      const span = textSpan(words[id].text);
+      span.style.rotate = `${randomTilt()}deg`;
       line.append(span, ' ');
       cues.push([span, at]);
     }
@@ -1291,11 +1293,29 @@ function wordEl(w) {
   el.className = 'word';
   el.dataset.id = w.id;
   el.dataset.bin = w.bin;  // its shade
-  el.textContent = w.text;
+  el.append(textSpan(w.text));
   el.title = w.bin === 'rest' ? `pause (${w.d.toFixed(2)}s)` : `${w.text} (${w.bin}, ${w.d.toFixed(2)}s)`;
   el.style.setProperty('--d', w.d);
   el.draggable = !COARSE;  // a finger drags with touchDrag instead
   return el;
+}
+
+// a word's text in a span of its own, so it can lean apart from its box
+function textSpan(text) {
+  const span = document.createElement('span');
+  span.textContent = text;
+  return span;
+}
+const randomTilt = () => (Math.random() * 2 - 1) * TILT;
+// Each word in the tray and in the lines leans a little, its box one way and its text another. The tilts are
+// kept per word (for the tray, and for the lines), so redrawing a line doesn't shuffle them; they're dealt
+// again when the word is clicked into the lines or dropped.
+const tilts = { tray: {}, lines: {} };
+function tilt(el, where, id, again = false) {
+  if (again || !tilts[where][id]) tilts[where][id] = [randomTilt(), randomTilt()];
+  const [box, text] = tilts[where][id];
+  el.style.setProperty('--tilt', `${box}deg`);
+  el.style.setProperty('--text-tilt', `${text}deg`);
 }
 
 // The tray: every word in one panel, the pauses first, shortest first, then the words A to Z (a word's
@@ -1319,8 +1339,9 @@ function buildPalette(before = null, delay = 0) {
   list.className = 'tray-words';
   list.append(...sorted.map(w => {
     const el = wordEl(w);
+    tilt(el, 'tray', w.id);
     el.addEventListener('dragstart', e => startDrag(e, { id: w.id, from: null }));
-    el.addEventListener('click', () => { playWord(w.id); addWord(w.id); });
+    el.addEventListener('click', () => { playWord(w.id); tilt(el, 'tray', w.id, true); addWord(w.id); });
     touchDrag(el, { id: w.id, from: null }, true);
     if (morphing.has(w.id)) el.style.visibility = 'hidden';
     if (enterDelays.has(w.id)) {
@@ -1386,7 +1407,8 @@ function onPaletteDrop(e) {
   if (dragging && dragging.from !== null) removeWord(dragging.from, dragging.index);
 }
 
-// Each line in a row: a handle to move it, and after it its on button, greyed out while it's off
+// Each line in a row, with its on button after it, greyed out while it's off. The handle that moved a
+// line (startRowDrag) is switched off.
 function buildLines() {
   const container = $('#lines');
   for (let i = 0; i < MAX_LINES; i++) {
@@ -1493,9 +1515,10 @@ function renderLine(i) {
   const line = lineEls[i];
   line.replaceChildren(markerEls[i], playheadEls[i]);
   line.classList.toggle('off', lineOff[i]);
-  onEls[i].setAttribute('aria-pressed', lineOff[i]);
+  onEls[i].setAttribute('aria-pressed', !lineOff[i]);
   lines[i].forEach((id, index) => {
     const el = wordEl(words[id]);
+    tilt(el, 'lines', id);
     el.addEventListener('dragstart', e => startDrag(e, { id, from: i, index }));
     el.addEventListener('click', () => removeWord(i, index));
     touchDrag(el, { id, from: i, index }, false);
@@ -1539,6 +1562,7 @@ function addWord(id) {
   }
   insertAt(i, idx, id);
   last = [i, idx];
+  delete tilts.lines[id];  // a new lean
   renderLine(i);
   save();
 }
@@ -1607,7 +1631,9 @@ function dropAt(i, x) {
   } else {
     insertAt(i, idx, id);
     last = [i, idx];
+    if (trayHome.has(id)) tilt(trayHome.get(id), 'tray', id, true);
   }
+  delete tilts.lines[id];  // a new lean
   renderLine(i);
   save();
 }
@@ -1810,6 +1836,7 @@ function playWord(id, when = ctx.currentTime) {
   if (w.a !== null) playSlice(wordsBuf, when, w.a, w.d, FADE);
 }
 
+// the sounds of a point scored (click.mp3) and a word won (win.mp3); they load after [start] is enabled
 let unlockBuf = null;
 fetch('audio/win.mp3')
   .then(r => r.arrayBuffer())
