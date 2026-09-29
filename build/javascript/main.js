@@ -124,7 +124,7 @@ async function load() {
       const b = Math.min(voice.duration, w.end + PAD);
       words[w.id] = { id: w.id, text: w.word.toLowerCase(), raw: w.raw.toLowerCase(), bin: w.bin, line: w.line, a, d: b - a };
     }
-    await Promise.all([applyClips(), loadColours()]);
+    await Promise.all([applyClips(), loadColours(), loadWordColours()]);
     await applyBinOverrides();
     for (const w of Object.values(words)) (takes[w.text] ??= []).push(w.id);
     loadStory(story);
@@ -200,6 +200,15 @@ async function loadColours() {
   } catch (e) {
     warnings.push(`colours.json ignored, could not read it: ${e.message}`);
   }
+}
+// config/word-colours.yaml: the words' colours by bin when writing, from the scheme its use: names, as --bin-<bin>
+// on the page for style.css; a bin it leaves out keeps style.css's own (the original scheme)
+async function loadWordColours() {
+  const doc = await readYaml('config/word-colours.yaml');
+  if (!doc) return;
+  const scheme = doc.schemes?.[doc.use];
+  if (!scheme) { warnings.push(`word-colours.yaml: no scheme "${doc.use}", using the original colours`); return; }
+  for (const [bin, colour] of Object.entries(scheme)) document.documentElement.style.setProperty(`--bin-${bin}`, colour);
 }
 // the colours for a win in game key on these photos: the game's, or else the photos' own lists together, or else
 // default's

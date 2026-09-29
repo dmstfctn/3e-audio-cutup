@@ -259,14 +259,15 @@ body.writing #play, body.writing #submit, body.writing #more, body.writing #fewe
 body.writing .toggle { background: #444; border-color: #ccc; color: #ccc; }
 body.writing .word, body.writing .chip { background: black; border-color: black; color: #ccc; }
 body.writing .chip { font-weight: normal; }  /* flying from the strip into the tray, a block like the tray's words */
-/* a word's colour by its bin, each 25% darker than c9ccd56's: nouns red, verbs green, adjectives (and describers)
-   blue, yeahs yellow, pronouns and glue grey, pauses light grey; black text on them */
-body.writing :is(.word, .chip)[data-bin="noun"] { background: #bf5c5c; color: black; }
-body.writing :is(.word, .chip)[data-bin="verb"] { background: #57a16b; color: black; }
-body.writing :is(.word, .chip):is([data-bin="adjective"], [data-bin="describer"]) { background: #5f89bf; color: black; }
-body.writing :is(.word, .chip)[data-bin="yeah"] { background: #bfa238; color: black; }
-body.writing :is(.word, .chip):is([data-bin="pronoun"], [data-bin="glue"]) { background: #737373; color: black; }
-body.writing .word[data-bin="rest"] { background: #bfbfbf; color: black; }
+/* a word's colour by its bin, from config/word-colours.yaml (loadWordColours() sets the --bin-s); these are its
+   original scheme, for when it can't be read. Black text on them */
+body.writing :is(.word, .chip)[data-bin="noun"] { background: var(--bin-noun, #bf5c5c); color: black; }
+body.writing :is(.word, .chip)[data-bin="verb"] { background: var(--bin-verb, #57a16b); color: black; }
+body.writing :is(.word, .chip):is([data-bin="adjective"], [data-bin="describer"]) { background: var(--bin-adjective, #5f89bf); color: black; }
+body.writing :is(.word, .chip)[data-bin="yeah"] { background: var(--bin-yeah, #bfa238); color: black; }
+body.writing :is(.word, .chip)[data-bin="glue"] { background: var(--bin-glue, #737373); color: black; }
+body.writing :is(.word, .chip)[data-bin="pronoun"] { background: var(--bin-pronoun, var(--bin-glue, #737373)); color: black; }
+body.writing .word[data-bin="rest"] { background: var(--bin-pause, #bfbfbf); color: black; }
 /* a word under the mouse lights up, whatever its colour (not on touch, where hover sticks after a tap) */
 @media (hover: hover) { body.writing .word:hover { box-shadow: inset 0 0 0 100px rgba(255, 255, 255, .3); } }
 body.writing #palette { --tray-bg: black; background: black; border-color: #ccc; }

@@ -29,6 +29,7 @@ The game started as a copy of prototype-09 (see [Two lines, live rewards](#two-l
   - `story.yaml`: the order the game runs in (pages of text and images, tries, games, the end), the first line and its words, the words given for writing, and the text shown once the lines are submitted
   - `bins.yaml`: word category fixes (see [Fix word categories](#fix-word-categories))
   - `colours.json`: the colours of the +1s, a word won's flash and its colour in the strip, per photo, from the colour picker (see [Pick the effects' colours](#pick-the-effects-colours)). Optional.
+  - `word-colours.yaml`: the words' colours by bin, as schemes; `use:` picks one
   - `clips.json`: trims and recordings switched off, from the clip picker (see [Trim and pick recordings](#trim-and-pick-recordings)). Optional.
 - `build/javascript/`: `main.js` runs the page, `minigames.js` the games, and `lib/` holds js-yaml
 - `build/style/`: the page's styles (`style.css`) and the games' (`minigames.css`)

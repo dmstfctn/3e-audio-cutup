@@ -1,0 +1,93 @@
+# The colours of the words in the tray and the lines, by bin, when writing.
+#
+# - use: the scheme the game uses, one of the names under schemes.
+# - Each scheme gives a colour per bin: noun, verb, adjective (describers too),
+#   yeah, glue (pronouns too, unless the scheme has its own pronoun) and pause.
+#   A bin a scheme leaves out keeps its colour from original.
+# - Colours are hex in quotes ('#bf5c5c'), as a bare # starts a comment.
+# - Words are black on them. Other bins stay black with grey text.
+# - Reload the page to see edits. A use: that isn't a scheme shows a warning
+#   above the lines, and the game uses original.
+
+use: original
+
+schemes:
+  # the colours before any of these were tried
+  original:
+    noun: '#bf5c5c'
+    verb: '#57a16b'
+    adjective: '#5f89bf'
+    yeah: '#bfa238'
+    glue: '#737373'
+    pause: '#bfbfbf'
+
+  # tan, green, blue, pink, beige
+  earth:
+    noun: '#a47245'
+    verb: '#72863b'
+    adjective: '#656c97'
+    yeah: '#c963d0'
+    glue: '#cab8aa'
+    pause: '#bfbfbf'
+
+  # earth with coral yeahs
+  earth-coral:
+    noun: '#a47245'
+    verb: '#72863b'
+    adjective: '#656c97'
+    yeah: '#fe7e66'
+    glue: '#cab8aa'
+    pause: '#bfbfbf'
+
+  # earth with yellow yeahs and warmer grey pauses
+  earth-yellow:
+    noun: '#a47245'
+    verb: '#72863b'
+    adjective: '#656c97'
+    yeah: '#eac22c'
+    glue: '#cab8aa'
+    pause: '#bebfbb'
+
+  # teal, yellow, pink, red, cyan, white
+  bright:
+    noun: '#26d4a4'
+    verb: '#e2e632'
+    adjective: '#c963d0'
+    yeah: '#c03437'
+    glue: '#a3f3ef'
+    pause: '#f0f2f1'
+
+  # sand, brick, shale, mortar, beige, white
+  brick:
+    noun: '#fccf8a'
+    verb: '#b86c66'
+    adjective: '#a8b1b3'
+    yeah: '#b38048'
+    glue: '#cab8aa'
+    pause: '#f0f2f1'
+
+  blues:
+    noun: '#6b8cd1'
+    verb: '#8db3cc'
+    adjective: '#656c97'
+    yeah: '#a3f3ef'
+    glue: '#99bfec'
+    pause: '#a8b1b3'
+
+  # blues at half saturation
+  blues-muted:
+    noun: '#8495b8'
+    verb: '#9db0bc'
+    adjective: '#72758b'
+    yeah: '#b7dfdd'
+    glue: '#aec1d7'
+    pause: '#abafb0'
+
+  # blues at no saturation, each as light as its blue
+  greys:
+    noun: '#9e9e9e'
+    verb: '#acacac'
+    adjective: '#7e7e7e'
+    yeah: '#cbcbcb'
+    glue: '#c2c2c2'
+    pause: '#aeaeae'
