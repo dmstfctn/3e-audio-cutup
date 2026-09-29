@@ -69,6 +69,7 @@ html { overscroll-behavior: none; }  /* no rubber-banding of a page that doesn't
 #play { width: 20px; height: 20px; flex: none; }  /* a play or pause icon, never squeezed by the toggles */
 #play svg { display: block; width: 100%; height: 100%; }
 #play, #submit, #more, #fewer { background: none; border: 0; padding: 0; font: bold 16px Times, serif; color: black; cursor: pointer; }
+#more, #fewer { font-family: Arial, sans-serif; }
 /* − and + together at the right, + under the on buttons; each keeps its place when hidden, so + never moves */
 #more-lines { display: flex; justify-content: flex-end; align-items: center; gap: 4px; margin-top: 8px; }
 #more, #fewer { font-size: 20px; }
@@ -112,7 +113,8 @@ html { overscroll-behavior: none; }  /* no rubber-banding of a page that doesn't
 .row.moving { opacity: .4; }
 #row-marker { position: absolute; left: 0; right: 0; height: 2px; background: var(--ink, black); display: none; pointer-events: none; }
 /* on: small uppercase, greyed out (faded as its line is) while the line's off */
-.line-on { flex: none; width: var(--mute-w); padding: 0; border: 0; background: none; color: inherit; font: 12px Times, serif; text-transform: uppercase; text-align: left; cursor: pointer; }
+.line-on { flex: none; width: var(--mute-w); padding: 0; border: 0; background: none; color: inherit; font: 12px Arial, sans-serif; text-transform: uppercase; text-align: left; cursor: pointer;
+           line-height: 1; position: relative; top: 1px; }  /* its letters' foot on the line's bottom edge, not its box's */
 .line-on[aria-pressed="false"] { opacity: .3; }
 .line.off { opacity: .3; }
 /* phones: no on buttons (#active has them) and no gutter, the lines 2px from the screen's edges (the line
@@ -193,6 +195,12 @@ html { overscroll-behavior: none; }  /* no rubber-banding of a page that doesn't
         1px bottom / calc(var(--beat) * 7px) 6px no-repeat;
   }
   #lines { gap: 10px; }  /* the lines as far apart as before the words were shortened */
+}
+/* phones on their side: the phone's small words (their blocks 2em, so 24px high, as the lines are), and the
+   tray no more than 40% of the screen, as on phones */
+@media (orientation: landscape) and (max-height: 500px) {
+  #palette { max-height: 40svh; }
+  #palette .word, .word.dragged, .word.peek, .line { font-size: 12px; }
 }
 
 
