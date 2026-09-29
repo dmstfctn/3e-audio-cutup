@@ -984,6 +984,7 @@ function progress(k, ev) {
   for (const t of fresh) run.hues[t] = pickOne(pal.strip);
   flyWords(fresh, ev.x, ev.y, run.key, pal.flash);
   burstPoints(run.points - before, ev.x, ev.y, run.key, pal.points);
+  playClick();
   const percent = run.total ? run.points / run.total * 100 : 0;
   for (const u of REWARDS[run.key] ?? []) {
     if (!(percent > u.above) || run.given.has(u)) continue;
@@ -1820,6 +1821,24 @@ function playUnlock() {
   if (!unlockBuf) return;
   const src = ctx.createBufferSource();
   src.buffer = unlockBuf;
+  const g = ctx.createGain();
+  g.gain.value = 0.6;  // volume, 0 to 1
+  src.connect(g);
+  g.connect(ctx.destination);
+  src.start();
+}
+
+let clickBuf = null;
+fetch('audio/click.mp3')
+  .then(r => r.arrayBuffer())
+  .then(b => ctx.decodeAudioData(b))
+  .then(b => { clickBuf = b; })
+  .catch(() => console.warn("audio/click.mp3 didn't load"));
+
+function playClick() {
+  if (!clickBuf) return;
+  const src = ctx.createBufferSource();
+  src.buffer = clickBuf;
   const g = ctx.createGain();
   g.gain.value = 0.6;  // volume, 0 to 1
   src.connect(g);

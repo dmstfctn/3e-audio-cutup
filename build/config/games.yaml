@@ -158,7 +158,7 @@ find-all:
       reach: 40         # a click finds every drop within 30 of the photo's pixels
       points: 5         # half the game's, so many drops don't fly so many +1s
       rewards:
-        noun: [barclays, bike-lane, P12, SL, rain, crack, person]
+        noun: [rain, P12, barclays, SL, bike-lane, crack, person]
         adjective: [colourless]
 
 # Caption Match: every round is played each time, in a random order. Pick the
@@ -174,19 +174,19 @@ caption-match:
   rounds:
     - photo: 9.png
       caption: holding it furiously
-      decoys: [15.png, 16.png]
+      decoys: [15.jpg, 16.jpg]
       rewards:
         noun: [dog]
         verb: [holding]
         adjective: [furiously]
-    - photo: 7.png
+    - photo: 7.jpg
       caption: blowing paper
-      decoys: [13.png, 14.png]
+      decoys: [13.jpg, 14.jpg]
       rewards:
         verb: [made, hides]
         adjective: [poor, counterfeit]
-    - photo: 10.png
+    - photo: 10.jpg
       caption: Treasures from the Stone Age
-      decoys: [17.jpg, 18.png]
+      decoys: [17.jpg, 18.jpg]
       rewards:
         noun: [stone, time, treasure]
