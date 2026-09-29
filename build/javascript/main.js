@@ -1391,12 +1391,12 @@ function buildLines() {
   for (let i = 0; i < MAX_LINES; i++) {
     const row = document.createElement('div');
     row.className = 'row';
-    const handle = document.createElement('div');
+/*  const handle = document.createElement('div');
     handle.className = 'handle';
     handle.textContent = '≡';
     handle.title = 'drag to move this line';
     handle.addEventListener('pointerdown', e => startRowDrag(e, i));
-    const onOff = document.createElement('button');
+*/  const onOff = document.createElement('button');
     onOff.className = 'line-on';
     onOff.textContent = 'on';
     onOff.addEventListener('click', () => { lineOff[i] = !lineOff[i]; renderLine(i); save(); });
@@ -1409,7 +1409,7 @@ function buildLines() {
     line.addEventListener('dragover', e => onLineDragOver(e, i));
     line.addEventListener('dragleave', e => { if (!line.contains(e.relatedTarget)) marker.style.display = 'none'; });
     line.addEventListener('drop', e => onLineDrop(e, i));
-    row.append(handle, line, onOff);
+    row.append(/*handle, */line, onOff);
     container.append(row);
     rowEls.push(row); lineEls.push(line); markerEls.push(marker); playheadEls.push(playhead); onEls.push(onOff);
   }
@@ -1492,7 +1492,7 @@ function renderLine(i) {
   const line = lineEls[i];
   line.replaceChildren(markerEls[i], playheadEls[i]);
   line.classList.toggle('off', lineOff[i]);
-  onEls[i].setAttribute('aria-pressed', !lineOff[i]);
+  onEls[i].setAttribute('aria-pressed', lineOff[i]);
   lines[i].forEach((id, index) => {
     const el = wordEl(words[id]);
     el.addEventListener('dragstart', e => startDrag(e, { id, from: i, index }));

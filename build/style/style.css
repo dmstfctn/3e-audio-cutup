@@ -1,6 +1,7 @@
 /* --top: the header, once a track plays; --strip: the words won, from the games until writing;
    --tray: the tray's height, set from the page as it changes */
 :root { --top: 0px; --strip: 0px; --tray: 0px; }
+:root { --mute-w: 34px; }
 body.with-header { --top: 45px; }
 body.with-strip { --strip: 58px; }
 body { font: 16px "Times New Roman", Times, serif; margin: 16px; }
@@ -56,10 +57,11 @@ html { overscroll-behavior: none; }  /* no rubber-banding of a page that doesn't
 #play svg { display: block; width: 100%; height: 100%; }
 #play, #submit, #more, #fewer { background: none; border: 0; padding: 0; font: bold 16px Times, serif; color: black; cursor: pointer; }
 /* − at the left, under the handles, and + at the right, under the on / off buttons; each keeps its place when hidden */
-#more-lines { display: flex; justify-content: space-between; margin-top: 8px; }
+/* − and + together at the right, under the mute buttons; each keeps its place when hidden, so + never moves */
+#more-lines { display: flex; justify-content: flex-end; gap: 4px; margin-top: 8px; }
 #more, #fewer { font-size: 20px; }
-#fewer { width: 20px; text-align: center; }  /* the handle's width, centred as its ≡ is */
-#more { width: 18px; text-align: left; }    /* on's width, starting where its text does */
+#fewer { width: 20px; text-align: center; }
+#more { width: var(--mute-w); text-align: left; }   /* mute's width, starting where its text does */
 #more[hidden], #fewer[hidden] { display: block; visibility: hidden; }
 #submit[hidden], #more-lines[hidden] { display: none; }
 @media (max-width: 640px) { #submit { font-size: 14px; margin-left: 8px; } }  /* after five toggles, it just fits at 390px */
@@ -67,19 +69,17 @@ html { overscroll-behavior: none; }  /* no rubber-banding of a page that doesn't
 #lines { position: relative; padding: 8px 0; display: flex; flex-direction: column; gap: 8px; }
 /* a line's row: its handle, the
    line, and its on / off button, all standing on the line */
-.row { display: flex; gap: 8px; align-items: flex-end; }
+.row { display: flex; gap: 8px; align-items: flex-end; padding-left: calc(var(--mute-w) + 8px); }
 .row[hidden] { display: none; }
 .row .line { flex: 1; min-width: 0; }
 .handle { flex: none; width: 1em; text-align: center; font: 20px Times, serif; cursor: grab;
           user-select: none; -webkit-user-select: none; touch-action: none; }
 .row.moving { opacity: .4; }
 #row-marker { position: absolute; left: 0; right: 0; height: 2px; background: var(--ink, black); display: none; pointer-events: none; }
-/* on: small uppercase Arial, greyed out (faded as its line is) while the line's off */
-.line-on { flex: none; width: 18px; padding: 0; border: 0; background: none; color: inherit; font: 12px Times, serif; text-transform: uppercase; text-align: left; cursor: pointer; }
-.line.off, .line-on[aria-pressed="false"] { opacity: .3; }
-/* a line in a notebook, with ticks standing on it: grey for the 8 beats, black and wider at both ends
-   and the bar line after 4. The line reaches 3px past the words' room at each end, and words sit 2px
-   above it. The beat ticks are placed in the words' room, 3px in. */
+/* mute: small uppercase, underlined while its line is muted (the line itself fades) */
+.line-on { flex: none; width: var(--mute-w); padding: 0; border: 0; background: none; color: inherit; font: 12px Times, serif; text-transform: uppercase; text-align: left; cursor: pointer; }
+.line-on[aria-pressed="true"] { opacity: .3; }
+.line.off { opacity: .3; }
 .line {
   position: relative; display: flex; height: 2em; margin: 0 -3px; padding: 0 3px 2px; border-bottom: 2px solid var(--ink, black);
   background:
