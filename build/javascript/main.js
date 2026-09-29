@@ -1961,9 +1961,26 @@ function playSlice(buffer, when, offset, duration, fade, out = ctx.destination) 
   return src;
 }
 
-// the browser only lets audio start after a click
-document.addEventListener('pointerdown', () => { if (ctx.state !== 'running') ctx.resume(); });
+// iOS: Web Audio obeys the silent switch unless the page is in "playback" mode
+if (navigator.audioSession) navigator.audioSession.type = 'playback';   // iOS 16.4+
 
+// older iOS: a silent <audio> element playing makes the page "playback" too (built here, so it needs no file)
+function silentWav() {
+  const n = 800, b = new DataView(new ArrayBuffer(44 + n));
+  const s = (o, t) => [...t].forEach((c, i) => b.setUint8(o + i, c.charCodeAt(0)));
+  s(0, 'RIFF'); b.setUint32(4, 36 + n, true); s(8, 'WAVEfmt '); b.setUint32(16, 16, true); b.setUint16(20, 1, true); b.setUint16(22, 1, true);
+  b.setUint32(24, 8000, true); b.setUint32(28, 8000, true); b.setUint16(32, 1, true); b.setUint16(34, 8, true); s(36, 'data'); b.setUint32(40, n, true);
+  for (let i = 0; i < n; i++) b.setUint8(44 + i, 128);   // 8-bit silence
+  return URL.createObjectURL(new Blob([b], { type: 'audio/wav' }));
+}
+const keepAlive = new Audio(silentWav());
+keepAlive.loop = true;
+
+function wakeAudio() {
+  if (ctx.state !== 'running') ctx.resume();
+  if (keepAlive.paused) keepAlive.play().catch(() => {});
+}
+['pointerdown', 'touchend', 'click'].forEach(t => document.addEventListener(t, wakeAudio));
 // a word on its own, now or at when; pauses make no sound
 function playWord(id, when = ctx.currentTime) {
   const w = words[id];
