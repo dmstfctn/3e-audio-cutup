@@ -67,13 +67,9 @@ noun:
   - words   
 
 verb:
-  - are
-  - awaken
   - connected
-  - do
   - hides
   - holding
-  - is
   - laying
   - made
   - needed
@@ -83,10 +79,14 @@ verb:
   - sleep
   - stop
   - tell
-  - thats
-  - was
   - welcome
+  - awaken
+  - are
+  - do
+  - is
+  - was
   - what's
+
 
 adjective:
   - alone
@@ -147,6 +147,8 @@ glue:
   - to
   - with
   - there
+  - thats
+
 
 yeah:
   - yeah

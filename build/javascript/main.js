@@ -3,7 +3,7 @@ const BEATS_PER_LINE = 8;                       // 2 bars of 4/4
 const LINE_DUR = BEATS_PER_LINE * 60 / BPM;     // 3.343s
 const MIN_LINES = 2, MAX_LINES = 8;              // the lines showing, one more or fewer with the + / − below them
 const TRACK_LINES = 4;                          // the tracks are 8 bars: line i plays over bars 2i+1..2i+2, mod 8
-const TAKES = 2;                                // the most recordings of a word the tray offers, picked at random
+const TAKES = 1;                                // the most recordings of a word the tray offers, picked at random
 const MAX_YEAHS = 5;                            // the most yeahs the tray offers, picked at random
 const FIND_ALL_EXTRA = 3;                       // find-all: the most words a photo wins besides the thing's own
 // find-all: how likely each of those is to be a verb, an adjective (or describer) or a noun, of the ones the photo has
@@ -423,20 +423,17 @@ function loadUnlocks(doc) {
 // a warning; a game with nothing left can't be played.
 async function loadGames(doc) {
   if (!doc) return;
-  const problems = [], unknown = new Set(), misfiled = new Set();
+  const problems = [], unknown = new Set();
   const list = v => [].concat(v ?? []).map(x => String(x).trim()).filter(Boolean);  // a lone item works as well as a list
-  // a photo's words, from bin -> [words], in the order listed; first puts the thing found first
-  function rewards(where, bins, first = []) {
+  // a photo's words, a list in the order listed (the older lists by bin still work, their bins ignored)
+  function rewards(words) {
     const texts = [];
-    const add = (item, bin) => {
+    if (words && typeof words === 'object' && !Array.isArray(words)) words = Object.values(words).flatMap(list);
+    for (const item of list(words)) {
       const w = findWord(item.toLowerCase());
-      if (!w) return unknown.add(item);
-      if (bin && w.bin !== bin) misfiled.add(`${w.text} is ${w.bin}, not ${bin}`);
-      if (!texts.includes(w.text)) texts.push(w.text);
-    };
-    first.forEach(t => add(t));
-    if (bins != null && (typeof bins !== 'object' || Array.isArray(bins))) problems.push(`${where}: rewards needs bin names with lists of words`);
-    else for (const [bin, words] of Object.entries(bins ?? {})) list(words).forEach(t => add(t, bin));
+      if (!w) unknown.add(item);
+      else if (!texts.includes(w.text)) texts.push(w.text);
+    }
     return texts;
   }
   const settings = (key, g) => {
@@ -462,7 +459,7 @@ async function loadGames(doc) {
       for (const [k, r] of [].concat(g.rounds ?? []).entries()) {
         const where = `caption-match round ${k + 1}`;
         if (!r?.photo || !r.caption) { problems.push(`${where}: needs a photo and a caption`); continue; }
-        game.items.push({ photo: String(r.photo), caption: String(r.caption), decoys: list(r.decoys), rewards: rewards(where, r.rewards) });
+        game.items.push({ photo: String(r.photo), caption: String(r.caption), decoys: list(r.decoys), rewards: rewards(r.rewards) });
       }
       game.seconds = list(game.seconds).map(Number);
       if (!game.seconds.length || game.seconds.some(s => !(s > 0))) {
@@ -475,7 +472,7 @@ async function loadGames(doc) {
         const where = `pair-it pair ${k + 1}`;
         const photos = list(r?.photos);
         if (photos.length !== 2) { problems.push(`${where}: needs photos: [two photos]`); continue; }
-        game.items.push({ photos, rewards: rewards(where, r.rewards) });
+        game.items.push({ photos, rewards: rewards(r.rewards) });
       }
     } else {
       for (const [photo, p] of Object.entries(g.photos ?? {})) {
@@ -488,15 +485,18 @@ async function loadGames(doc) {
           return found ?? null;
         };
         if (key === 'find') {
-          // find: a thing per line, with an optional prompt after it; or a list of things
+          // find: a thing per line, with the word it wins after it (its own if none), or { reward, prompt };
+          // or a list of things
           const f = p?.find;
           const pairs = f && typeof f === 'object' && !Array.isArray(f) ? Object.entries(f) : list(f).map(t => [t, null]);
-          const targets = pairs.map(([t, prompt]) => ({ target: String(t), prompt: prompt == null ? null : String(prompt), shapes: thing(String(t)) }))
-            .filter(t => t.shapes);
+          const targets = pairs.map(([t, v]) => {
+            const o = v && typeof v === 'object' ? v : { reward: v };
+            return { target: String(t), prompt: o.prompt == null ? null : String(o.prompt), shapes: thing(String(t)),
+              reward: rewards(String(o.reward ?? t))[0] ?? null };
+          }).filter(t => t.shapes);
           if (!pairs.length) problems.push(`${where}: nothing to find`);
           if (!targets.length) continue;
-          game.items.push({ photo, viewBox: shapes.viewBox, targets,
-            rewards: rewards(where, p.rewards, targets.map(t => t.target)) });
+          game.items.push({ photo, viewBox: shapes.viewBox, targets, rewards: [...new Set(targets.map(t => t.reward).filter(Boolean))] });
         } else {
           const target = p?.find == null ? '' : String(p.find);
           if (!target) { problems.push(`${where}: nothing to find`); continue; }
@@ -515,7 +515,7 @@ async function loadGames(doc) {
             else problems.push(`${where}: points should be a whole number, e.g. 5`);
           }
           game.items.push({ photo, viewBox: shapes.viewBox, target, prompt: p.prompt == null ? null : String(p.prompt),
-            shapes: found, reach, points, rewards: rewards(where, p.rewards, [target]) });
+            shapes: found, reach, points, rewards: rewards(p.rewards ?? target) });
         }
       }
     }
@@ -525,7 +525,6 @@ async function loadGames(doc) {
   for (const key of Object.keys(GAME_DEFAULTS)) if (!(key in doc)) problems.push(`no ${key} in it, so that game can't be played`);
   if (problems.length) warnings.push(`games.yaml: ${problems.join('; ')}`);
   if (unknown.size) warnings.push(`games.yaml: not in the recording: ${[...unknown].join(', ')}`);
-  if (misfiled.size) warnings.push(`games.yaml: in another bin, shown there: ${[...misfiled].join(', ')}`);
 }
 
 const svgName = photo => `${photo.replace(/\.[^.]+$/, '')}.svg`;
@@ -874,9 +873,9 @@ function startTry(key) {
 
 let mounted = null;  // the game being played, so it can be torn down
 
-// find-all: a photo's words for a run, the thing's own and FIND_ALL_EXTRA of the others at random, each a verb,
+// find-all: a photo's words for a run, the first listed and FIND_ALL_EXTRA of the others at random, each a verb,
 // adjective or noun by EXTRA_ODDS (a kind the photo has none of left is skipped, and the others' odds scale up; its
-// other words come only once those run out); and the counts at which each is won: the thing's own word at the first
+// other words come only once those run out); and the counts at which each is won: the first listed at the first
 // found, the rest spread evenly up to finding them all
 function findAllWords(item) {
   const kind = text => { const b = Object.values(words).find(w => w.text === text)?.bin; return b === 'describer' ? 'adjective' : b; };
@@ -989,10 +988,10 @@ function totalOf(key, plays) {
   return each * (plays[0]?.[key === 'pair-it' ? 'pairs' : 'rounds'].length ?? 0);
 }
 
-// the words a run can win: find, each thing's own; find-all, each photo's for the run; pair-it, every pair's;
+// the words a run can win: find, each thing's; find-all, each photo's for the run; pair-it, every pair's;
 // caption-match, each round's first
 function possibleOf(key, plays) {
-  const texts = key === 'find' ? plays.map(p => findWord(p.t.target.toLowerCase())?.text)
+  const texts = key === 'find' ? plays.map(p => p.t.reward)
     : key === 'find-all' ? plays.flatMap(p => p.rewards)
     : key === 'pair-it' ? plays[0].pairs.flatMap(p => p.rewards)
     : plays[0].rounds.map(r => r.rewards[0]);
@@ -1037,7 +1036,7 @@ function progress(k, ev) {
   const pal = coloursOf(run.key, photos);
   if (run.key === 'find') {
     run.points += each;
-    won = [findWord(p.t.target.toLowerCase())?.text];
+    won = [p.t.reward];
   } else if (run.key === 'find-all') {
     run.points += (p.item.points ?? each) * ev.found.length;
     const n = (run.state.get(k) ?? 0) + ev.found.length;

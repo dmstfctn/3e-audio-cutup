@@ -8,12 +8,11 @@
 #   "bread", or "fruits_1", "fruits_2"… for several of one thing. Case is ignored,
 #   and anything after a _ is ignored. <polygon>, <path>, <rect>, <circle>,
 #   <ellipse> and <g> (a group counts as one shape) all work.
-# - rewards: the words a photo can win, grouped by bin as in config/story.yaml.
-#   Words match as in config/bins.yaml; a word listed under the wrong bin shows
-#   in its real bin, with a warning.
-# - The thing to find always counts as one of the photo's words, listed or not.
-# - prompt (optional): the text shown instead of "find: fruits". The thing's
-#   name is shown in bold wherever it appears in the prompt.
+# - rewards: the words a photo, pair or round can win, one list, in any bins:
+#   [fruits, market, sustainable]. The first is the first won. Words match as
+#   in config/bins.yaml and show in their own bin.
+# - prompt (optional): the text shown instead of "find the fruits". The
+#   thing's name is shown in bold wherever it appears in the prompt.
 # - Problems (a missing .svg, a word not in the recording, a thing with no
 #   shape) show as warnings above the lines, and that photo or thing is left out.
 # - Reload the page to see edits.
@@ -47,8 +46,9 @@ tracks:
   all: audio/track-full.mp3
 
 # Find It: one photo and one thing per play, every thing in every photo once.
-# A click that misses leaves the time running. Finding a thing wins its own
-# word only, however quick; the photo's other rewards aren't given.
+# A click that misses leaves the time running. Finding a thing wins one word,
+# however quick: the one after it (thing: word), or the thing's own word if
+# there's none. For a prompt too: thing: { reward: word, prompt: '...' }.
 find:
   title: find it
   seconds: 5
@@ -60,33 +60,24 @@ find:
   photos:
     1.jpg:
       find:
-        long:
-        bread:
-      rewards:
-        noun: [hot-dog, table, depth, bread]
-        adjective: [long, deep, shining, stale]
+        long: long
+        bread: bread
+      # was listed: hot-dog, table, depth, bread, long, deep, shining, stale
     2.jpg:
       find:
-        laying:
-        floor:
-      rewards:
-        noun: [bathroom, floor, fear]
-        verb: [laying, sleep]
+        laying: laying
+        floor: floor
+      # was listed: bathroom, floor, fear, laying, sleep
     4.jpg:
       find:
-        rich:
-        lucozade:
-      rewards:
-        noun: [lucozade, bombay]
-        adjective: [behind, together, rich]
+        rich: rich
+        lucozade: lucozade
+      # was listed: lucozade, bombay, behind, together, rich
     6.jpg:
       find:
-        sits:
-        feast:
-      rewards:
-        noun: [umbrella, chair, feast]
-        verb: [sits]
-        adjective: [hot]
+        sits: sits
+        feast: hot
+      # was listed: umbrella, chair, feast, sits, hot
 
 # Pair It: every pair's photos in one grid, played once. Click two photos with
 # the same energy to match them and win the pair's words. prompt is the line
@@ -101,30 +92,25 @@ pair-it:
       track: beat
   pairs:
     - photos: [pair-it/A1.jpg, pair-it/A2.jpg]
-      rewards:
-        verb: [awaken]
+      rewards: [awaken]
     - photos: [pair-it/B1.jpg, pair-it/B2.jpg]
-      rewards:
-        adjective: [together]
+      rewards: [together]
     - photos: [pair-it/C1.jpg, pair-it/C2.jpg]
-      rewards:
-        noun: [angels]
+      rewards: [angels]
     - photos: [pair-it/D1.jpg, pair-it/D2.jpg]
-      rewards:
-        adjective: [real]
+      rewards: [counterfeit]
     - photos: [pair-it/E1.jpg, pair-it/E2.jpg]
-      rewards:
-        verb: [say]
+      rewards: [say]
     - photos: [pair-it/F1.jpg, pair-it/F2.jpg]
-      rewards:
-        adjective: [unruly]
+      rewards: [unruly]
 
 # Find Them All: every photo once, whole, with the count found next to the
-# prompt. The thing's own word is won at the first found, then 3 of the others
+# prompt. The first word listed is won at the first found, then 3 of the others
 # picked at random each play, spread evenly up to finding them all (with 10 to
 # find, at 1, 5, 8 and 10). Each of the 3 is a verb (40%), an adjective (40%)
 # or a noun (20%), of the ones the photo has left (EXTRA_ODDS in main.js), so
-# list more verbs and adjectives for a photo to see them come up more.
+# list more verbs and adjectives for a photo to see them come up more. With no
+# rewards, the thing's own word is the only one.
 find-all:
   title: find them all
   seconds: 15
@@ -136,32 +122,21 @@ find-all:
   photos:
     11.jpg:
       find: green
-      rewards:
-        noun: [banana-fish, woman, phone-box]
-        adjective: [happy, green]
-        verb: [connected]
+      rewards: [green, banana-fish, woman, phone-box, happy, connected, deep]
     3.jpg:
       find: fruits
-      rewards:
-        noun: [market, fruits, sale, growntology]
-        adjective: [sustainable, renewable]
+      rewards: [fruits, market, sale, growntology, sustainable, renewable]
     8.jpg:
       find: ecology
-      rewards:
-        noun: [blessings, cloth, vegetables, ecology]
-        adjective: [much, alone]
+      rewards: [ecology, blessings, cloth, vegetables, much, alone, real]
     5.jpg:
       find: white
-      rewards:
-        noun: [piece, geometries]
-        adjective: [smooth, white, fine, minimal, blank]       
+      rewards: [white, piece, geometries, smooth, fine, minimal, blank]
     12.jpg:
       find: rain
       reach: 40         # a click finds every drop within 30 of the photo's pixels
       points: 5         # half the game's, so many drops don't fly so many +1s
-      rewards:
-        noun: [rain, P12, barclays, SL, bike-lane, crack, person]
-        adjective: [colourless]
+      rewards: [rain, P12, barclays, shining, SL, bike-lane, crack, person, colourless]
 
 # Caption Match: every round is played each time, in a random order. Pick the
 # photo the caption describes from it and its decoys to win its first word
@@ -177,18 +152,12 @@ caption-match:
     - photo: 9.png
       caption: holding it furiously
       decoys: [15.jpg, 16.jpg]
-      rewards:
-        noun: [dog]
-        verb: [holding]
-        adjective: [furiously]
+      rewards: [dog]
     - photo: 7.jpg
       caption: blowing paper
       decoys: [13.jpg, 14.jpg]
-      rewards:
-        verb: [made, hides]
-        adjective: [poor, counterfeit]
+      rewards: [made]
     - photo: 10.jpg
       caption: Treasures from the Stone Age
       decoys: [17.jpg, 18.jpg]
-      rewards:
-        noun: [stone, time, treasure]
+      rewards: [stone]

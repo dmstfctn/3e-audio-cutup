@@ -139,6 +139,6 @@ write:
   words:
     noun: [ ]
     adjective: [ ]
-    verb: [do, is, are, was, what's ]
-    pronoun: [I, it, my, nothing, them, this, what]
-    glue: [a, an, and, also, at, but, by, down, for, if, just, no, not, of, on, out, that, the, to, with, there]
+    verb: [do, is, are, was, what's, tell ]
+    pronoun: [I, it, my, nothing, them, this, what, its]
+    glue: [a, an, and, also, at, but, by, down, for, if, just, no, not, of, on, out, that, the, to, with, there, thats]
