@@ -131,7 +131,7 @@ find-all:
       rewards: [ecology, blessings, cloth, vegetables, much, alone, real]
     5.jpg:
       find: white
-      rewards: [white, piece, geometries, smooth, fine, minimal, blank]
+      rewards: [white, piece, geometries, smooth, fine, blank, minimal]
     12.jpg:
       find: rain
       reach: 40         # a click finds every drop within 30 of the photo's pixels
