@@ -92,11 +92,14 @@ html { user-select: none; -webkit-user-select: none; -webkit-touch-callout: none
    move right as lines are added; − takes no room while it's hidden */
 #active { display: none; }
 @media (max-width: 640px) {
-  #more-lines { justify-content: flex-start; }
+  /* the squares, − and + evenly spaced, about 6px apart: less the glyphs' own side space, which is wider left of + */
+  #more-lines { justify-content: flex-start; gap: 5px; }
+  #fewer { width: auto; }
+  #more { margin-left: -4px; }
   #fewer[hidden] { display: none; }
-  #active:not([hidden]) { display: flex; align-items: center; gap: 6px; padding: 2px 6px 4px 0;
+  #active:not([hidden]) { display: flex; align-items: center; padding: 2px 0 4px 0;
                           font: 10px Arial, sans-serif;}
-  #active-boxes { display: flex; gap: 3px; }
+  #active-boxes { display: flex; gap: 6px; }
   /* on: filled with the ink; off: faded as its line is */
   #active-boxes button { width: 12px; height: 12px; padding: 0; border: 1px solid var(--ink, black); border-radius: 0; background: var(--ink, black); cursor: pointer; }
   #active-boxes button[aria-pressed="false"] { opacity: .3; }
