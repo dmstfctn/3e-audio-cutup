@@ -29,6 +29,7 @@ const MINIGAMES = (() => {
 
   const SVG_NS = 'http://www.w3.org/2000/svg';
   const REVEAL_MS = 1000;  // how long the end of a play shows before the game moves on
+  const LOW_FRAC = 0.2, LOW_SECS = 2;  // the timer bar flashes red for the last 20% of the time or 2 s, whichever is longer
   const shuffle = a => {
     for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
     return a;
@@ -126,15 +127,18 @@ const MINIGAMES = (() => {
       stopped = null;
       live = true;
       root.firstChild.hidden = secs == null;
+      root.firstChild.classList.remove('low');
       if (secs == null) return;
+      const low = Math.max(LOW_FRAC, LOW_SECS / secs);
       const tick = now => {
         const left = 1 - (now - t0) / (secs * 1000);
         g.bar(left);
+        root.firstChild.classList.toggle('low', left <= low);
         if (left <= 0) { raf = null; live = false; onDone(); } else raf = requestAnimationFrame(tick);
       };
       raf = requestAnimationFrame(tick);
     };
-    g.stop = () => { if (live) stopped ??= performance.now(); cancelAnimationFrame(raf); raf = null; live = false; };
+    g.stop = () => { if (live) stopped ??= performance.now(); cancelAnimationFrame(raf); raf = null; live = false; root.firstChild.classList.remove('low'); };
     // seconds from the countdown starting to it stopping (or to now, while it runs)
     g.elapsed = () => started === null ? 0 : ((stopped ?? performance.now()) - started) / 1000;
     g.running = () => live;
