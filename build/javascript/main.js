@@ -887,8 +887,8 @@ function planRun(key) {
   const G = GAMES[key];
   const photo = name => `images/${name}`;
   // a play's right and wrong colours, from its photos' (or the game's)
-  const feedback = () => ({ ok: '#00ff00', bad: '#ff0000' });
-    if (key === 'find') {
+  const feedback = photos => { const c = coloursOf(key, photos); return { ok: c.success[0], bad: c.fail[0] }; };
+  if (key === 'find') {
     const all = shuffle(G.items.flatMap(item => item.targets.map(t => ({ item, t }))));
     return all.map(({ item, t }) => ({ item, t, data: { ...feedback([item.photo]), photo: photo(item.photo), viewBox: item.viewBox,
       shapes: t.shapes.map(s => s.el), target: t.target, prompt: t.prompt ?? `find the ${t.target}`,

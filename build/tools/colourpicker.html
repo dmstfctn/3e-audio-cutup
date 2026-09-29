@@ -156,6 +156,8 @@ function clean(doc) {
   for (const [key, o] of Object.entries(doc.games ?? {})) out.photos[key] = lists(o);
   // success / fail from when they were one pair of colours for every game (feedback) become the defaults'
   for (const k of SINGLE) if (!out.default[k].length && hex(doc.feedback?.[k])) out.default[k] = [hex(doc.feedback[k])];
+  // with none, success and fail start as green and red, so the file always sets them
+  for (const k of SINGLE) if (!out.default[k].length) out.default[k] = [...BUILT_IN[k]];
   return out;
 }
 // lists from before pair it was one set, under its pairs ('A1.jpg + A2.jpg') or its photos, are dropped
