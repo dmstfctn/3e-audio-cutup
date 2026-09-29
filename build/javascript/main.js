@@ -887,8 +887,8 @@ function planRun(key) {
   const G = GAMES[key];
   const photo = name => `images/${name}`;
   // a play's right and wrong colours, from its photos' (or the game's)
-  const feedback = photos => { const c = coloursOf(key, photos); return { ok: c.success[0], bad: c.fail[0] }; };
-  if (key === 'find') {
+  const feedback = () => ({ ok: '#00ff00', bad: '#ff0000' });
+    if (key === 'find') {
     const all = shuffle(G.items.flatMap(item => item.targets.map(t => ({ item, t }))));
     return all.map(({ item, t }) => ({ item, t, data: { ...feedback([item.photo]), photo: photo(item.photo), viewBox: item.viewBox,
       shapes: t.shapes.map(s => s.el), target: t.target, prompt: t.prompt ?? `find the ${t.target}`,
@@ -1844,14 +1844,19 @@ fetch('audio/win.mp3')
   .then(b => { unlockBuf = b; })
   .catch(() => console.warn("audio/win.mp3 didn't load"));
 
+let unlockSrc = null;  // the unlock sound that's playing now, if any
+
 function playUnlock() {
   if (!unlockBuf) return;
+  if (unlockSrc) { try { unlockSrc.stop(); } catch (e) {} }  // cut the previous one off, right now
   const src = ctx.createBufferSource();
   src.buffer = unlockBuf;
   const g = ctx.createGain();
   g.gain.value = 0.6;  // volume, 0 to 1
   src.connect(g);
   g.connect(ctx.destination);
+  src.onended = () => { if (unlockSrc === src) unlockSrc = null; };
+  unlockSrc = src;
   src.start();
 }
 

@@ -150,7 +150,7 @@ body:has(#minigame:not([hidden])), body:has(#show:not([hidden])) { overflow: hid
 #strip[hidden] { display: none; }
 /* a word won is bold text in one of its photo's strip colours (--hue, set by chip()); it becomes a block in the tray */
 .chip { flex: none; box-sizing: border-box; height: 2em; line-height: calc(2em - 2px); padding: 0 8px; border: 1px solid transparent; background: none;
-        color: var(--hue, black); white-space: nowrap; font: bold 24px var(--hand); }
+        color: var(--hue, black); white-space: nowrap; font: bold 20px var(--hand); }
 /* on a dark page (where the header hides) the strip inverts, and the words won go grey */
 body.dark #strip { background: black; border-color: #ccc; color: #ccc; }
 body.dark .chip, .chip.grey, body.writing .chip.grey[data-bin] { background: transparent; border-color: transparent; color: #777; }
