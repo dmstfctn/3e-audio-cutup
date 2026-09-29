@@ -135,6 +135,7 @@ async function load() {
   $('#palette').addEventListener('dragover', onPaletteDragOver);
   $('#palette').addEventListener('drop', onPaletteDrop);
   new ResizeObserver(sizeToWindow).observe(lineEls[0]);
+  document.fonts.addEventListener('loadingdone', () => markCut());  // words cut short were measured in the fallback font
   new ResizeObserver(() => document.documentElement.style.setProperty('--tray', `${$('#palette').offsetHeight}px`)).observe($('#palette'));
   $('#status').textContent = warnings.join(' · ');
   fillStrip();

@@ -7,11 +7,17 @@
 :root { --mute-w: calc(34 * var(--u)); }  /* the on button's width, and the gutter left of the lines that matches it */
 body.with-header { --top: calc(45 * var(--u)); }
 body.with-strip { --strip: calc(58 * var(--u)); }
-body { font: calc(16 * var(--u)) "Times New Roman", Times, serif; margin: 16px; }
-/* the words' font: the tray, the lines, the strip and the words won, and submit's lines */
+body { font: calc(16 * var(--u)) var(--hand); margin: 16px; }
+/* the game's font, Times condensed, everywhere but the on buttons and − / + (Arial) */
 /*@font-face { font-family: "Just Another Hand"; src: url(../fonts/JustAnotherHand-Regular.ttf) format("truetype"); font-display: block;
              size-adjust: 140%; }  /* it runs small: bigger letters in the same boxes */
-:root { --hand: /*"Just Another Hand", */"Times New Roman", Times, serif; }
+@font-face { font-family: "Times New Roman Condensed"; font-display: block;
+             src: url(../fonts/times-new-roman-mt-condensed-opentype-1_ufonts.com.woff2) format("woff2"),
+                  url(../fonts/times-new-roman-mt-condensed-opentype-1_ufonts.com.woff) format("woff"); }
+@font-face { font-family: "Times New Roman Condensed"; font-weight: bold; font-display: block;
+             src: url(../fonts/times-new-roman-mt-bold-condensed-opentype-1_ufonts.com.woff2) format("woff2"),
+                  url(../fonts/times-new-roman-mt-bold-condensed-opentype-1_ufonts.com.woff) format("woff"); }
+:root { --hand: /*"Just Another Hand", */"Times New Roman Condensed", "Times New Roman", Times, serif; }
 html { overscroll-behavior: none; }  /* no rubber-banding of a page that doesn't scroll (iOS) */
 * { touch-action: manipulation; }  /* no double-tap zoom (pinch still zooms); .handle sets its own */
 
@@ -44,7 +50,7 @@ html { overscroll-behavior: none; }  /* no rubber-banding of a page that doesn't
 /* the bars' colours change as a dark page comes and goes, as long as the tray takes to grow (MORPH_MS) */
 #ui-header, #strip, .toggle, .chip, #play, #submit { transition: background-color .9s, color .9s, border-color .9s, -webkit-text-stroke-color .9s; }
 .toggle { box-sizing: border-box; height: 2em; line-height: calc(2em - 2px); padding: 0 .5em; border: 1px solid black; border-radius: 0;
-          background: lightgray; color: black; font: 1em Times, serif; white-space: nowrap; cursor: pointer; user-select: none; }
+          background: lightgray; color: black; font: 1em var(--hand); white-space: nowrap; cursor: pointer; user-select: none; }
 .toggle[aria-pressed="false"] { opacity: .4; }  /* off */
 
 /* the lines centred between the header and the tray, scrolling only if they don't fit (the auto margins
@@ -71,7 +77,7 @@ html { overscroll-behavior: none; }  /* no rubber-banding of a page that doesn't
 /* plain bold text: play / pause, submit, and the − / + under the lines that removes or adds one */
 #play { width: calc(20 * var(--u)); height: calc(20 * var(--u)); flex: none; }  /* a play or pause icon, never squeezed by the toggles */
 #play svg { display: block; width: 100%; height: 100%; }
-#play, #submit, #more, #fewer { background: none; border: 0; padding: 0; font: bold 1em Times, serif; color: black; cursor: pointer; }
+#play, #submit, #more, #fewer { background: none; border: 0; padding: 0; font: bold 1em var(--hand); color: black; cursor: pointer; }
 #more, #fewer { font-family: Arial, sans-serif; }
 /* − and + together at the right, + under the on buttons; each keeps its place when hidden, so + never moves */
 #more-lines { display: flex; justify-content: flex-end; align-items: center; gap: calc(4 * var(--u)); margin-top: calc(8 * var(--u)); }
@@ -111,7 +117,7 @@ html { overscroll-behavior: none; }  /* no rubber-banding of a page that doesn't
 .row { display: flex; gap: calc(8 * var(--u)); align-items: flex-end; padding-left: calc(var(--mute-w) + 8 * var(--u)); }
 .row[hidden] { display: none; }
 .row .line { flex: 1; min-width: 0; }
-.handle { flex: none; width: 1em; text-align: center; font: 20px Times, serif; cursor: grab;
+.handle { flex: none; width: 1em; text-align: center; font: 20px var(--hand); cursor: grab;
           user-select: none; -webkit-user-select: none; touch-action: none; }
 .row.moving { opacity: .4; }
 #row-marker { position: absolute; left: 0; right: 0; height: 2px; background: var(--ink, black); display: none; pointer-events: none; }
@@ -167,7 +173,6 @@ html { overscroll-behavior: none; }  /* no rubber-banding of a page that doesn't
   font-family: var(--hand);
   cursor: pointer; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
   rotate: var(--tilt, 0deg);  /* set per word by tilt() */
-  letter-spacing: calc(.5 * var(--u));
 }
 /* a word's text leans apart from its box, in the tray, the lines and the strip */
 .word > span, .chip > span, #show-lines span { display: inline-block; rotate: var(--text-tilt, 0deg); }
@@ -227,7 +232,7 @@ html { overscroll-behavior: none; }  /* no rubber-banding of a page that doesn't
 body:has(#minigame:not([hidden])), body:has(#show:not([hidden])) { overflow: hidden; }  /* the page underneath doesn't scroll */
 #mg-body { position: relative; flex: 1; overflow: hidden; }
 #mg-card { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1em; padding: 1em; text-align: center; }
-#mg-card p { margin: 0; font-family: Times, serif; max-width: 32em; white-space: pre-line; }
+#mg-card p { margin: 0; font-family: var(--hand); max-width: 32em; white-space: pre-line; }
 #mg-buttons { display: flex; gap: 1.5em; }
 
 /* the words won in the games, newest on the right, the oldest pushed off the left */
@@ -269,7 +274,7 @@ body.writing #show-lines span.said { color: #ccc; }
    block when it lands; it's scaled by its font size, so its padding is in em and its outline stays 6px */
 .chip.bare { padding: 0 .5em; font-weight: normal; background: none; border-color: transparent; color: transparent; -webkit-text-stroke-width: calc(6 * var(--u)); }
 /* each +1: bare text with a black outline, green unless config/colours.json says otherwise */
-.point { font: calc(20 * var(--u)) Times, serif; color: #00ff00; -webkit-text-stroke: calc(4 * var(--u)) black; paint-order: stroke fill; white-space: nowrap; }
+.point { font: calc(20 * var(--u)) var(--hand); color: #00ff00; -webkit-text-stroke: calc(4 * var(--u)) black; paint-order: stroke fill; white-space: nowrap; }
 
 
 /* submit: the lines on their own, centred, lit word by word as they play */
