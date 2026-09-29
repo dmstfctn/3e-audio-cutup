@@ -25,6 +25,7 @@ const BURST = [240, 480];                      // px (times UNIT()): how far a +
 const LINE_GAP = 350;                           // ms between the rows a page's button reveals together
 const BUTTON_GAP = 600;                         // ms from the last of them to the next button
 const TOGGLE_FADE = 1;                          // seconds a track toggled at the end fades in or out
+const TAP_FLY_MS = 250;                         // a tray word clicked flying into its line
 const TRY_MS = 1000;                            // how long a try's win shows before the story goes on
 const TILT = 0;                               // degrees a word's box, and its text, lean either way at most
 // The game runs through the steps of story.yaml's sequence (see its comments), each one of these kinds:
@@ -1436,7 +1437,7 @@ function buildPalette(before = null, delay = 0) {
     const el = wordEl(w);
     tilt(el, 'tray', w.id);
     el.addEventListener('dragstart', e => startDrag(e, { id: w.id, from: null }));
-    el.addEventListener('click', () => { playWord(w.id); tilt(el, 'tray', w.id, true); addWord(w.id); });
+    el.addEventListener('click', () => { playWord(w.id); tilt(el, 'tray', w.id, true); addWord(w.id, el); });
     touchDrag(el, { id: w.id, from: null }, true);
     if (morphing.has(w.id)) el.style.visibility = 'hidden';
     if (enterDelays.has(w.id)) {
@@ -1699,8 +1700,8 @@ function removeWord(i, idx) {
 }
 
 // a word clicked in the tray goes after the word added last; if it doesn't fit there (or that line's off), at
-// the end of the next line on it fits; if it fits none, nowhere
-function addWord(id) {
+// the end of the next line on it fits; if it fits none, nowhere. It flies there from el, the tray word clicked.
+function addWord(id, el) {
   const room = i => !lineOff[i] && lineDur(i) + words[id].d <= LINE_DUR + 1e-6;
   let i = last ? last[0] : 0, idx = last ? last[1] + 1 : lines[0].length;
   if (!room(i)) {
@@ -1714,6 +1715,23 @@ function addWord(id) {
   delete tilts.lines[id];  // a new lean
   renderLine(i);
   save();
+  if (el) flyInto(el, lineEls[i].querySelectorAll('.word')[idx]);
+}
+
+// a copy of the tray word moves and stretches onto its place in the line, which shows once it lands
+function flyInto(from, to) {
+  const a = from.getBoundingClientRect(), b = to.getBoundingClientRect();
+  const fly = wordEl(words[to.dataset.id]), cs = getComputedStyle(from);
+  fly.classList.add('flying');
+  // the tray's sizes, which its own rules set
+  for (const k of ['fontSize', 'lineHeight', 'padding', 'minWidth']) fly.style[k] = cs[k];
+  Object.assign(fly.style, { left: `${a.left}px`, top: `${a.top}px`, width: `${a.width}px`, height: `${a.height}px`,
+    transformOrigin: '0 0' });
+  document.body.append(fly);
+  to.style.visibility = 'hidden';
+  const moved = `translate(${b.left - a.left}px, ${b.top - a.top}px) scale(${b.width / a.width}, ${b.height / a.height})`;
+  fly.animate([{ transform: 'none' }, { transform: moved }], { duration: TAP_FLY_MS, easing: 'ease-in-out' })
+    .finished.then(() => { fly.remove(); to.style.visibility = ''; });
 }
 
 let dragging = null;  // { id, from: lineIndex|null, index }
@@ -1785,20 +1803,38 @@ function dropAt(i, x) {
   delete tilts.lines[id];  // a new lean
   renderLine(i);
   save();
+  if (el) flyInto(el, lineEls[i].querySelectorAll('.word')[idx]);
+}
+
+// a copy of the tray word moves and stretches onto its place in the line, which shows once it lands
+function flyInto(from, to) {
+  const a = from.getBoundingClientRect(), b = to.getBoundingClientRect();
+  const fly = wordEl(words[to.dataset.id]), cs = getComputedStyle(from);
+  fly.classList.add('flying');
+  // the tray's sizes, which its own rules set
+  for (const k of ['fontSize', 'lineHeight', 'padding', 'minWidth']) fly.style[k] = cs[k];
+  Object.assign(fly.style, { left: `${a.left}px`, top: `${a.top}px`, width: `${a.width}px`, height: `${a.height}px`,
+    transformOrigin: '0 0' });
+  document.body.append(fly);
+  to.style.visibility = 'hidden';
+  const moved = `translate(${b.left - a.left}px, ${b.top - a.top}px) scale(${b.width / a.width}, ${b.height / a.height})`;
+  fly.animate([{ transform: 'none' }, { transform: moved }], { duration: TAP_FLY_MS, easing: 'ease-in-out' })
+    .finished.then(() => { fly.remove(); to.style.visibility = ''; });
 }
 
 // Touch screens have no HTML5 drag and drop, so a finger drags a copy of the word. In the tray, when its words
 // don't all fit and a swipe scrolls, the word has to be held first; otherwise it moves straight away. A tap
 // still clicks.
 const HOLD_MS = 300, SLOP = 8;  // how long a hold is, and px a finger can move before it's a swipe
-let touch = null;  // { info, el, x, y, hold, ghost, over }
+let touch = null;  // { info, el, x, y, dx, dy, hold, ghost, over }; dx, dy: where on the word the finger went down
 
 function touchDrag(el, info, hold) {
   el.addEventListener('touchstart', e => {
     if (e.touches.length > 1) return cancelTouch();
-    const t = e.touches[0], palette = $('#palette');
+    const t = e.touches[0], palette = $('#palette'), r = el.getBoundingClientRect();
     hold &&= palette.scrollHeight > palette.clientHeight;
-    touch = { info, el, x: t.clientX, y: t.clientY, hold: hold && setTimeout(() => liftTouch(), HOLD_MS) };
+    touch = { info, el, x: t.clientX, y: t.clientY, dx: t.clientX - r.left, dy: t.clientY - r.top,
+      hold: hold && setTimeout(() => liftTouch(), HOLD_MS) };
   }, { passive: true });
 }
 
@@ -1814,11 +1850,11 @@ function liftTouch() {
   moveTouch(touch.x, touch.y);
 }
 
-// the copy sits just above the finger, so it isn't hidden under it
+// the copy stays under the finger where the word was picked up, so it lands where the finger is
 function moveTouch(x, y) {
   const { ghost } = touch;
-  ghost.style.left = `${x - ghost.offsetWidth / 2}px`;
-  ghost.style.top = `${y - ghost.offsetHeight * 1.5}px`;
+  ghost.style.left = `${x - touch.dx}px`;
+  ghost.style.top = `${y - touch.dy}px`;
   const under = document.elementFromPoint(x, y);
   const i = lineEls.indexOf(under?.closest('.line'));
   markerEls.forEach(m => m.style.display = 'none');
