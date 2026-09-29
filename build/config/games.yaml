@@ -122,7 +122,9 @@ pair-it:
 # Find Them All: every photo once, whole, with the count found next to the
 # prompt. The thing's own word is won at the first found, then 3 of the others
 # picked at random each play, spread evenly up to finding them all (with 10 to
-# find, at 1, 5, 8 and 10).
+# find, at 1, 5, 8 and 10). Each of the 3 is a verb (40%), an adjective (40%)
+# or a noun (20%), of the ones the photo has left (EXTRA_ODDS in main.js), so
+# list more verbs and adjectives for a photo to see them come up more.
 find-all:
   title: find them all
   seconds: 15

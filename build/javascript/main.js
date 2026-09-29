@@ -6,6 +6,8 @@ const TRACK_LINES = 4;                          // the tracks are 8 bars: line i
 const TAKES = 2;                                // the most recordings of a word the tray offers, picked at random
 const MAX_YEAHS = 5;                            // the most yeahs the tray offers, picked at random
 const FIND_ALL_EXTRA = 3;                       // find-all: the most words a photo wins besides the thing's own
+// find-all: how likely each of those is to be a verb, an adjective (or describer) or a noun, of the ones the photo has
+const EXTRA_ODDS = { verb: .4, adjective: .4, noun: .2 };
 const PAD = 0.03;                               // seconds around each word's aligned bounds, unless config/clips.json sets them
 const FADE = 0.008;                             // seconds of fade in/out on each word
 const LOOKAHEAD = 0.15;                         // how far ahead lines are scheduled
@@ -872,9 +874,21 @@ function startTry(key) {
 
 let mounted = null;  // the game being played, so it can be torn down
 
-// find-all: a photo's words for a run, the thing's own and FIND_ALL_EXTRA of the others at random; and the
-// counts at which each is won: the thing's own word at the first found, the rest spread evenly up to finding them all
-const findAllWords = item => [item.rewards[0], ...shuffle(item.rewards.slice(1)).slice(0, FIND_ALL_EXTRA)];
+// find-all: a photo's words for a run, the thing's own and FIND_ALL_EXTRA of the others at random, each a verb,
+// adjective or noun by EXTRA_ODDS (a kind the photo has none of left is skipped, and the others' odds scale up; its
+// other words come only once those run out); and the counts at which each is won: the thing's own word at the first
+// found, the rest spread evenly up to finding them all
+function findAllWords(item) {
+  const kind = text => { const b = Object.values(words).find(w => w.text === text)?.bin; return b === 'describer' ? 'adjective' : b; };
+  const left = shuffle(item.rewards.slice(1)), extra = [];
+  while (extra.length < FIND_ALL_EXTRA && left.length) {
+    const kinds = Object.keys(EXTRA_ODDS).filter(k => left.some(t => kind(t) === k));
+    let r = Math.random() * kinds.reduce((sum, k) => sum + EXTRA_ODDS[k], 0), k = kinds.find(k => (r -= EXTRA_ODDS[k]) < 0) ?? kinds.at(-1);
+    const i = k ? left.findIndex(t => kind(t) === k) : 0;
+    extra.push(...left.splice(i, 1));
+  }
+  return [item.rewards[0], ...extra];
+}
 const steps = (item, won) => won.map((_, k) => k ? Math.ceil((k + 1) * item.shapes.length / won.length) : 1);
 
 function showGame() {
