@@ -26,6 +26,7 @@ const LINE_GAP = 350;                           // ms between the rows a page's 
 const BUTTON_GAP = 600;                         // ms from the last of them to the next button
 const TOGGLE_FADE = 1;                          // seconds a track toggled at the end fades in or out
 const TAP_FLY_MS = 250;                         // a tray word clicked flying into its line
+const BACK_FLY_MS = 180;                        // a line word clicked flying back to the tray
 const TRY_MS = 1000;                            // how long a try's win shows before the story goes on
 const TILT = 0;                               // degrees a word's box, and its text, lean either way at most
 // The game runs through the steps of story.yaml's sequence (see its comments), each one of these kinds:
@@ -1625,7 +1626,7 @@ function renderLine(i) {
     const el = wordEl(words[id]);
     tilt(el, 'lines', id);
     el.addEventListener('dragstart', e => startDrag(e, { id, from: i, index }));
-    el.addEventListener('click', () => removeWord(i, index));
+    el.addEventListener('click', () => { const r = el.getBoundingClientRect(); removeWord(i, index); flyBack(id, r); });
     touchDrag(el, { id, from: i, index }, false);
     peekable(el);
     // dragged out of the lines and dropped nowhere: remove it
@@ -1720,18 +1721,28 @@ function addWord(id, el) {
 
 // a copy of the tray word moves and stretches onto its place in the line, which shows once it lands
 function flyInto(from, to) {
-  const a = from.getBoundingClientRect(), b = to.getBoundingClientRect();
-  const fly = wordEl(words[to.dataset.id]), cs = getComputedStyle(from);
+  to.style.visibility = 'hidden';
+  flyTray(from, to.getBoundingClientRect(), true).then(() => to.style.visibility = '');
+}
+// a word clicked out of a line (at rect) flies back to its tray word, fading if that's scrolled out of view
+function flyBack(id, rect) {
+  const el = trayHome.get(id);
+  if (el) flyTray(el, rect, false);
+}
+// a copy of tray word el, flying between it and rect in the line, one way or the other
+function flyTray(el, rect, out) {
+  const a = el.getBoundingClientRect(), b = rect, view = $('#palette').getBoundingClientRect();
+  const fly = wordEl(words[el.dataset.id]), cs = getComputedStyle(el);
   fly.classList.add('flying');
   // the tray's sizes, which its own rules set
   for (const k of ['fontSize', 'lineHeight', 'padding', 'minWidth']) fly.style[k] = cs[k];
   Object.assign(fly.style, { left: `${a.left}px`, top: `${a.top}px`, width: `${a.width}px`, height: `${a.height}px`,
     transformOrigin: '0 0' });
   document.body.append(fly);
-  to.style.visibility = 'hidden';
-  const moved = `translate(${b.left - a.left}px, ${b.top - a.top}px) scale(${b.width / a.width}, ${b.height / a.height})`;
-  fly.animate([{ transform: 'none' }, { transform: moved }], { duration: TAP_FLY_MS, easing: 'ease-in-out' })
-    .finished.then(() => { fly.remove(); to.style.visibility = ''; });
+  const inLine = { transform: `translate(${b.left - a.left}px, ${b.top - a.top}px) scale(${b.width / a.width}, ${b.height / a.height})` };
+  const inTray = { transform: 'none', opacity: a.top >= view.top && a.bottom <= view.bottom ? 1 : 0 };
+  return fly.animate(out ? [inTray, inLine] : [inLine, inTray], { duration: out ? TAP_FLY_MS : BACK_FLY_MS, easing: 'ease-in-out' })
+    .finished.then(() => fly.remove());
 }
 
 let dragging = null;  // { id, from: lineIndex|null, index }
