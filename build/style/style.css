@@ -20,6 +20,8 @@ body { font: calc(16 * var(--u)) var(--hand); margin: 16px; }
 :root { --hand: /*"Just Another Hand", */"Times New Roman Condensed", "Times New Roman", Times, serif; }
 html { overscroll-behavior: none; }  /* no rubber-banding of a page that doesn't scroll (iOS) */
 * { touch-action: manipulation; }  /* no double-tap zoom (pinch still zooms); .handle sets its own */
+/* nothing selects, so quick taps (iOS) don't highlight text; no callout on a long press either */
+html { user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
 
 /* the story's screens: text and button centred on the page, the text shown a line at a time */
 #screen { position: fixed; inset: var(--top) 0 var(--strip) 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1em; padding: 1em; text-align: center; }
