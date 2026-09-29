@@ -28,7 +28,9 @@ const TOGGLE_FADE = 1;                          // seconds a track toggled at th
 const TAP_FLY_MS = 250;                         // a tray word clicked flying into its line
 const BACK_FLY_MS = 180;                        // a line word clicked flying back to the tray
 const TRY_MS = 1000;                            // how long a try's win shows before the story goes on
-const TILT = 0;                               // degrees a word's box, and its text, lean either way at most
+const TILT_BOX = 0;                            // degrees a word's box leans either way at most in the tray
+const TILT_LINE = 0;                           // and in the lines
+const TILT_WORD = 0;                           // degrees its text leans either way at most (also the strip, submit)
 // The game runs through the steps of story.yaml's sequence (see its comments), each one of these kinds:
 //   page:  a screen of text, shown a line at a time, each line with its own button
 //          (its rows can be images), or one image
@@ -1398,13 +1400,13 @@ function textSpan(text) {
   span.textContent = text;
   return span;
 }
-const randomTilt = () => (Math.random() * 2 - 1) * TILT;
+const randomTilt = (most = TILT_WORD) => (Math.random() * 2 - 1) * most;
 // Each word in the tray and in the lines leans a little, its box one way and its text another. The tilts are
 // kept per word (for the tray, and for the lines), so redrawing a line doesn't shuffle them; they're dealt
 // again when the word is clicked into the lines or dropped.
 const tilts = { tray: {}, lines: {} };
 function tilt(el, where, id, again = false) {
-  if (again || !tilts[where][id]) tilts[where][id] = [randomTilt(), randomTilt()];
+  if (again || !tilts[where][id]) tilts[where][id] = [randomTilt(where === 'lines' ? TILT_LINE : TILT_BOX), randomTilt()];
   const [box, text] = tilts[where][id];
   el.style.setProperty('--tilt', `${box}deg`);
   el.style.setProperty('--text-tilt', `${text}deg`);
