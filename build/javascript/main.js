@@ -1326,14 +1326,20 @@ function tilt(el, where, id, again = false) {
 const trayHome = new Map();  // id -> its word in the tray, which the morph flies to
 let morphing = new Set();  // ids hidden in the tray while a word from the strip flies to them
 
-// before: as for showPhase; delay: seconds before the new words start popping in
-// the tray's fade at the bottom shows while it can scroll further down
-function trayFade() {
-  const p = $('#palette');
-  p.classList.toggle('more', p.scrollTop + p.clientHeight < p.scrollHeight - 1);
+// The tray's and the lines' fades: at the bottom while they can scroll further down (.more), at the top once
+// they've scrolled down (.scrolled)
+function fades(el) {
+  el.classList.toggle('more', el.scrollTop + el.clientHeight < el.scrollHeight - 1);
+  el.classList.toggle('scrolled', el.scrollTop > 0);
 }
-$('#palette').addEventListener('scroll', trayFade, { passive: true });
-new ResizeObserver(trayFade).observe($('#palette'));
+const trayFade = () => fades($('#palette'));
+for (const el of [$('#palette'), $('#game')]) {
+  el.addEventListener('scroll', () => fades(el), { passive: true });
+  new ResizeObserver(() => fades(el)).observe(el);
+}
+new ResizeObserver(() => fades($('#game'))).observe($('#lines'));  // lines added or taken away
+
+// before: as for showPhase; delay: seconds before the new words start popping in
 
 function buildPalette(before = null, delay = 0) {
   const palette = $('#palette');

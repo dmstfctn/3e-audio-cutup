@@ -49,6 +49,14 @@ html { overscroll-behavior: none; }  /* no rubber-banding of a page that doesn't
 #game { position: fixed; inset: 0; box-sizing: border-box; padding: calc(var(--top) + 16px) 8px calc(var(--tray) + 16px);
         overflow-y: auto; overscroll-behavior: contain; display: flex; flex-direction: column; }
 #game::before, #game::after { content: ''; margin: auto; }
+/* when they scroll, the lines fade out under the header and over the tray, as the tray's words do (.scrolled,
+   .more: fades() in main.js); fixed to the screen, over the lines, under the tray */
+#lines::before, #lines::after { content: ''; position: fixed; z-index: 4; left: 0; right: 0; height: 32px; pointer-events: none;
+                                opacity: 0; transition: opacity .2s; }
+#lines::before { top: var(--top); background: linear-gradient(var(--page-bg, white), transparent); }
+#lines::after { bottom: var(--tray); background: linear-gradient(transparent, var(--page-bg, white)); }
+#game.scrolled #lines::before, #game.more #lines::after { opacity: 1; }
+@media (max-width: 640px) { #lines::before, #lines::after { height: 24px; } }
 #status { margin-bottom: 16px; }
 #status:empty { display: none; }
 #submit { margin-left: 12px; white-space: nowrap; }
@@ -135,11 +143,16 @@ html { overscroll-behavior: none; }  /* no rubber-banding of a page that doesn't
 /* the tray, fixed to the bottom: every word in one panel, scrolling up and down when they don't fit */
 #palette { position: fixed; left: 0; right: 0; bottom: 0; z-index: 5; box-sizing: border-box;
            max-height: 66svh; background: white; border-top: 1px solid black; overflow-y: auto; overscroll-behavior: contain; }
-/* a fade over the tray's bottom, about a word high, while there's more to scroll to (.more, set in main.js) */
-#palette::after { content: ''; position: sticky; bottom: 0; display: block; height: 32px; margin-top: -32px; pointer-events: none;
-                  background: linear-gradient(transparent, var(--tray-bg, white)); opacity: 0; transition: opacity .2s; }
-#palette.more::after { opacity: 1; }
-@media (max-width: 640px) { #palette::after { height: 24px; margin-top: -24px; } }
+/* fades over the tray's bottom and top, about a word high, while there's more to scroll to that way (.more,
+   .scrolled: fades() in main.js) */
+#palette::before, #palette::after { content: ''; position: sticky; display: block; height: 32px; pointer-events: none; opacity: 0; transition: opacity .2s; }
+#palette::before { top: 0; margin-bottom: -32px; z-index: 1; background: linear-gradient(var(--tray-bg, white), transparent); }
+#palette::after { bottom: 0; margin-top: -32px; background: linear-gradient(transparent, var(--tray-bg, white)); }
+#palette.scrolled::before, #palette.more::after { opacity: 1; }
+@media (max-width: 640px) {
+  #palette::before { height: 24px; margin-bottom: -24px; }
+  #palette::after { height: 24px; margin-top: -24px; }
+}
 .tray-words { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; padding: 14px 16px; }
 
 .word {
@@ -208,7 +221,7 @@ body:has(#minigame:not([hidden])), body:has(#show:not([hidden])) { overflow: hid
 body.dark #strip { background: black; border-color: #ccc; color: #ccc; }
 body.dark .chip, .chip.grey, body.writing .chip.grey[data-bin] { background: transparent; border-color: transparent; color: #777; }
 /* writing (the cutup, and submit) is light grey (#ccc) on black: --ink is the lines' and the marker's colour */
-body.writing { --ink: #ccc; background: black; color: #ccc; }
+body.writing { --ink: #ccc; --page-bg: black; background: black; color: #ccc; }
 body.writing #ui-header { background: black; border-bottom: 1px solid #ccc; color: #ccc; }
 body.writing #play, body.writing #submit, body.writing #more, body.writing #fewer { color: #ccc; }
 body.writing .toggle { background: #444; border-color: #ccc; color: #ccc; }
