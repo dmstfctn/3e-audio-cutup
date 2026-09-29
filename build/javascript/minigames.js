@@ -252,6 +252,8 @@ const MINIGAMES = (() => {
         b.className = 'mg-opt';
         b.dataset.src = src;
         const img = document.createElement('img');
+        // its ratio sizes the button to the photo (see .mg-opt), so the outline hugs it
+        img.onload = () => b.style.setProperty('--r', img.naturalWidth / img.naturalHeight);
         img.src = src;
         img.alt = '';
         b.append(img);

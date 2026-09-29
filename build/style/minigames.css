@@ -24,19 +24,22 @@
 .mg-miss { position: absolute; width: calc(18 * var(--u)); height: calc(18 * var(--u)); margin: calc(-9 * var(--u)) 0 0 calc(-9 * var(--u)); border-radius: 50%; border: calc(3 * var(--u)) solid var(--bad); pointer-events: none; animation: mg-fade .6s forwards; }
 @keyframes mg-fade { to { opacity: 0; transform: scale(1.8); } }
 
-/* three 4:3 photos in a row, as big as the room under the prompt allows */
+/* three photos in a row, --gap apart (64px at 2560 × 1440, growing and shrinking with the window like --u but
+   below it too) and centred together, each as big as fits in a 4:3 box (--cw wide) that the room under the
+   prompt allows; a photo's button is the photo's own size, so the outline hugs it.
+   --r is the photo's width / height (minigames.js) */
 .mg-fitbox:has(.mg-opts) { container-type: size; }
-.mg-opts { display: flex; gap: calc(16 * var(--u)); justify-content: center; }
-.mg-opt { flex: none; width: min((100cqw - 32 * var(--u)) / 3, 100cqh * 4 / 3); aspect-ratio: 4 / 3; padding: 0; border: 0; background: none; cursor: pointer; }
-.mg-opt img { width: 100%; height: 100%; object-fit: contain; display: block; }
+.mg-opts { --gap: min(2.5vw, 4.444vh); --cw: min((100cqw - 2 * var(--gap)) / 3, 100cqh * 4 / 3); display: flex; gap: var(--gap); justify-content: center; align-items: center; }
+.mg-opt { flex: none; width: min(var(--cw), var(--cw) * 3 / 4 * var(--r, 4 / 3)); aspect-ratio: var(--r, 4 / 3); padding: 0; border: 0; background: none; cursor: pointer; }
+.mg-opt img { width: 100%; height: 100%; display: block; }
 .mg-opt:hover:not(:disabled) { box-shadow: 0 0 0 calc(3 * var(--u)) #bbb; }
 .mg-opt:disabled { cursor: default; }
-.mg-opt.ok { box-shadow: 0 0 0 calc(5 * var(--u)) var(--ok); }
-.mg-opt.bad { box-shadow: 0 0 0 calc(5 * var(--u)) var(--bad); }
-/* narrow screens: the photos stacked, each as big as a third of the room under the prompt allows */
+.mg-opt.ok, .mg-opt.ok:hover { box-shadow: 0 0 0 calc(5 * var(--u)) var(--ok); }
+.mg-opt.bad, .mg-opt.bad:hover { box-shadow: 0 0 0 calc(5 * var(--u)) var(--bad); }
+/* narrow screens: the photos stacked, 10px apart, each as big as a third of the room under the prompt allows */
 @media (max-width: 640px) {
-    .mg-opts { flex-direction: column; gap: 10px; }
-  .mg-opt { min-height: 0; width: min(100cqw, (100cqh - 20px) / 3 * 4 / 3); }
+  .mg-opts { --cw: min(100cqw, (100cqh - 20px) / 3 * 4 / 3); flex-direction: column; gap: 10px; }
+  .mg-opt { min-height: 0; }
 }
 
 /* 4 × 3 portrait (3:4) cells make a square grid, so its width is capped at the height under the
