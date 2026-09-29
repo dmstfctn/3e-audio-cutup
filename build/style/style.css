@@ -10,6 +10,7 @@ body { font: 16px "Times New Roman", Times, serif; margin: 16px; }
              size-adjust: 140%; }  /* it runs small: bigger letters in the same boxes */
 :root { --hand: /*"Just Another Hand", */"Times New Roman", Times, serif; }
 html { overscroll-behavior: none; }  /* no rubber-banding of a page that doesn't scroll (iOS) */
+* { touch-action: manipulation; }  /* no double-tap zoom (pinch still zooms); .handle sets its own */
 
 /* the story's screens: text and button centred on the page, the text shown a line at a time */
 #screen { position: fixed; inset: var(--top) 0 var(--strip) 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; padding: 16px; text-align: center; }
@@ -61,14 +62,37 @@ html { overscroll-behavior: none; }  /* no rubber-banding of a page that doesn't
 #play svg { display: block; width: 100%; height: 100%; }
 #play, #submit, #more, #fewer { background: none; border: 0; padding: 0; font: bold 16px Times, serif; color: black; cursor: pointer; }
 /* − and + together at the right, + under the on buttons; each keeps its place when hidden, so + never moves */
-#more-lines { display: flex; justify-content: flex-end; gap: 4px; margin-top: 8px; }
+#more-lines { display: flex; justify-content: flex-end; align-items: center; gap: 4px; margin-top: 8px; }
 #more, #fewer { font-size: 20px; }
 #fewer { width: 20px; text-align: center; }
 #more { width: var(--mute-w); text-align: left; }   /* on's width, starting where its text does */
 #more[hidden], #fewer[hidden] { display: block; visibility: hidden; }
 #submit[hidden], #more-lines[hidden] { display: none; }
+/* phones: the lines' on / off as a row of squares at the left, one per line, with − / + just after them, so they
+   move right as lines are added; − takes no room while it's hidden */
+#active { display: none; }
+@media (max-width: 640px) {
+  #more-lines { justify-content: flex-start; }
+  #fewer[hidden] { display: none; }
+  #active:not([hidden]) { display: flex; align-items: center; gap: 6px; padding: 2px 6px 4px 0;
+                          font: 10px Arial, sans-serif;}
+  #active-boxes { display: flex; gap: 3px; }
+  /* on: filled with the ink; off: faded as its line is */
+  #active-boxes button { width: 12px; height: 12px; padding: 0; border: 1px solid var(--ink, black); border-radius: 0; background: var(--ink, black); cursor: pointer; }
+  #active-boxes button[aria-pressed="false"] { opacity: .3; }
+  #active-boxes button[hidden] { display: none; }
+}
 @media (max-width: 640px) { #submit { font-size: 14px; margin-left: 8px; } }  /* after five toggles, it just fits at 390px */
 
+/* phones: the word being said, above the lines, as big as submit's; its height kept when there's none */
+#now-word { display: none; }
+@media (max-width: 640px) {
+  /* as much space under it as over it: #game's 16px padding and a share of its free space over it, the same share
+     and 8px + #lines' 8px padding under it */
+  #now-word { display: block; font: clamp(22px, 4vw, 40px)/1.4 var(--hand); height: 1.4em; padding-bottom: 8px; margin-bottom: auto; text-align: center; white-space: nowrap; }
+  #game::before { margin: auto 0 0; }  /* one share over it, not its default two (margin: auto is top and bottom) */
+  #game::after { margin: 0 0 auto; }
+}
 #lines { position: relative; padding: 8px 0; display: flex; flex-direction: column; gap: 8px; }
 /* a line's row: the line, then its on button, standing on the line; the gutter on the left (as wide as
    on) keeps the lines centred. The handles (.handle) are switched off in buildLines(). */
@@ -83,6 +107,14 @@ html { overscroll-behavior: none; }  /* no rubber-banding of a page that doesn't
 .line-on { flex: none; width: var(--mute-w); padding: 0; border: 0; background: none; color: inherit; font: 12px Times, serif; text-transform: uppercase; text-align: left; cursor: pointer; }
 .line-on[aria-pressed="false"] { opacity: .3; }
 .line.off { opacity: .3; }
+/* phones: no on buttons (#active has them) and no gutter, the lines 2px from the screen's edges (the line
+   drawn 3px past the words' room) */
+@media (max-width: 640px) {
+  #game { padding-left: 5px; padding-right: 5px; }
+  .row { padding-left: 0; }
+  .line-on { display: none; }
+  #more { width: 20px; text-align: center; }
+}
 /* a line in a notebook, with ticks standing on it: grey for the 8 beats, black and wider at both ends
    and the bar line after 4. The line reaches 3px past the words' room at each end, and words sit 2px
    above it. The beat ticks are placed in the words' room, 3px in. */
@@ -96,9 +128,9 @@ html { overscroll-behavior: none; }  /* no rubber-banding of a page that doesn't
       3px bottom / calc(100% - 6px) 6px no-repeat;
 }
 /* a word in a line takes up its duration, its block 2px narrower, so there's 2px between words */
-.line .word { width: calc(var(--d) * var(--pps) * 1px - 2px); margin: 0 1px; }
+.line .word { width: calc(var(--d) * var(--pps) * 1px - 2px); margin: 0 1px; border: 0; line-height: 2em; }  /* no border in a line */
 .marker { position: absolute; top: -4px; bottom: -4px; width: 2px; margin-left: -1px; background: var(--ink, black); display: none; pointer-events: none; }
-.playhead { position: absolute; top: 0; bottom: 0; width: 1px; background: red; display: none; pointer-events: none; }
+.playhead { position: absolute; z-index: 1; top: 0; bottom: 0; width: 1px; background: red; display: none; pointer-events: none; }  /* over the words, which their rotate lifts into the same layer */
 
 /* the tray, fixed to the bottom: every word in one panel, scrolling up and down when they don't fit */
 #palette { position: fixed; left: 0; right: 0; bottom: 0; z-index: 5; box-sizing: border-box;
@@ -121,12 +153,15 @@ html { overscroll-behavior: none; }  /* no rubber-banding of a page that doesn't
 .word.dragged { z-index: 13; box-shadow: 0 4px 8px rgb(0 0 0 / .3); }
 
 /* in the tray a word is at least as wide as its text, so it can be read; in the lines it's its duration */
-#palette .word, .word.dragged { min-width: max-content; padding: 0 4px; }
+#palette .word, .word.dragged, .word.peek { min-width: max-content; padding: 0 4px; }
+/* a word in a line cut short hides its text; the peek shows it (markCut() in main.js) */
+.line .word.cut > span { visibility: hidden; }
 /* narrow screens: smaller text in the tray, where words are narrow, the box keeping its height; and the
    tray no more than half the screen */
 @media (max-width: 640px) {
   #palette { max-height: 50svh; }
-  #palette .word, .word.dragged { font-size: 12px; height: 32px; line-height: 30px; }
+  #palette .word, .word.dragged, .word.peek, .line .word { font-size: 12px; height: 32px; line-height: 30px; }  /* the lines' as the tray's */
+  .line .word { line-height: 32px; }  /* no border */
 }
 
 

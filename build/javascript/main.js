@@ -90,6 +90,7 @@ const lineOff = Array(MAX_LINES).fill(false);  // lines switched off: skipped wh
 
 const $ = s => document.querySelector(s);
 const rowEls = [], lineEls = [], markerEls = [], playheadEls = [], onEls = [];
+const activeEls = [];  // on phones, in place of the on buttons: a box per line under + / −, filled while it's on
 
 // ---------- loading ----------
 
@@ -798,7 +799,7 @@ function showPhase(before = null, strip = null) {
   morphing = new Set(strip?.chips.map(c => trayTakes(c.text)[0]).filter(Boolean));
   buildPalette(before, strip ? (MORPH_MS + MORPH_SPREAD) / 1000 : 0);
   if (strip) morphTray(strip);
-  $('#submit').hidden = $('#more-lines').hidden = phase !== 'write';
+  $('#submit').hidden = $('#more-lines').hidden = $('#active').hidden = phase !== 'write';
   showBars();
 }
 
@@ -1286,6 +1287,7 @@ function sizeToWindow() {
   if (!(pps > 0)) return;  // hidden behind the intro
   document.documentElement.style.setProperty('--pps', pps);
   document.documentElement.style.setProperty('--beat', pps * 60 / BPM);
+  markCut();
 }
 
 function wordEl(w) {
@@ -1407,8 +1409,9 @@ function onPaletteDrop(e) {
   if (dragging && dragging.from !== null) removeWord(dragging.from, dragging.index);
 }
 
-// Each line in a row, with its on button after it, greyed out while it's off. The handle that moved a
-// line (startRowDrag) is switched off.
+// Each line in a row, with its on button after it, greyed out while it's off; on phones a box in #active
+// instead. The handle that moved a line (startRowDrag) is switched off.
+function toggleLine(i) { lineOff[i] = !lineOff[i]; renderLine(i); save(); }
 function buildLines() {
   const container = $('#lines');
   for (let i = 0; i < MAX_LINES; i++) {
@@ -1422,7 +1425,12 @@ function buildLines() {
 */  const onOff = document.createElement('button');
     onOff.className = 'line-on';
     onOff.textContent = 'on';
-    onOff.addEventListener('click', () => { lineOff[i] = !lineOff[i]; renderLine(i); save(); });
+    onOff.addEventListener('click', () => toggleLine(i));
+    const box = document.createElement('button');
+    box.title = `line ${i + 1} on or off`;
+    box.addEventListener('click', () => toggleLine(i));
+    $('#active-boxes').append(box);
+    activeEls.push(box);
     const line = document.createElement('div');
     line.className = 'line';
     const marker = document.createElement('div');
@@ -1444,6 +1452,7 @@ function buildLines() {
 // the lines showing, and + / − when they can add or remove one
 function showLines() {
   rowEls.forEach((el, i) => el.hidden = i >= nLines);
+  activeEls.forEach((el, i) => el.hidden = i >= nLines);
   for (let i = 0; i < MAX_LINES; i++) renderLine(i);
   $('#more').hidden = nLines >= MAX_LINES;
   $('#fewer').hidden = nLines <= MIN_LINES;
@@ -1516,12 +1525,14 @@ function renderLine(i) {
   line.replaceChildren(markerEls[i], playheadEls[i]);
   line.classList.toggle('off', lineOff[i]);
   onEls[i].setAttribute('aria-pressed', !lineOff[i]);
+  activeEls[i].setAttribute('aria-pressed', !lineOff[i]);
   lines[i].forEach((id, index) => {
     const el = wordEl(words[id]);
     tilt(el, 'lines', id);
     el.addEventListener('dragstart', e => startDrag(e, { id, from: i, index }));
     el.addEventListener('click', () => removeWord(i, index));
     touchDrag(el, { id, from: i, index }, false);
+    peekable(el);
     // dragged out of the lines and dropped nowhere: remove it
     // (a refused drop onto a full line leaves it where it was)
     el.addEventListener('dragend', e => {
@@ -1529,6 +1540,40 @@ function renderLine(i) {
     });
     line.append(el);
   });
+  markCut(line);
+}
+
+// A word in a line too short for its text shows none (the title too, so it doesn't double the peek);
+// the mouse over it, or a long press, shows it at the tray's size just above the pointer.
+function markCut(within = $('#lines')) {
+  for (const el of within.querySelectorAll('.word')) {
+    el.classList.toggle('cut', el.scrollWidth > el.clientWidth + 1);
+    if (el.classList.contains('cut')) el.removeAttribute('title');
+  }
+}
+let peekEl = null;
+function peek(el, x, y) {
+  if (!peekEl) {
+    peekEl = wordEl(words[el.dataset.id]);
+    peekEl.removeAttribute('title');
+    peekEl.classList.add('flying', 'peek');
+    document.body.append(peekEl);
+  }
+  const w = peekEl.offsetWidth, h = peekEl.offsetHeight;
+  peekEl.style.left = `${Math.min(Math.max(x - w / 2, 2), innerWidth - w - 2)}px`;
+  peekEl.style.top = `${Math.max(y - h - 12, 2)}px`;
+}
+function unpeek() { peekEl?.remove(); peekEl = null; }
+function peekable(el) {
+  el.addEventListener('pointermove', e => { if (e.pointerType === 'mouse' && el.classList.contains('cut')) peek(el, e.clientX, e.clientY); });
+  el.addEventListener('pointerleave', e => { if (e.pointerType === 'mouse') unpeek(); });
+  el.addEventListener('dragstart', unpeek);
+  // held still for HOLD_MS; moving drags instead (touchmove), and letting go after a peek doesn't remove it
+  el.addEventListener('touchstart', e => {
+    if (!el.classList.contains('cut') || e.touches.length > 1) return;
+    const t = e.touches[0];
+    touch.peek = setTimeout(() => { if (touch?.el === el && !touch.ghost) { touch.peeked = true; peek(el, t.clientX, t.clientY); } }, HOLD_MS);
+  }, { passive: true });
 }
 
 // ---------- adding, moving and removing words ----------
@@ -1680,6 +1725,8 @@ function moveTouch(x, y) {
 function cancelTouch() {
   if (!touch) return;
   clearTimeout(touch.hold);
+  clearTimeout(touch.peek);
+  unpeek();
   touch.ghost?.remove();
   touch.el.classList.remove('lifted');
   if (touch.ghost) dragging = null;
@@ -1693,6 +1740,8 @@ document.addEventListener('touchmove', e => {
   if (!touch.ghost) {
     if (Math.hypot(t.clientX - touch.x, t.clientY - touch.y) < SLOP) return;
     if (touch.hold) return cancelTouch();  // moved before the hold: a swipe, which scrolls
+    clearTimeout(touch.peek);
+    unpeek();
     liftTouch();
   }
   e.preventDefault();
@@ -1702,6 +1751,7 @@ document.addEventListener('touchmove', e => {
 // as with a mouse: dropped on a line, it goes there if it fits; a placed word dropped on the tray or
 // outside the lines is removed
 document.addEventListener('touchend', e => {
+  if (touch?.peeked) e.preventDefault();  // no click, which would remove the word peeked at
   if (!touch?.ghost) return cancelTouch();
   e.preventDefault();  // no click
   const { over } = touch, { from, index } = dragging;
@@ -1905,7 +1955,7 @@ document.addEventListener('mg-miss', playWrong);
 const looping = () => !submitting && !paused;
 let nextTime = null;   // audio-clock time the next line starts
 let slot = 0;          // lines since the loop started
-let scheduled = [];    // [{ line, t0, voice }] for the playhead and tracks unlocked mid-line
+let scheduled = [];    // [{ line, t0, voice, times }] for the playhead, the word being said and tracks unlocked mid-line
 
 // Line i from t0: the tracks unlocked, over bars 2i+1..2i+2 of their 8 (line 5 is bars 1-2 again), and with
 // voice, the line's words. Returns [id, time] for each word, for submit to light them up.
@@ -1913,10 +1963,10 @@ function playLine(i, t0, voice) {
   for (const [name, url] of unlockedTracks()) {
     if (trackBufs[url]) playSlice(trackBufs[url], t0, (i % TRACK_LINES) * LINE_DUR, LINE_DUR, 0, trackGains[name]);
   }
-  scheduled.push({ line: i, t0, voice });
-  if (!voice) return [];
-  let t = t0;
   const times = [];
+  scheduled.push({ line: i, t0, voice, times });
+  if (!voice) return times;
+  let t = t0;
   for (const id of lines[i]) {
     const w = words[id];
     if (w.a !== null) playSlice(wordsBuf, t, w.a, w.d, FADE);
@@ -1961,6 +2011,10 @@ function drawPlayhead() {
   const now = ctx.currentTime;
   scheduled = scheduled.filter(s => s.t0 + LINE_DUR > now);
   const current = scheduled.find(s => s.voice && s.t0 <= now);
+  // phones: the word being said, over the lines (none in a pause)
+  const said = current && !submitting && current.times.findLast(([, t]) => t <= now);
+  const text = said && now < said[1] + words[said[0]].d && words[said[0]].a !== null ? words[said[0]].text : '';
+  if ($('#now-word').textContent !== text) $('#now-word').textContent = text;
   playheadEls.forEach((el, i) => {
     if (current && current.line === i && !submitting) {
       el.style.left = lineX(i, now - current.t0) + 'px';
