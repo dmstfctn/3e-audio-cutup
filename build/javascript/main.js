@@ -864,14 +864,16 @@ function startTry(key) {
   backdropFor(data);
   let won = false;
   const game = mounted = MINIGAMES[key].mount($('#mg-body'), data, () => on(), ev => {
-    if (key === 'pair-it' && !tried.includes(pairs[ev.pair])) { tried.push(pairs[ev.pair]); save(); }
+    if (key === 'pair-it') {
+      playWrong();  // the try's match sounds like its picks
+      if (!tried.includes(pairs[ev.pair])) { tried.push(pairs[ev.pair]); save(); }
+    }
     if (won) return;
     won = true;
     setTimeout(on, TRY_MS);
   });
   function on() {
     if (mounted !== game) return;  // already gone on, or restarted
-    if (key === 'pair-it') playWrong();
     game.destroy();
     mounted = null;
     enter(at + 1);
