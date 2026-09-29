@@ -61,11 +61,12 @@ sequence:
   - page: light
     text: |
       you’re a data labeller by day [next]
-  - page: light
-    image: story/work.png
+      you check the rules [next]
+  #- page: light
+  #  image: story/work.png
 #    button: next # or remove this to click image to move on
-  - page: light
-    text: you check the rules [next]
+  #- page: light
+   # text: you check the rules [next]
   - page: light
     text: |
       1. rawdownload images 
@@ -105,7 +106,8 @@ sequence:
       you've got a slot but no lines [next]
       what's on your mind? [start writing]
   - write:
-    unlock: [drone]
+    #unlock: [drone]
+    play: [beat]
 
 # After submit your lines: the text under the lines and their buttons. A blank line starts a new paragraph.
 # [text](https://…) is a link, opening in a new tab; with no address, just the

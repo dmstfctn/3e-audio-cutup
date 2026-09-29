@@ -1066,7 +1066,12 @@ function fillStrip() {
 
 function flyWords(texts, x, y, key, flash) {
   const gen = stripGen[key];
-  texts.forEach((t, k) => setTimeout(() => { if (stripGen[key] === gen) flyWord(t, x, y, key, flash); }, k * FLY_GAP));
+  texts.forEach((t, k) => setTimeout(() => {
+    if (stripGen[key] === gen) {
+      flyWord(t, x, y, key, flash);
+      playUnlock();   // <-- new
+    }
+  }, k * FLY_GAP));
 }
 
 // a word won's flash through its colours, 0.1 s each: made once per list of colours, as a CSS animation, which
@@ -1796,6 +1801,24 @@ document.addEventListener('pointerdown', () => { if (ctx.state !== 'running') ct
 function playWord(id, when = ctx.currentTime) {
   const w = words[id];
   if (w.a !== null) playSlice(wordsBuf, when, w.a, w.d, FADE);
+}
+
+let unlockBuf = null;
+fetch('audio/win.mp3')
+  .then(r => r.arrayBuffer())
+  .then(b => ctx.decodeAudioData(b))
+  .then(b => { unlockBuf = b; })
+  .catch(() => console.warn("audio/win.mp3 didn't load"));
+
+function playUnlock() {
+  if (!unlockBuf) return;
+  const src = ctx.createBufferSource();
+  src.buffer = unlockBuf;
+  const g = ctx.createGain();
+  g.gain.value = 0.6;  // volume, 0 to 1
+  src.connect(g);
+  g.connect(ctx.destination);
+  src.start();
 }
 
 // The tracks loop, line by line; when writing, the lines play over them.
