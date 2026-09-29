@@ -172,6 +172,13 @@ async function applyClips() {
 const COLOURS = { points: ['#00ff00'], flash: ['#da0b0b', '#dada0b', '#0bda0b', '#0bdada', '#0b0bda', '#da0bda'],
   success: ['#00ff00'], fail: ['#ff0000'] };
 COLOURS.strip = COLOURS.flash;
+const STRIP_MAX_L = 70;  // strip colours lighter than this (CIE L*, 0–100) are left out: they're lost over the games' backdrop
+// a colour's lightness, CIE L*
+function lightness(hex) {
+  const [r, g, b] = [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16) / 255).map(v => v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4);
+  const y = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  return y > 216 / 24389 ? 116 * Math.cbrt(y) - 16 : y * 24389 / 27;
+}
 let colours = { default: {}, games: {}, photos: {} };
 async function loadColours() {
   try {
@@ -179,6 +186,10 @@ async function loadColours() {
     if (!r.ok) return;  // no file: the colours in COLOURS
     const doc = await r.json();
     colours = { default: doc.default ?? {}, games: doc.games ?? {}, photos: doc.photos ?? {} };
+    // a list left empty falls back as if it weren't there (coloursOf)
+    for (const set of [colours.default, ...Object.values(colours.games), ...Object.values(colours.photos)]) {
+      if (set.strip) set.strip = set.strip.filter(c => lightness(c) <= STRIP_MAX_L);
+    }
   } catch (e) {
     warnings.push(`colours.json ignored, could not read it: ${e.message}`);
   }
@@ -839,6 +850,7 @@ function startTry(key) {
     pairs = pairs.filter(k => !tried.includes(k));
     data.pairs = pairs.map(k => data.pairs[k]);
   }
+  backdropFor(data);
   let won = false;
   const game = mounted = MINIGAMES[key].mount($('#mg-body'), data, () => on(), ev => {
     if (key === 'pair-it' && !tried.includes(pairs[ev.pair])) { tried.push(pairs[ev.pair]); save(); }
@@ -864,7 +876,46 @@ const findAllWords = item => [item.rewards[0], ...shuffle(item.rewards.slice(1))
 const steps = (item, won) => won.map((_, k) => k ? Math.ceil((k + 1) * item.shapes.length / won.length) : 1);
 
 function showGame() {
+  if ($('#minigame').hidden) clearBackdrop();  // not the last game's, from before the pages in between
   $('#minigame').hidden = false;
+}
+
+// The games' backdrop (#mg-backdrop): the photos being played, blurred, behind the game and the strip, each new set
+// fading in over the last. One photo covers the screen; several are tiled as the game lays them out, caption
+// match's in a row ('row'), pair it's in a grid ('grid'), stacked or 3 wide on phones. It stays behind the points card.
+let backdropGen = 0;
+function setBackdrop(photos, layout = '') {
+  const box = $('#mg-backdrop'), key = layout + photos.join();
+  if (box.dataset.key === key) return;
+  box.dataset.key = key;
+  const gen = ++backdropGen;
+  Promise.all(photos.map(src => new Promise(res => { const im = new Image(); im.onload = im.onerror = res; im.src = src; }))).then(() => {
+    if (gen !== backdropGen) return;
+    const phone = matchMedia('(max-width: 640px)').matches;
+    const cols = Math.min(photos.length, layout === 'row' ? (phone ? 1 : 3) : layout === 'grid' ? (phone ? 3 : 4) : 1);
+    const layer = document.createElement('div');
+    layer.style.setProperty('--cols', cols);
+    layer.style.setProperty('--rows', Math.ceil(photos.length / cols));
+    for (const src of photos) {
+      const d = document.createElement('div');
+      d.style.backgroundImage = `url("${src}")`;
+      layer.append(d);
+    }
+    layer.addEventListener('animationend', () => { while (layer.previousElementSibling) layer.previousElementSibling.remove(); });
+    box.append(layer);
+  });
+}
+function clearBackdrop() {
+  backdropGen++;
+  const box = $('#mg-backdrop');
+  delete box.dataset.key;
+  box.replaceChildren();
+}
+// a play's backdrop: its photo, or pair it's photos; caption match's follows its rounds
+function backdropFor(data) {
+  if (data.photo) setBackdrop([data.photo]);
+  else if (data.pairs) setBackdrop(data.pairs.flat(), 'grid');
+  else data.onRound = (on => r => { setBackdrop(data.rounds[r].options, 'row'); on?.(r); })(data.onRound);
 }
 
 // the task's points if it's been played, otherwise straight into the game
@@ -945,6 +996,7 @@ function startRun(key) {
     const play = plays[k];
     if (key === 'caption-match') play.data.onRound = r => tintStrip(key, [play.rounds[r].photo]);
     else tintStrip(key, key === 'pair-it' ? [] : [play.item.photo]);
+    backdropFor(play.data);
     mounted = MINIGAMES[key].mount($('#mg-body'), plays[k].data, () => {
       mounted?.destroy();
       mounted = null;
@@ -1041,7 +1093,7 @@ function tintStrip(key, photos) {
 }
 
 // hue: its colour in the strip; when writing, its bin's colour takes over
-function chip(text, key, hue = results[key]?.hues?.[text] ?? run?.hues[text] ?? pickOne(colours.default.strip ?? COLOURS.strip)) {
+function chip(text, key, hue = results[key]?.hues?.[text] ?? run?.hues[text] ?? pickOne(colours.default.strip?.length ? colours.default.strip : COLOURS.strip)) {
   const el = document.createElement('div');
   el.className = 'chip';
   el.style.setProperty('--hue', hue);

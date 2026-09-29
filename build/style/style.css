@@ -202,7 +202,16 @@ html { overscroll-behavior: none; }  /* no rubber-banding of a page that doesn't
 
 /* the games cover the page between the header and the words strip; over the header, so the timer bar can be
    (words and points flying are later in the page, so over them) */
-#minigame { position: fixed; top: var(--top); bottom: var(--strip); left: 0; right: 0; z-index: 13; background: white; display: flex; flex-direction: column; }
+#minigame { position: fixed; top: var(--top); bottom: var(--strip); left: 0; right: 0; z-index: 13; display: flex; flex-direction: column; }
+/* behind the games and the strip: the photos being played, blurred and paled (setBackdrop in main.js); the page
+   underneath is hidden by its white. Its layers overhang the screen by more than the blur, so their edges don't fade in */
+#mg-backdrop { position: fixed; top: var(--top); bottom: 0; left: 0; right: 0; z-index: 11; overflow: hidden; background: white; pointer-events: none; }
+#minigame[hidden] + #mg-backdrop { display: none; }
+#mg-backdrop::after { content: ''; position: absolute; inset: 0; background: rgb(255 255 255 / .4); }  /* how pale */
+#mg-backdrop > div { position: absolute; inset: -120px; display: flex; flex-wrap: wrap; filter: blur(40px); animation: backdrop-in .6s backwards; }
+#mg-backdrop > div > div { flex: 1 0 calc(100% / var(--cols) - 1px); height: calc(100% / var(--rows)); background: center / cover no-repeat; }
+@keyframes backdrop-in { from { opacity: 0; } }
+#minigame:not([hidden]) ~ #strip { background: transparent; }
 #minigame[hidden], #mg-card[hidden], #mg-retry[hidden] { display: none; }
 body:has(#minigame:not([hidden])), body:has(#show:not([hidden])) { overflow: hidden; }  /* the page underneath doesn't scroll */
 #mg-body { position: relative; flex: 1; overflow: hidden; }
