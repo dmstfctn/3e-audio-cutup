@@ -233,6 +233,7 @@ html { user-select: none; -webkit-user-select: none; -webkit-touch-callout: none
 #mg-backdrop > div { position: absolute; inset: -120px; display: flex; flex-wrap: wrap; filter: blur(40px); animation: backdrop-in .6s backwards; }
 #mg-backdrop > div > div { flex: 1 0 calc(100% / var(--cols) - 1px); height: calc(100% / var(--rows)); background: center / cover no-repeat; }
 @keyframes backdrop-in { from { opacity: 0; } }
+#mg-backdrop > div { display: none; }  /* the photos hidden, leaving plain white: delete this line to bring them back */
 #minigame:not([hidden]) ~ #strip { background: transparent; }
 #minigame[hidden], #mg-card[hidden], #mg-retry[hidden] { display: none; }
 body:has(#minigame:not([hidden])), body:has(#show:not([hidden])) { overflow: hidden; }  /* the page underneath doesn't scroll */
