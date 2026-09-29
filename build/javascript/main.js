@@ -3,7 +3,7 @@ const BEATS_PER_LINE = 8;                       // 2 bars of 4/4
 const LINE_DUR = BEATS_PER_LINE * 60 / BPM;     // 3.343s
 const MIN_LINES = 2, MAX_LINES = 8;              // the lines showing, one more or fewer with the + / − below them
 const TRACK_LINES = 4;                          // the tracks are 8 bars: line i plays over bars 2i+1..2i+2, mod 8
-const TAKES = 1;                                // the most recordings of a word the tray offers, picked at random
+const TAKES = 2;                                // the most recordings of a word the tray offers, picked at random
 const MAX_YEAHS = 5;                            // the most yeahs the tray offers, picked at random
 const FIND_ALL_EXTRA = 3;                       // find-all: the most words a photo wins besides the thing's own
 // find-all: how likely each of those is to be a verb, an adjective (or describer) or a noun, of the ones the photo has

@@ -199,8 +199,7 @@
   "87": {
     "word": "a",
     "start": 91.053,
-    "end": 91.222,
-    "off": true
+    "end": 91.222
   },
   "90": {
     "word": "but",
@@ -264,8 +263,7 @@
   "105": {
     "word": "if",
     "start": 97.687,
-    "end": 97.841,
-    "off": true
+    "end": 97.841
   },
   "106": {
     "word": "a",
@@ -307,8 +305,7 @@
   "117": {
     "word": "but",
     "start": 102.743,
-    "end": 102.92,
-    "off": true
+    "end": 102.92
   },
   "121": {
     "word": "but",
@@ -378,10 +375,6 @@
     "end": 115.933,
     "off": true
   },
-  "141": {
-    "word": "just",
-    "off": true
-  },
   "143": {
     "word": "its",
     "start": 117.125,
@@ -390,8 +383,7 @@
   "144": {
     "word": "not",
     "start": 117.285,
-    "end": 117.469,
-    "off": true
+    "end": 117.469
   },
   "147": {
     "word": "but",
@@ -408,8 +400,7 @@
   "151": {
     "word": "to",
     "start": 120.345,
-    "end": 120.477,
-    "off": true
+    "end": 120.477
   },
   "152": {
     "word": "the",
@@ -481,10 +472,6 @@
     "end": 130.334,
     "off": true
   },
-  "170": {
-    "word": "it",
-    "off": true
-  },
   "171": {
     "word": "is",
     "off": true
@@ -495,13 +482,10 @@
     "end": 131.707,
     "off": true
   },
-  "173": {
-    "word": "is",
-    "off": true
-  },
   "174": {
     "word": "what",
-    "off": true
+    "start": 131.88,
+    "end": 132.107
   },
   "175": {
     "word": "it",
@@ -515,14 +499,6 @@
     "word": "i",
     "start": 133.221,
     "end": 133.367,
-    "off": true
-  },
-  "178": {
-    "word": "do",
-    "off": true
-  },
-  "179": {
-    "word": "this",
     "off": true
   },
   "180": {
@@ -579,10 +555,6 @@
     "word": "i",
     "start": 138.193,
     "end": 138.313,
-    "off": true
-  },
-  "194": {
-    "word": "tell",
     "off": true
   },
   "196": {
