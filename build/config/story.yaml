@@ -83,7 +83,7 @@ sequence:
     text: |     
       you rawdownload the lot and start training
       [start]
-  - games: [pair-it, find, find-all, caption-match]
+  - games: [pair-it, find, caption-match, find-all]
     last-button: finish training
     play: [metro]
   - page: light
