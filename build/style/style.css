@@ -125,7 +125,7 @@ html { overscroll-behavior: none; }  /* no rubber-banding of a page that doesn't
     linear-gradient(var(--ink, black), var(--ink, black)) right bottom / 2px 6px no-repeat,
     linear-gradient(var(--ink, black), var(--ink, black)) calc(3px + var(--beat) * 4px - 1px) bottom / 2px 6px no-repeat,
     repeating-linear-gradient(to right, transparent 0 calc(var(--beat) * 1px - 1px), #888 calc(var(--beat) * 1px - 1px) calc(var(--beat) * 1px))
-      3px bottom / calc(100% - 6px) 6px no-repeat;
+      3px bottom / calc(var(--beat) * 7px) 6px no-repeat;  /* the first 7 beats: the 8th is the end's */
 }
 /* a word in a line takes up its duration, its block 2px narrower, so there's 2px between words */
 .line .word { width: calc(var(--d) * var(--pps) * 1px - 2px); margin: 0 1px; border: 0; line-height: 2em; }  /* no border in a line */
