@@ -47,7 +47,7 @@ next: next
 
 sequence:
   - page: dark
-    text: big things coming (human in the loop) [start]
+    text: Big things coming (human in the loop) [start]
   - page: light
     text: |
      ​
@@ -88,7 +88,9 @@ sequence:
     play: [metro]
   - page: light
     text: |
-     ​
+      ​
+
+
       
       you log off [next]
       training complete [next]
@@ -117,7 +119,7 @@ submitted: |
 
   Trained to describe the world through objective, manageable language, Degular strives to meet what others expect of it, but struggles when confronted with something that cannot be labelled, categorised or explained.
 
-  On Sunday 18 October, Degular's rap performance at [Wapping Hydraulic Power Station]() will be influenced by your lines, and voiced by rapper Jawnino.
+  On Sunday 18 October, Degular's rap performance at [Wapping Power Station]() will be influenced by your lines, and voiced by rapper Jawnino.
 
 # The lines at the end start empty. The tray has every recording of line's
 # words and of these.

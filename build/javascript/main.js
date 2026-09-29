@@ -753,6 +753,12 @@ function enter(k) {
   shown = 1;
   if (phase === 'games') { task = 0; results = {}; retried = []; $('#strip').replaceChildren(); }
   if (phase === 'write') stopLoop();  // the lines start from the first
+  // NEW: line 1 starts as pause 2 + pause 1 + a yeah
+  if (phase === 'write' && lines.every(l => l.length === 0)) {
+    const yeah = paletteWords().find(w => w.bin === 'yeah');  // one the tray offers
+    lines[0] = [restId(2), restId(1), ...(yeah ? [yeah.id] : [])];
+    last = [0, lines[0].length - 1];  // the next word clicked goes after the yeah
+  }
   for (const name of next.play) {
     trackOn[name] = true;
     if (!had.has(name)) joinLoop(name);
