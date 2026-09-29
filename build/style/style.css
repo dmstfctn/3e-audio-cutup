@@ -154,14 +154,27 @@ html { overscroll-behavior: none; }  /* no rubber-banding of a page that doesn't
 
 /* in the tray a word is at least as wide as its text, so it can be read; in the lines it's its duration */
 #palette .word, .word.dragged, .word.peek { min-width: max-content; padding: 0 4px; }
-/* a word in a line cut short hides its text; the peek shows it (markCut() in main.js) */
+/* a word in a line cut short hides its text, or ends in CUT_MARK (.short); the peek shows it (markCut() in main.js) */
 .line .word.cut > span { visibility: hidden; }
 /* narrow screens: smaller text in the tray, where words are narrow, the box keeping its height; and the
    tray no more than half the screen */
 @media (max-width: 640px) {
   #palette { max-height: 50svh; }
-  #palette .word, .word.dragged, .word.peek, .line .word { font-size: 12px; height: 32px; line-height: 30px; }  /* the lines' as the tray's */
-  .line .word { line-height: 32px; }  /* no border */
+  #palette .word, .word.dragged, .word.peek, .line .word { font-size: 12px; height: 24px; line-height: 22px; }  /* the lines' as the tray's */
+  .line .word { line-height: 24px; }  /* no border */
+  .line { height: 24px; }  /* as high as its words, so they stand on it */
+  /* thin grey ticks at the very ends, not thick black ones, and the words' room 2px wider each side (1px in, not
+     3px); the beat ticks between are the first 7 beats' */
+  .line {
+    padding: 0 1px 2px;
+    background:
+      linear-gradient(#888, #888) left bottom / 1px 6px no-repeat,
+      linear-gradient(#888, #888) right bottom / 1px 6px no-repeat,
+      linear-gradient(var(--ink, black), var(--ink, black)) calc(1px + var(--beat) * 4px - 1px) bottom / 2px 6px no-repeat,
+      repeating-linear-gradient(to right, transparent 0 calc(var(--beat) * 1px - 1px), #888 calc(var(--beat) * 1px - 1px) calc(var(--beat) * 1px))
+        1px bottom / calc(var(--beat) * 7px) 6px no-repeat;
+  }
+  #lines { gap: 10px; }  /* the lines as far apart as before the words were shortened */
 }
 
 
