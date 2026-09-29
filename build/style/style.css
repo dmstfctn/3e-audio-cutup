@@ -87,11 +87,11 @@ html { overscroll-behavior: none; }  /* no rubber-banding of a page that doesn't
 /* phones: the word being said, above the lines, as big as submit's; its height kept when there's none */
 #now-word { display: none; }
 @media (max-width: 640px) {
-  /* as much space under it as over it: #game's 16px padding and a share of its free space over it, the same share
-     and 8px + #lines' 8px padding under it */
-  #now-word { display: block; font: clamp(22px, 4vw, 40px)/1.4 var(--hand); height: 1.4em; padding-bottom: 8px; margin-bottom: auto; text-align: center; white-space: nowrap; }
-  #game::before { margin: auto 0 0; }  /* one share over it, not its default two (margin: auto is top and bottom) */
-  #game::after { margin: 0 0 auto; }
+  /* at the top, with #game's 16px padding over it; the lines and − / + centred in the space left under it (its
+     margin and ::after's share it), rising until they meet its 8px + #lines' 8px padding, then running on below */
+  #now-word { display: block; font: clamp(22px, 4vw, 40px)/1.4 var(--hand); flex: none; height: 1.4em; padding-bottom: 8px; margin-bottom: auto; text-align: center; white-space: nowrap; } /* flex: none, or when the lines overflow it shrinks away while empty, and pushes them down as a word shows */
+  #game::before { margin: 0; }
+  #game::after { margin: auto 0 0; }
 }
 #lines { position: relative; padding: 8px 0; display: flex; flex-direction: column; gap: 8px; }
 /* a line's row: the line, then its on button, standing on the line; the gutter on the left (as wide as
@@ -135,6 +135,11 @@ html { overscroll-behavior: none; }  /* no rubber-banding of a page that doesn't
 /* the tray, fixed to the bottom: every word in one panel, scrolling up and down when they don't fit */
 #palette { position: fixed; left: 0; right: 0; bottom: 0; z-index: 5; box-sizing: border-box;
            max-height: 66svh; background: white; border-top: 1px solid black; overflow-y: auto; overscroll-behavior: contain; }
+/* a fade over the tray's bottom, about a word high, while there's more to scroll to (.more, set in main.js) */
+#palette::after { content: ''; position: sticky; bottom: 0; display: block; height: 32px; margin-top: -32px; pointer-events: none;
+                  background: linear-gradient(transparent, var(--tray-bg, white)); opacity: 0; transition: opacity .2s; }
+#palette.more::after { opacity: 1; }
+@media (max-width: 640px) { #palette::after { height: 24px; margin-top: -24px; } }
 .tray-words { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; padding: 14px 16px; }
 
 .word {
@@ -157,9 +162,9 @@ html { overscroll-behavior: none; }  /* no rubber-banding of a page that doesn't
 /* a word in a line cut short hides its text, or ends in CUT_MARK (.short); the peek shows it (markCut() in main.js) */
 .line .word.cut > span { visibility: hidden; }
 /* narrow screens: smaller text in the tray, where words are narrow, the box keeping its height; and the
-   tray no more than half the screen */
+   tray no more than 40% of the screen */
 @media (max-width: 640px) {
-  #palette { max-height: 50svh; }
+  #palette { max-height: 40svh; }
   #palette .word, .word.dragged, .word.peek, .line .word { font-size: 12px; height: 24px; line-height: 22px; }  /* the lines' as the tray's */
   .line .word { line-height: 24px; }  /* no border */
   .line { height: 24px; }  /* as high as its words, so they stand on it */
@@ -219,7 +224,7 @@ body.writing :is(.word, .chip):is([data-bin="pronoun"], [data-bin="glue"]) { bac
 body.writing .word[data-bin="rest"] { background: #bfbfbf; color: black; }
 /* a word under the mouse lights up, whatever its colour (not on touch, where hover sticks after a tap) */
 @media (hover: hover) { body.writing .word:hover { box-shadow: inset 0 0 0 100px rgba(255, 255, 255, .3); } }
-body.writing #palette { background: black; border-color: #ccc; }
+body.writing #palette { --tray-bg: black; background: black; border-color: #ccc; }
 body.writing #show { background: black; }
 body.writing #show-lines span { color: #555; }
 body.writing #show-lines span.said { color: #ccc; }

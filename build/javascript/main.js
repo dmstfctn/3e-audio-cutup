@@ -1327,6 +1327,14 @@ const trayHome = new Map();  // id -> its word in the tray, which the morph flie
 let morphing = new Set();  // ids hidden in the tray while a word from the strip flies to them
 
 // before: as for showPhase; delay: seconds before the new words start popping in
+// the tray's fade at the bottom shows while it can scroll further down
+function trayFade() {
+  const p = $('#palette');
+  p.classList.toggle('more', p.scrollTop + p.clientHeight < p.scrollHeight - 1);
+}
+$('#palette').addEventListener('scroll', trayFade, { passive: true });
+new ResizeObserver(trayFade).observe($('#palette'));
+
 function buildPalette(before = null, delay = 0) {
   const palette = $('#palette');
   trayHome.clear();
@@ -1355,6 +1363,7 @@ function buildPalette(before = null, delay = 0) {
     return el;
   }));
   palette.replaceChildren(list);
+  trayFade();
 }
 
 // Going from the games to writing, the tray grows up out of the strip, and each word in the strip moves to
