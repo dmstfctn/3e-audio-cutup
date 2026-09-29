@@ -273,6 +273,7 @@ const MINIGAMES = (() => {
         if (chosen === r.answer && b.dataset.src === r.answer) b.classList.add('ok');
         else if (b.dataset.src === chosen) b.classList.add('bad');
       }
+      if (chosen && chosen !== r.answer) document.dispatchEvent(new Event('mg-miss'));  // main.js plays the wrong-click sound
       if (chosen === r.answer) {
         matched.push(idx);
         progress({ round: idx, x: e.clientX, y: e.clientY });

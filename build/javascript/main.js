@@ -24,6 +24,7 @@ const SHRINK_MS = 250, SHRINK_GAP = 60;         // a word a retry clears shrinki
 const BURST = [240, 480];                      // px (times UNIT()): how far a +1 flies out from the click, at least and at most
 const LINE_GAP = 350;                           // ms between the rows a page's button reveals together
 const BUTTON_GAP = 600;                         // ms from the last of them to the next button
+const TOGGLE_FADE = 1;                          // seconds a track toggled at the end fades in or out
 const TRY_MS = 1000;                            // how long a try's win shows before the story goes on
 const TILT = 0;                               // degrees a word's box, and its text, lean either way at most
 // The game runs through the steps of story.yaml's sequence (see its comments), each one of these kinds:
@@ -658,7 +659,7 @@ function renderTracks() {
   $('#play').title = paused ? 'play' : 'pause';
   $('#toggles').replaceChildren(...(phase === 'write' ? unlockedTracks() : []).map(([name]) => {
     const b = toggle(name);
-    b.addEventListener('click', () => { trackOn[name] = !trackOn[name]; save(); renderTracks(); applyGains(); });
+    b.addEventListener('click', () => { trackOn[name] = !trackOn[name]; save(); renderTracks(); applyGains(TOGGLE_FADE); });
     return b;
   }));
   $('#ui-header').hidden = phase !== 'write';
@@ -684,13 +685,20 @@ document.addEventListener('keydown', e => {
   togglePlay();
 });
 
-// the tracks on are heard, but a solo track (one with the others in it) on mutes the rest
-function applyGains() {
+// the tracks on are heard, but a solo track (one with the others in it) on mutes the rest; fade is in seconds,
+// else near-instant
+function applyGains(fade) {
   const open = new Set(unlockedTracks().map(([name]) => name));
   const on = name => open.has(name) && !!trackOn[name];
   const solo = SOLO_TRACKS.some(on);
+  const now = ctx.currentTime;
   for (const [name] of TRACKS) {
-    trackGains[name]?.gain.setTargetAtTime(on(name) && (!solo || SOLO_TRACKS.includes(name)) ? 1 : 0, ctx.currentTime, 0.015);
+    const gain = trackGains[name]?.gain, to = on(name) && (!solo || SOLO_TRACKS.includes(name)) ? 1 : 0;
+    if (!gain) continue;
+    // from wherever a fade still running has got to
+    gain.cancelScheduledValues(now);
+    gain.setValueAtTime(gain.value, now);
+    fade ? gain.linearRampToValueAtTime(to, now + fade) : gain.setTargetAtTime(to, now, 0.015);
   }
 }
 
@@ -863,6 +871,7 @@ function startTry(key) {
   });
   function on() {
     if (mounted !== game) return;  // already gone on, or restarted
+    if (key === 'pair-it') playWrong();
     game.destroy();
     mounted = null;
     enter(at + 1);
