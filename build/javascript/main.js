@@ -1878,6 +1878,29 @@ function playClick() {
   src.start();
 }
 
+let wrongBuf = null, wrongSrc = null;
+fetch('audio/click-wrong.mp3')
+  .then(r => r.arrayBuffer())
+  .then(b => ctx.decodeAudioData(b))
+  .then(b => { wrongBuf = b; })
+  .catch(() => console.warn("audio/click-wrong.mp3 didn't load"));
+
+function playWrong() {
+  if (!wrongBuf) return;
+  if (wrongSrc) { try { wrongSrc.stop(); } catch (e) {} }  // rapid misses restart it rather than stack
+  const src = ctx.createBufferSource();
+  src.buffer = wrongBuf;
+  const g = ctx.createGain();
+  g.gain.value = 0.6;  // volume, 0 to 1
+  src.connect(g);
+  g.connect(ctx.destination);
+  src.onended = () => { if (wrongSrc === src) wrongSrc = null; };
+  wrongSrc = src;
+  src.start();
+}
+
+document.addEventListener('mg-miss', playWrong);
+
 // The tracks loop, line by line; when writing, the lines play over them.
 const looping = () => !submitting && !paused;
 let nextTime = null;   // audio-clock time the next line starts

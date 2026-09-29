@@ -89,6 +89,7 @@ const MINIGAMES = (() => {
 
   // a red ring where a click missed, fading out
   function missAt(parent, e) {
+    document.dispatchEvent(new Event('mg-miss'));   // NEW: main.js plays the wrong-click sound
     const r = parent.getBoundingClientRect();
     const m = document.createElement('div');
     m.className = 'mg-miss';
