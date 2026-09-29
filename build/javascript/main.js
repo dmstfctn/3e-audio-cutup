@@ -1803,23 +1803,6 @@ function dropAt(i, x) {
   delete tilts.lines[id];  // a new lean
   renderLine(i);
   save();
-  if (el) flyInto(el, lineEls[i].querySelectorAll('.word')[idx]);
-}
-
-// a copy of the tray word moves and stretches onto its place in the line, which shows once it lands
-function flyInto(from, to) {
-  const a = from.getBoundingClientRect(), b = to.getBoundingClientRect();
-  const fly = wordEl(words[to.dataset.id]), cs = getComputedStyle(from);
-  fly.classList.add('flying');
-  // the tray's sizes, which its own rules set
-  for (const k of ['fontSize', 'lineHeight', 'padding', 'minWidth']) fly.style[k] = cs[k];
-  Object.assign(fly.style, { left: `${a.left}px`, top: `${a.top}px`, width: `${a.width}px`, height: `${a.height}px`,
-    transformOrigin: '0 0' });
-  document.body.append(fly);
-  to.style.visibility = 'hidden';
-  const moved = `translate(${b.left - a.left}px, ${b.top - a.top}px) scale(${b.width / a.width}, ${b.height / a.height})`;
-  fly.animate([{ transform: 'none' }, { transform: moved }], { duration: TAP_FLY_MS, easing: 'ease-in-out' })
-    .finished.then(() => { fly.remove(); to.style.visibility = ''; });
 }
 
 // Touch screens have no HTML5 drag and drop, so a finger drags a copy of the word. In the tray, when its words
