@@ -35,7 +35,7 @@ html { overscroll-behavior: none; }  /* no rubber-banding of a page that doesn't
 /* the bars' colours change as a dark page comes and goes, as long as the tray takes to grow (MORPH_MS) */
 #ui-header, #strip, .toggle, .chip, #play, #submit { transition: background-color .9s, color .9s, border-color .9s, -webkit-text-stroke-color .9s; }
 .toggle { box-sizing: border-box; height: 2em; line-height: calc(2em - 2px); padding: 0 8px; border: 1px solid black; border-radius: 0;
-          background: lightgray; color: black; font: 16px Arial, sans-serif; white-space: nowrap; cursor: pointer; user-select: none; }
+          background: lightgray; color: black; font: 16px Times, serif; white-space: nowrap; cursor: pointer; user-select: none; }
 .toggle[aria-pressed="false"] { opacity: .4; }  /* off */
 
 /* the lines centred between the header and the tray, scrolling only if they don't fit (the auto margins
@@ -54,7 +54,7 @@ html { overscroll-behavior: none; }  /* no rubber-banding of a page that doesn't
 /* plain bold text: play / pause, submit, and the − / + under the lines that removes or adds one */
 #play { width: 20px; height: 20px; flex: none; }  /* a play or pause icon, never squeezed by the toggles */
 #play svg { display: block; width: 100%; height: 100%; }
-#play, #submit, #more, #fewer { background: none; border: 0; padding: 0; font: bold 16px Arial, sans-serif; color: black; cursor: pointer; }
+#play, #submit, #more, #fewer { background: none; border: 0; padding: 0; font: bold 16px Times, serif; color: black; cursor: pointer; }
 /* − at the left, under the handles, and + at the right, under the on / off buttons; each keeps its place when hidden */
 #more-lines { display: flex; justify-content: space-between; margin-top: 8px; }
 #more, #fewer { font-size: 20px; }
@@ -70,12 +70,12 @@ html { overscroll-behavior: none; }  /* no rubber-banding of a page that doesn't
 .row { display: flex; gap: 8px; align-items: flex-end; }
 .row[hidden] { display: none; }
 .row .line { flex: 1; min-width: 0; }
-.handle { flex: none; width: 1em; text-align: center; font: 20px Arial, sans-serif; cursor: grab;
+.handle { flex: none; width: 1em; text-align: center; font: 20px Times, serif; cursor: grab;
           user-select: none; -webkit-user-select: none; touch-action: none; }
 .row.moving { opacity: .4; }
 #row-marker { position: absolute; left: 0; right: 0; height: 2px; background: var(--ink, black); display: none; pointer-events: none; }
 /* on: small uppercase Arial, greyed out (faded as its line is) while the line's off */
-.line-on { flex: none; width: 18px; padding: 0; border: 0; background: none; color: inherit; font: 12px Arial, sans-serif; text-transform: uppercase; text-align: left; cursor: pointer; }
+.line-on { flex: none; width: 18px; padding: 0; border: 0; background: none; color: inherit; font: 12px Times, serif; text-transform: uppercase; text-align: left; cursor: pointer; }
 .line.off, .line-on[aria-pressed="false"] { opacity: .3; }
 /* a line in a notebook, with ticks standing on it: grey for the 8 beats, black and wider at both ends
    and the bar line after 4. The line reaches 3px past the words' room at each end, and words sit 2px
@@ -103,7 +103,7 @@ html { overscroll-behavior: none; }  /* no rubber-banding of a page that doesn't
   box-sizing: border-box; flex: none; height: 2em; line-height: calc(2em - 2px);
   width: calc(var(--d) * var(--pps) * 1px);
   border: 1px solid black; padding: 0 1px; background: white; overflow: hidden; white-space: nowrap; text-align: center;
-  font-family: Arial, sans-serif;
+  font-family: "Times New Roman", Times, serif;
   cursor: pointer; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
 }
 /* dragged by a finger: the word stays behind, faded, and a copy follows the finger */
@@ -131,7 +131,7 @@ html { overscroll-behavior: none; }  /* no rubber-banding of a page that doesn't
 body:has(#minigame:not([hidden])), body:has(#show:not([hidden])) { overflow: hidden; }  /* the page underneath doesn't scroll */
 #mg-body { position: relative; flex: 1; overflow: hidden; }
 #mg-card { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; padding: 16px; text-align: center; }
-#mg-card p { margin: 0; font-family: Arial, sans-serif; max-width: 32em; white-space: pre-line; }
+#mg-card p { margin: 0; font-family: Times, serif; max-width: 32em; white-space: pre-line; }
 #mg-buttons { display: flex; gap: 24px; }
 
 /* the words won in the games, newest on the right, the oldest pushed off the left */
@@ -140,7 +140,7 @@ body:has(#minigame:not([hidden])), body:has(#show:not([hidden])) { overflow: hid
 #strip[hidden] { display: none; }
 /* a word won is bold text in one of its photo's strip colours (--hue, set by chip()); it becomes a block in the tray */
 .chip { flex: none; box-sizing: border-box; height: 2em; line-height: calc(2em - 2px); padding: 0 8px; border: 1px solid transparent; background: none;
-        color: var(--hue, black); white-space: nowrap; font: bold 16px Arial, sans-serif; }
+        color: var(--hue, black); white-space: nowrap; font: bold 16px Times, serif; }
 /* on a dark page (where the header hides) the strip inverts, and the words won go grey */
 body.dark #strip { background: black; border-color: #ccc; color: #ccc; }
 body.dark .chip, .chip.grey, body.writing .chip.grey[data-bin] { background: transparent; border-color: transparent; color: #777; }
@@ -173,7 +173,7 @@ body.writing #show-lines span.said { color: #ccc; }
    block when it lands; it's scaled by its font size, so its padding is in em and its outline stays 6px */
 .chip.bare { padding: 0 .5em; font-weight: normal; background: none; border-color: transparent; color: transparent; -webkit-text-stroke-width: 6px; }
 /* each +1: bare text with a black outline, green unless config/colours.json says otherwise */
-.point { font: 20px Arial, sans-serif; color: #00ff00; -webkit-text-stroke: 4px black; paint-order: stroke fill; white-space: nowrap; }
+.point { font: 20px Times, serif; color: #00ff00; -webkit-text-stroke: 4px black; paint-order: stroke fill; white-space: nowrap; }
 
 
 /* submit: the lines on their own, centred, lit word by word as they play */
