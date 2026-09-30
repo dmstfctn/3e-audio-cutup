@@ -27,7 +27,7 @@ export function ensureSchema() {
     sql`create table if not exists submissions (
       id bigint generated always as identity primary key,
       created_at timestamptz not null default now(),
-      voter uuid not null unique,
+      voter uuid not null,
       ip_hash text not null,
       score jsonb not null,
       text text not null,
@@ -47,7 +47,7 @@ export function ensureSchema() {
   return ready;
 }
 
-// A random id for this browser, in a cookie scripts can't read: one submission per id, one vote per id per submission.
+// A random id for this browser, in a cookie scripts can't read: one vote per id per submission.
 export function voterOf(context) {
   let id = context.cookies.get('voter');
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(id ?? '')) {

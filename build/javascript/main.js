@@ -1391,12 +1391,12 @@ $('#show-back').addEventListener('click', () => {
   $('#submit').hidden = false;
 });
 
-// Sending the lines. One per player: the server keeps one per voter cookie, and this browser remembers it did,
-// apart from the game's save so a new game doesn't forget.
+// Sending the lines. One per visit: this tab remembers it did, apart from the game's save; a new visit can submit again.
+// The server keeps each one, whoever sent it.
 const SUBMITTED_KEY = 'cutup-submitted';
 function showSubmitted() {
   let done = false;
-  try { done = !!localStorage.getItem(SUBMITTED_KEY); } catch {}
+  try { done = !!sessionStorage.getItem(SUBMITTED_KEY); } catch {}
   const b = $('#show-submit');
   b.disabled = done;
   b.classList.toggle('done', done);
@@ -1435,9 +1435,8 @@ $('#show-submit').addEventListener('click', async () => {
   b.textContent = 'submitting…';
   try {
     const r = await fetch('/api/submit', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(s) });
-    // 409: this browser has submitted already
-    if (r.ok || r.status === 409) {
-      try { localStorage.setItem(SUBMITTED_KEY, new Date().toISOString()); } catch {}
+    if (r.ok) {
+      try { sessionStorage.setItem(SUBMITTED_KEY, new Date().toISOString()); } catch {}
       showSubmitted();
       return;
     }
@@ -2077,17 +2076,20 @@ function skip(to) {
   applyGains();
 }
 
-// ---------- persistence (per browser, convenience only) ----------
+// ---------- persistence (per tab, convenience only) ----------
+// sessionStorage: a reload (or the phone dropping the tab) keeps the game, but a new visit starts a new one
+
+try { localStorage.removeItem(STORE_KEY); localStorage.removeItem('cutup-submitted'); } catch {}  // saves from before
 
 function save() {
   try {
-    localStorage.setItem(STORE_KEY, JSON.stringify({ phase, at, task, start, results, tried, retried, picks, lines, lineOff, nLines, last, trackOn }));
+    sessionStorage.setItem(STORE_KEY, JSON.stringify({ phase, at, task, start, results, tried, retried, picks, lines, lineOff, nLines, last, trackOn }));
   } catch {}
 }
 // returns false when there's nothing usable saved, so a new game is dealt
 function restore() {
   try {
-    const s = JSON.parse(localStorage.getItem(STORE_KEY));
+    const s = JSON.parse(sessionStorage.getItem(STORE_KEY));
     // a sequence changed since may have another step here: start again
     if (!s?.phase || SEQUENCE[s.at]?.kind !== s.phase || !Array.isArray(s.start)) return false;
     // words.json may have changed since: words no longer in it are dropped

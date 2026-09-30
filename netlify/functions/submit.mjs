@@ -1,9 +1,9 @@
-// POST /api/submit: a score (see hosting-plan.md), checked and stored. One per voter: a second gets 409.
+// POST /api/submit: a score (see hosting-plan.md), checked and stored. A player can submit again on a new visit.
 
 import { db, handle, ensureSchema, voterOf, ipHash, json } from '../lib/db.mjs';
 import { checkScore, isProblem, scoreText } from '../lib/score.mjs';
 
-const PER_IP_HOUR = 20;  // loose: only one per browser anyway
+const PER_IP_HOUR = 100;  // loose: a large institution's visitors can share one IP
 
 export default handle(async (req, context) => {
   const sql = db();
@@ -23,8 +23,7 @@ export default handle(async (req, context) => {
   if (n >= PER_IP_HOUR) return json({ error: 'too many from here, try later' }, 429);
   const rows = await sql`insert into submissions (voter, ip_hash, score, text)
     values (${voter}, ${ip}, ${JSON.stringify(score)}, ${scoreText(score)})
-    on conflict (voter) do nothing returning id`;
-  if (!rows.length) return json({ error: 'submitted already' }, 409);
+    returning id`;
   return json({ id: Number(rows[0].id) }, 201);
 });
 

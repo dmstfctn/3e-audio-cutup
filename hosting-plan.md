@@ -9,7 +9,7 @@ Players submit their lines at the end. Built, and merged to `main`: the submit p
 - Online only. Up for a week before an event, with about 1k visitors, not all of whom play to the end.
 - Live for about a month, then frozen into a static archive.
 - Anonymous: no names, no login.
-- One submission per player. No share links.
+- One submission per visit: the game is saved per tab (`sessionStorage`), so a new visit plays again from the start and can submit again. No share links.
 - Up and down votes, with a choice of order (newest, top, random), supported by the API even if no page uses them yet.
 - A submission keeps the track mix it was made with. It may end up as the full track (`all`) instead, which the format allows without changing.
 - One person looks after it, so upkeep should be close to none.
@@ -45,7 +45,7 @@ Rendering each submission to an audio file (`OfflineAudioContext`, then an encod
 
 - **The site:** `build/` as it is now, on Netlify's CDN.
 - **The API:** Netlify Functions in `netlify/functions/`, on the same domain (so no CORS setup), sharing `netlify/lib/`:
-  - `/api/submit` (POST a score) checks and stores it: 201, or 409 if this voter has submitted already, 400 with the problem, 429 past 20 an hour from one IP.
+  - `/api/submit` (POST a score) checks and stores it: 201, 400 with the problem, or 429 past 100 an hour from one IP (high, as a large institution's visitors may share one).
   - `/api/list?order=new|top|random&page=0&seed=…` returns 20 submissions not hidden, with their `up` and `down`, and `more`. Cached on the CDN for 30 s. `random` is shuffled by `seed`, so one seed's pages don't overlap.
   - `/api/vote` (POST `{ id, value }`, value 1, −1 or 0 to take it back) returns the counts. 300 an hour from one IP.
   - `/api/admin`, for `build/tools/submissions.html`, with `ADMIN_PASSWORD` as the password: every submission, hidden ones too, and hiding or showing one.
@@ -86,7 +86,7 @@ No login means a determined cheater can't be stopped, but several light measures
 2. **Rate limit by IP:** a salted hash of the IP, never the IP itself, with a loose cap on votes per hour. Shared Wi-Fi at a venue isn't a concern, as it's online only.
 3. **Cloudflare Turnstile** (an invisible CAPTCHA) on votes and submissions, only if bots show up. It can be added later. It's the one outside script the site would load.
 
-The same voter id enforces one submission per player: a unique key on it in the submissions table, and the game hides [submit your lines] once it has submitted. Clearing cookies gets past it, which is fine.
+Submissions aren't limited per voter id: the game hides [submit your lines] once it has submitted in that tab, and a new visit can submit again. The voter id is still stored with each submission.
 
 Order: newest, top (up minus down) and random all come from one query with a different `ORDER BY`.
 
@@ -109,7 +109,7 @@ The archive is then plain static files and can stay up indefinitely on Netlify o
 ## Decided
 
 - Netlify deploys from the GitHub repo (`dmstfctn/3e-audio-cutup`), so the functions deploy with the site.
-- One submission per player, no share links.
+- One submission per visit (changed from one per player on 2026-09-30), no share links.
 - A submission keeps its track mix.
 - Whether "scroll for inspiration" is built, and if so as an overlay or a page, is left for later.
 
@@ -119,7 +119,7 @@ The archive is then plain static files and can stay up indefinitely on Netlify o
 
 ## Still to do
 
-1. Test submissions go into the same database: clear them before launch in Neon's SQL editor with `truncate submissions, votes restart identity;`.
+1. Before launch, in Neon's SQL editor: drop the old one-per-voter key with `alter table submissions drop constraint if exists submissions_voter_key;` (the table was made with it, and `create table if not exists` won't change it), then clear the test submissions with `truncate submissions, votes restart identity;`.
 2. The freeze script. "Scroll for inspiration" only if it's wanted.
 
 ## Sources
