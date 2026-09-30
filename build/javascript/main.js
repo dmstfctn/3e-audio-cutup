@@ -1520,12 +1520,13 @@ function openListen(own = submission(), fade = false) {
   showing++;  // stops the submit screen's lighting up
   stopLoop();
   submitting = true;  // keeps the loop stopped
-  $('#show').hidden = true;
   $('#listen').hidden = false;
   if (fade) {
-    $('#listen').animate([{ opacity: 0 }, { opacity: 1 }], { duration: LISTEN_BLACK_MS, easing: 'ease-in-out' });
+    // the submit screen stays under it until it's black, or the writing screen would show through
+    $('#listen').animate([{ opacity: 0 }, { opacity: 1 }], { duration: LISTEN_BLACK_MS, easing: 'ease-in-out' })
+      .finished.then(() => $('#show').hidden = true, () => $('#show').hidden = true);
     listenNext = performance.now() + LISTEN_BLACK_MS;
-  }
+  } else $('#show').hidden = true;
   if (listenOpen) return;
   listenOpen = true;
   if (own) {

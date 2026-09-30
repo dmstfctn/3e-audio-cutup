@@ -183,7 +183,7 @@ const MINIGAMES = (() => {
   function findIt(container, data, done, progress) {
     const g = frame(container, `
       <div class="mg-center">
-        <p class="mg-prompt">loading…</p>
+        <p class="mg-prompt"><span class="mg-loading">loading…</span></p>
         <div class="mg-fitbox">
           <div class="mg-find">
             <img class="mg-photo" alt="" draggable="false">
@@ -229,7 +229,7 @@ const MINIGAMES = (() => {
   function captionMatch(container, data, done, progress) {
     const g = frame(container, `
       <div class="mg-center">
-        <p class="mg-prompt">loading…</p>
+        <p class="mg-prompt"><span class="mg-loading">loading…</span></p>
         <div class="mg-fitbox"><div class="mg-opts"></div></div>
       </div>`);
     const opts = g.$('.mg-opts'), caption = g.$('.mg-prompt');
@@ -242,7 +242,7 @@ const MINIGAMES = (() => {
       const r = rounds[idx];
       feedback(g.root, r);
       opts.replaceChildren();
-      caption.textContent = 'loading…';
+      caption.innerHTML = '<span class="mg-loading">loading…</span>';
       g.bar(1);
       await Promise.all(r.options.map(preload));
       if (g.dead) return;
@@ -297,7 +297,7 @@ const MINIGAMES = (() => {
     const BAD_MS = 1000, SHRINK_MS = 350;
     const g = frame(container, `
       <div class="mg-center">
-        <p class="mg-prompt">loading…</p>
+        <p class="mg-prompt"><span class="mg-loading">loading…</span></p>
         <div class="mg-fitbox"><div class="mg-pairs"></div></div>
       </div>`);
     feedback(g.root, data);
@@ -373,7 +373,7 @@ const MINIGAMES = (() => {
   function findAll(container, data, done, progress) {
     const g = frame(container, `
       <div class="mg-center">
-        <p class="mg-prompt"><span class="mg-say">loading…</span><span class="mg-count"></span></p>
+        <p class="mg-prompt"><span class="mg-say"><span class="mg-loading">loading…</span></span><span class="mg-count"></span></p>
         <div class="mg-fitbox">
           <div class="mg-find">
             <img class="mg-photo" alt="" draggable="false">

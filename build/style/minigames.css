@@ -11,6 +11,7 @@
 /* every game's prompt on the same line at the top, and what's played centred in the room under it */
 .mg-center { height: 100%; display: flex; flex-direction: column; align-items: center; gap: calc(16 * var(--u)); padding: calc(28 * var(--u)) 0; box-sizing: border-box; }
 .mg-prompt { flex: none; max-width: min(90vw, calc(900 * var(--u))); text-align: center; font: clamp(20px, 2.6vw, calc(30 * var(--u))) "Times New Roman", times, serif; margin: 0; min-height: 1.4em; }
+.mg-loading { font: calc(16 * var(--u)) var(--hand); }  /* as small as the loading… before [start] */
 .mg-prompt b { letter-spacing: calc(-0.66 * var(--u)); }  /* its bold words (the thing to find, the caption, the count at time-up) set tighter */
 .mg-overlay { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
 /* shapes are invisible until revealed, whatever colours the SVG file gave them */
