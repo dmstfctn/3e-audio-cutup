@@ -5,7 +5,7 @@ const MIN_LINES = 2, MAX_LINES = 8;              // the lines showing, one more 
 const TRACK_LINES = 4;                          // the tracks are 8 bars: line i plays over bars 2i+1..2i+2, mod 8
 const TAKES = 2;                                // the most recordings of a word the tray offers, picked at random
 const MAX_YEAHS = 5;                            // the most yeahs the tray offers, picked at random
-const FIND_ALL_EXTRA = 5;                       // find-all: the most words a photo wins besides the thing's own
+const FIND_ALL_EXTRA = 3;                       // find-all: the most words a photo wins besides the thing's own
 // find-all: how likely each of those is to be a verb, an adjective (or describer) or a noun, of the ones the photo has
 const EXTRA_ODDS = { verb: .4, adjective: .4, noun: .2 };
 const PAD = 0.03;                               // seconds around each word's aligned bounds, unless config/clips.json sets them
@@ -15,7 +15,8 @@ const ENTER_SPREAD = 1.2;                       // seconds over which the words 
 const ENTER_DELAY = 0.4;                        // seconds after the strip's words start flying into the tray that the new words pop in
 const MORPH_MS = 900, MORPH_SPREAD = 300;       // the strip growing into the tray, and the most its words are staggered by
 const JITTER = 30;                              // px (times UNIT()): a point, word or track won flies from a random spot this near the click
-const FLY_GAP = 120;                            // the gap between words won together flying to the strip
+const FLY_GAP = 120;                            // the most gap between points won together bursting out
+const WORD_GAP = 317;                           // ms between words won together coming up
 // how long a +1 takes to burst out, and a word to fly to the strip, the word 10% slower
 const POINT_FLY_MS = 700, WORD_FLY_MS = POINT_FLY_MS * 1.1;
 // a word won grows from nothing to this many times its size in the strip (or as big as fits on screen), holds,
@@ -1251,9 +1252,9 @@ function flyWords(texts, x, y, key, flash) {
   texts.forEach((t, k) => setTimeout(() => {
     if (stripGen[key] === gen) {
       flyWord(t, x, y, key, flash);
-      playUnlock();
+      if (!k) playUnlock();  // one sound for the words won together
     }
-  }, k * FLY_GAP));
+  }, k * WORD_GAP));
 }
 
 // a word won's flash through its colours, 0.1 s each: made once per list of colours, as a CSS animation, which

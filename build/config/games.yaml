@@ -36,7 +36,7 @@
 #   worth, instead of the game's points.
 # - every (find-all photos, optional): win every word listed, the first at the
 #   first found and the others in a random order, one each time this many more
-#   are found, instead of 5 spread up to finding them all. For photos with too
+#   are found, instead of 3 spread up to finding them all. For photos with too
 #   many shapes to find them all.
 
 # The tracks, each unlocked by a game or played by story.yaml's sequence. They
@@ -109,9 +109,9 @@ pair-it:
       rewards: [unruly]
 
 # Find Them All: every photo once, whole, with the count found next to the
-# prompt. The first word listed is won at the first found, then 5 of the others
+# prompt. The first word listed is won at the first found, then 3 of the others
 # picked at random each play, spread evenly up to finding them all (with 12 to
-# find, at 1, 4, 6, 8, 10 and 12). Each of the 3 is a verb (40%), an adjective (40%)
+# find, at 1, 6, 9 and 12). Each of the 3 is a verb (40%), an adjective (40%)
 # or a noun (20%), of the ones the photo has left (EXTRA_ODDS in main.js), so
 # list more verbs and adjectives for a photo to see them come up more. With no
 # rewards, the thing's own word is the only one.
@@ -140,8 +140,8 @@ find-all:
       find: rain
       reach: 40         # a click finds every drop within 40 of the photo's pixels
       points: 5         # half the game's, so many drops don't fly so many +1s
-      every: 20         # all its words, the others in a random order, one every 20 drops found
-      rewards: [rain, P12, barclays, shining, crack, person, colourless]
+      every: 95         # all its words, the others in a random order, one every 95 drops found
+      rewards: [rain, P12, barclays, shining, crack, person]
 
 # Caption Match: every round is played each time, in a random order. Pick the
 # photo the caption describes from it and its decoys to win all its words.
