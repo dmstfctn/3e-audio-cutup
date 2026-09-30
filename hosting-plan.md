@@ -1,6 +1,6 @@
 # Hosting plan: submissions and "scroll for inspiration"
 
-Players submit their lines at the end. Built (on the `submit` branch): the submit path, the API (`/api/submit`, `/api/list`, `/api/vote`, `/api/admin`), the database tables and a private page for hearing the submissions. Not built: "scroll for inspiration" and the freeze script.
+Players submit their lines at the end. Built, and merged to `main`: the submit path, the API (`/api/submit`, `/api/list`, `/api/vote`, `/api/admin`), the database tables and a private page for hearing the submissions. Not built: "scroll for inspiration" and the freeze script.
 
 "Scroll for inspiration", a page or overlay for browsing the submissions and voting them up or down, may not be built. The submit path, the API and the database still support it: listing and voting are part of the API and the table from the start, so the page can be added later without changing them.
 
@@ -60,7 +60,7 @@ The account predates 4 September 2025, so it's on the **legacy Starter** plan an
 
 | | Estimate for the month | Limit |
 |---|---|---|
-| Bandwidth | about 6 MB per full play (4.7 MB before [start], plus photos) × 1k, plus return visits: under 10 GB | 100 GB |
+| Bandwidth | about 4 MB per full play (the audio, 2.5 MB, most of it loading after [start], plus photos) × 1k, plus return visits: under 10 GB | 100 GB |
 | Function requests | pages of the list, votes and submissions, 20–40 per visitor: under 40k | 125k |
 | Build minutes | about none: no build step | 300 |
 
@@ -75,7 +75,7 @@ A $5–6/month server would work, but it needs security updates, TLS, backups an
 ### Speed
 
 - The pages come from the CDN. Only submitting and voting reach a function, and the first call after a quiet spell can take 0.2–1 s.
-- "Scroll for inspiration" plays every submission from `words.mp3` and the tracks. The game has those in memory already, so the overlay loads only the scores. On its own the page loads them once (about 4.5 MB), and each submission after that is about 2 KB.
+- "Scroll for inspiration" plays every submission from `words.mp3` and the tracks. The game has those in memory already, so the overlay loads only the scores. On its own the page loads them once (about 2.5 MB), and each submission after that is about 2 KB.
 - Submissions load a page at a time as the viewer scrolls.
 
 ## Votes without logins
@@ -119,7 +119,7 @@ The archive is then plain static files and can stay up indefinitely on Netlify o
 
 ## Still to do
 
-1. Test on the branch's deploy preview, then merge to `main`. Test submissions go into the same database: clear them before launch in Neon's SQL editor with `truncate submissions, votes restart identity;`.
+1. Test submissions go into the same database: clear them before launch in Neon's SQL editor with `truncate submissions, votes restart identity;`.
 2. The freeze script. "Scroll for inspiration" only if it's wanted.
 
 ## Sources

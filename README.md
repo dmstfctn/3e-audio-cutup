@@ -68,12 +68,12 @@ After editing the transcript or replacing the recording:
 ```
 preprocess/.venv/bin/python preprocess/preprocess.py --clips
 cp data/audio.wav build/audio/words.wav
-lame --quiet -V 2 build/audio/words.wav build/audio/words.mp3
+lame --quiet -m m -b 64 --resample 48 build/audio/words.wav build/audio/words.mp3
 cp data/manifest.json build/audio/words.json
 python3 preprocess/hash_audio.py
 ```
 
-Copy them to `prototype/audio/` as well to update the prototypes (the prototypes play the `.wav`). The game plays the `.mp3`. Make it with `lame`, whose header tells browsers how much silence the encoder added at the start, so they trim it and the words' times still line up.
+Copy them to `prototype/audio/` as well to update the prototypes (the prototypes play the `.wav`). The game plays the `.mp3`. Make it with `lame` (64 kb/s mono, plenty for speech), whose header tells browsers how much silence the encoder added at the start, so they trim it and the words' times still line up.
 
 The script prints the words in each category and a list of words with low alignment confidence. Listen to those in `data/clips/`. A low score usually means the transcript doesn't match what's said at that point.
 

@@ -36,8 +36,8 @@
 #   gives it. Listing it under another bin still offers it, with a warning
 #   above the lines. A word that isn't in the recording is left out, with a
 #   warning.
-# - The tray shows every recording of each word, so a word said 20 times shows
-#   20 times.
+# - The tray shows up to 2 recordings of each word (TAKES in main.js), picked
+#   at random once per game, and up to 5 yeahs in all (MAX_YEAHS).
 # - Reload the page to see edits. Texts apply straight away. The first line and
 #   its words apply from the next new game (restart). Changing the sequence can
 #   start a new game.
@@ -121,8 +121,7 @@ submitted: |
   
   The same version will stream on [3ETV](https://www.somersethouse.org.uk/channel/commissions/3etv) until December 16.
 
-# The lines at the end start empty. The tray has every recording of line's
-# words and of these.
+# The lines at the end start empty. The tray has line's words and these.
 first:
   line: 
   words:
@@ -131,8 +130,7 @@ first:
     pronoun: [ ]
     glue: [ ]
 
-# Writing: the lines, the first line's words, what the games won, and these,
-# every recording of each.
+# Writing: the lines, the first line's words, what the games won, and these.
 write:
   pauses: [0.25, 0.5, 1, 2, 4]   # beats: 1 = a quarter note, 4 = a bar
   yeahs: all                     # every yeah; or a list of them

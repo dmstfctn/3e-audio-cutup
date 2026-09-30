@@ -64,6 +64,8 @@ const STORE_KEY = 'cutup';
 
 const ctx = new AudioContext();
 let trackBufs = {}, wordsBuf;  // track url -> buffer
+const FIRST_TRACKS = ['metro'];  // loaded before [start]; the recording and the other tracks load in the background after
+let audioLoaded = null, audioDone = false;  // once the recording and every track have loaded (a track may fail)
 const trackGains = {};  // track name -> its gain, so a toggle is heard straight away
 let words = {};  // id -> { id, text, bin, a, d }; pauses have no audio (a = null)
 let takes = {};  // text -> the ids of its recordings, in recording order
@@ -106,28 +108,37 @@ const activeEls = [];  // on phones, in place of the on buttons: a box per line 
 
 async function load() {
   const decode = url => fetch(url).then(r => r.arrayBuffer()).then(b => ctx.decodeAudioData(b));
+  // a track unlocked while it loaded joins the loop as it arrives; one that won't load is left silent
+  const loadTrack = ([name, url]) => decode(audioUrl(url)).then(b => {
+    trackBufs[url] = b;
+    if (unlockedTracks().some(([n]) => n === name)) joinLoop(name);
+  }, () => {
+    warnings.push(`track ${name} (${url}) didn't load`);
+    $('#status').textContent = warnings.join(' · ');
+  });
+  // the config files all at once, rather than each waiting for the one before
+  ['config/games.yaml', 'config/story.yaml', 'config/clips.json', 'config/colours.json', 'config/word-colours.yaml',
+    'config/bins.yaml'].forEach(prefetch);
+  let manifest;
   try {
     const [doc, story] = await Promise.all([readGames(), readYaml('config/story.yaml'), loadAudioIndex()]);
     loadUnlocks(doc);  // first: it says which tracks to load
-    const [manifest, voice, ...tracks] = await Promise.all([
-      fetch(audioUrl('audio/words.json')).then(r => r.json()),
-      decode(audioUrl('audio/words.mp3')),
-      // all up front, so an unlocked track never waits; one that won't load is left silent
-      ...TRACKS.map(([name, url]) => decode(audioUrl(url)).catch(() => { warnings.push(`track ${name} (${url}) didn't load`); return null; })),
-    ]);
-    TRACKS.forEach(([name, url], k) => {
-      if (tracks[k]) trackBufs[url] = tracks[k];
+    for (const key of ['find', 'find-all']) Object.keys(doc?.[key]?.photos ?? {}).forEach(p => prefetch(`images/${svgName(p)}`));
+    TRACKS.forEach(([name]) => {
       trackGains[name] = ctx.createGain();
       trackGains[name].gain.value = 0;
       trackGains[name].connect(ctx.destination);
     });
-    wordsBuf = voice;
+    [manifest] = await Promise.all([
+      fetch(audioUrl('audio/words.json')).then(r => r.json()),
+      ...TRACKS.filter(([name]) => FIRST_TRACKS.includes(name)).map(loadTrack),
+    ]);
     for (const w of manifest.words) {
       const a = Math.max(0, w.start - PAD);
-      const b = Math.min(voice.duration, w.end + PAD);
+      const b = Math.min(manifest.duration, w.end + PAD);
       words[w.id] = { id: w.id, text: w.word.toLowerCase(), raw: w.raw.toLowerCase(), bin: w.bin, line: w.line, a, d: b - a };
     }
-    await Promise.all([applyClips(), loadColours(), loadWordColours()]);
+    await Promise.all([applyClips(manifest.duration), loadColours(), loadWordColours()]);
     await applyBinOverrides();
     for (const w of Object.values(words)) (takes[w.text] ??= []).push(w.id);
     loadStory(story);
@@ -137,7 +148,14 @@ async function load() {
     $('#screen-go').textContent = 'couldn\'t load';
     throw e;
   }
+  // the rest of the audio, while the story and the games go on; the end waits for it (whenAudio)
+  audioLoaded = Promise.all([
+    decode(audioUrl('audio/words.mp3')).then(b => { wordsBuf = b; }),
+    ...TRACKS.filter(([name]) => !FIRST_TRACKS.includes(name)).map(loadTrack),
+  ]).then(() => { audioDone = true; });
+  audioLoaded.catch(() => {});  // shown when the end is reached
   if (!restore()) newGame();
+  if (phase === 'write' && !await whenAudio()) return;
   buildLines();
   $('#palette').addEventListener('dragover', onPaletteDragOver);
   $('#palette').addEventListener('drop', onPaletteDrop);
@@ -148,6 +166,34 @@ async function load() {
   fillStrip();
   showStep();
   applyGains();
+}
+
+// the end needs the recording and the tracks: until they've loaded, the button shows loading…
+async function whenAudio() {
+  if (audioDone) return true;
+  const go = $('#screen-go'), was = [go.textContent, go.hidden];
+  Object.assign(go, { textContent: 'loading…', hidden: false, disabled: true });
+  try {
+    await audioLoaded;
+  } catch {
+    go.textContent = 'couldn\'t load, try reloading';
+    return false;
+  }
+  [go.textContent, go.hidden] = was;
+  go.disabled = false;
+  return true;
+}
+
+// config files fetched as loading starts, each read once by whichever loader wants it
+const prefetched = {};
+function prefetch(file) {
+  prefetched[file] = fetch(file, { cache: 'no-cache' });  // pick up edits on reload
+  prefetched[file].catch(() => {});  // its loader handles a failure
+}
+function fetchConfig(file) {
+  const r = prefetched[file] ?? fetch(file, { cache: 'no-cache' });
+  delete prefetched[file];
+  return r;
 }
 
 // audio/v/index.json, from preprocess/hash_audio.py: each file in audio/ -> a copy named by its content's hash, which
@@ -175,10 +221,10 @@ const audioUrl = url => audioFile(url) ? `audio/v/${audioFile(url)}` : url;
 
 // config/clips.json, from tools/clippicker.html: recording id -> { start, end } to trim it (seconds, padding
 // included), and off: true to leave it out of the tray. Recordings it doesn't list keep PAD around their bounds.
-async function applyClips() {
+async function applyClips(duration) {
   let doc = {};
   try {
-    const r = await fetch('config/clips.json', { cache: 'no-cache' });
+    const r = await fetchConfig('config/clips.json');
     if (r.ok) doc = await r.json();  // no file: every recording as aligned
   } catch (e) {
     warnings.push(`clips.json ignored, could not read it: ${e.message}`);
@@ -190,7 +236,7 @@ async function applyClips() {
     if (!w || (c.word && c.word !== w.text)) { unknown.push(`${id} (${c.word})`); continue; }
     if (typeof c.start === 'number' && typeof c.end === 'number' && c.end > c.start) {
       w.a = Math.max(0, c.start);
-      w.d = Math.min(wordsBuf.duration, c.end) - w.a;
+      w.d = Math.min(duration, c.end) - w.a;
     }
     if (c.off) w.off = true;
   }
@@ -215,7 +261,7 @@ function lightness(hex) {
 let colours = { default: {}, games: {}, photos: {} };
 async function loadColours() {
   try {
-    const r = await fetch('config/colours.json', { cache: 'no-cache' });
+    const r = await fetchConfig('config/colours.json');
     if (!r.ok) return;  // no file: the colours in COLOURS
     const doc = await r.json();
     colours = { default: doc.default ?? {}, games: doc.games ?? {}, photos: doc.photos ?? {} };
@@ -256,7 +302,7 @@ const warnings = [];
 async function applyBinOverrides() {
   let doc = {};
   try {
-    const r = await fetch('config/bins.yaml', { cache: 'no-cache' });  // pick up edits on reload
+    const r = await fetchConfig('config/bins.yaml');
     if (r.ok) doc = jsyaml.load(await r.text()) || {};  // no file: use the tagger's bins
     if (typeof doc !== 'object' || Array.isArray(doc)) throw new Error('expected bin names with lists of words');
   } catch (e) {
@@ -300,7 +346,7 @@ function findWord(token) {
 // a YAML file of names and their settings, or null if it can't be read (with a warning)
 async function readYaml(file, missing = `no ${file}`) {
   try {
-    const r = await fetch(file, { cache: 'no-cache' });  // pick up edits on reload
+    const r = await fetchConfig(file);
     if (!r.ok) { warnings.push(missing); return null; }
     const doc = jsyaml.load(await r.text()) || {};
     if (typeof doc !== 'object' || Array.isArray(doc)) throw new Error('expected names with their settings');
@@ -572,7 +618,7 @@ const svgName = photo => `${photo.replace(/\.[^.]+$/, '')}.svg`;
 // id is one shape. The shapes lose their ids and styles, so the game controls how they look.
 async function loadShapes(photo) {
   const file = `images/${svgName(photo)}`;
-  const r = await fetch(file, { cache: 'no-cache' });
+  const r = await fetchConfig(file);
   if (!r.ok) throw new Error(`no ${file}, so ${photo} is left out`);
   const doc = new DOMParser().parseFromString(await r.text(), 'image/svg+xml');
   const svg = doc.documentElement;
@@ -804,8 +850,9 @@ function preloadImages(...ks) {
 }
 
 // moves the game on to step k: the tracks it plays come on, and those it stops go off
-function enter(k) {
+async function enter(k) {
   const next = SEQUENCE[k];
+  if (next.kind === 'write' && !await whenAudio()) return;
   const before = next.kind === 'write' ? new Set(paletteWords().map(w => w.id)) : null;  // so the words won drop in
   const strip = next.kind === 'write' ? stripNow() : null;  // so the tray can grow out of it
   const had = new Set(unlockedTracks().map(([name]) => name));
@@ -1999,6 +2046,7 @@ document.addEventListener('contextmenu', e => { if (e.target.closest?.('.word'))
 function skip(to) {
   const k = typeof to === 'number' ? to : GAME_ORDER.includes(to) ? gamesAt() : SEQUENCE.findIndex(s => s.kind === to);
   if (!SEQUENCE[k]) return console.log(`skip to: ${[...GAME_ORDER, 'write'].join(', ')}, or a step from 0 to ${SEQUENCE.length - 1}`);
+  if (SEQUENCE[k].kind === 'write' && !audioDone) return audioLoaded.then(() => skip(to));
   const games = k > gamesAt() ? GAME_ORDER.length : k === gamesAt() ? Math.max(0, GAME_ORDER.indexOf(to)) : 0;
   mounted?.destroy();
   mounted = null;
