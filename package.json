@@ -1,0 +1,8 @@
+{
+  "private": true,
+  "type": "module",
+  "description": "The API's dependencies (netlify/functions). The game in build/ needs nothing installed.",
+  "dependencies": {
+    "@neondatabase/serverless": "^1.1.0"
+  }
+}

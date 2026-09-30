@@ -1,0 +1,19 @@
+# The site is build/ as it is, with no build step. The API is netlify/functions/ (see hosting-plan.md).
+[build]
+  publish = "build"
+
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"
+
+# named by their content's hash (preprocess/hash_audio.py), so they never change
+[[headers]]
+  for = "/audio/v/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+# the submissions page isn't for search engines
+[[headers]]
+  for = "/tools/*"
+  [headers.values]
+    X-Robots-Tag = "noindex"

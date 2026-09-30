@@ -33,10 +33,12 @@ The game started as a copy of prototype-09 (see [Two lines, live rewards](#two-l
   - `clips.json`: trims and recordings switched off, from the clip picker (see [Trim and pick recordings](#trim-and-pick-recordings)). Optional.
 - `build/javascript/`: `main.js` runs the page, `minigames.js` the games, and `lib/` holds js-yaml
 - `build/style/`: the page's styles (`style.css`) and the games' (`minigames.css`)
-- `build/audio/`: the cut-up recording (`words.mp3`, `words.json`; `words.wav` is kept) and the tracks
+- `build/audio/`: the cut-up recording (`words.mp3`, `words.json`; `words.wav` is kept) and the tracks. The game loads their copies in `build/audio/v/` (see [Replace audio](#replace-audio))
 - `build/images/`: the photos and their shapes, and the story's images in `story/`
 - `build/tools/clippicker.html`: the clip picker
 - `build/tools/colourpicker.html`: the colour picker
+- `build/tools/submissions.html`: the submissions, to hear and hide (see [Deploy](#deploy))
+- `netlify/`: the API that stores submissions (see `hosting-plan.md`)
 
 ## Run the prototypes
 
@@ -68,6 +70,7 @@ preprocess/.venv/bin/python preprocess/preprocess.py --clips
 cp data/audio.wav build/audio/words.wav
 lame --quiet -V 2 build/audio/words.wav build/audio/words.mp3
 cp data/manifest.json build/audio/words.json
+python3 preprocess/hash_audio.py
 ```
 
 Copy them to `prototype/audio/` as well to update the prototypes (the prototypes play the `.wav`). The game plays the `.mp3`. Make it with `lame`, whose header tells browsers how much silence the encoder added at the start, so they trim it and the words' times still line up.
@@ -294,6 +297,18 @@ The story is in `prototype/words/story-09.yaml`, and the games are in `prototype
 
 - `prototype/tools-test-find-all-svg.html`: drop a photo and its shapes (.svg) on the page to check them before they go in `games.yaml`. It outlines every shape over the photo, lists the things the ids mark with their counts, and warns when the SVG's proportions don't match the photo's or its name isn't the one the game looks for. Choose a thing and press **play** to try it in Find Them All, as the game plays it (the whole photo, not zoomed in), with the seconds, tolerance, reach and number of words set on the page. When the page is served, these start from `games.yaml`, including the photo's own entry if it has one. Drop a new .svg at any time to try an edit with the same photo.
 
+## Replace audio
+
+After replacing `words.mp3`, `words.json` or a track in `build/audio/` (or adding a track to `games.yaml`):
+
+```
+python3 preprocess/hash_audio.py
+```
+
+It copies each to `build/audio/v/` with its content's hash in the name, and the game loads those copies. A submission names the files it was made with, so commit the new copies and never delete the old ones. Served locally, a file replaced without running the script plays as it is now, with a warning above the lines, but can't be submitted.
+
 ## Deploy
 
-`build/` is a static site: upload it to any static host (Netlify, itch.io, GitHub Pages, Cloudflare Pages).
+Netlify deploys the GitHub repo: `build/` as the site, with no build step, and `netlify/functions/` as the API that stores submissions (see `hosting-plan.md`). It needs `DATABASE_URL` (from Neon) and `ADMIN_PASSWORD` in the site's environment variables.
+
+`/tools/submissions.html` on the deployed site lists every submission: enter `ADMIN_PASSWORD`, press ▶ to hear one as it sounded, tick **hidden** to take one out of the list, and **download .txt** for all their lines as text.

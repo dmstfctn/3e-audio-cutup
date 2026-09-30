@@ -107,13 +107,13 @@ const activeEls = [];  // on phones, in place of the on buttons: a box per line 
 async function load() {
   const decode = url => fetch(url).then(r => r.arrayBuffer()).then(b => ctx.decodeAudioData(b));
   try {
-    const [doc, story] = await Promise.all([readGames(), readYaml('config/story.yaml')]);
+    const [doc, story] = await Promise.all([readGames(), readYaml('config/story.yaml'), loadAudioIndex()]);
     loadUnlocks(doc);  // first: it says which tracks to load
     const [manifest, voice, ...tracks] = await Promise.all([
-      fetch('audio/words.json').then(r => r.json()),
-      decode('audio/words.mp3'),
+      fetch(audioUrl('audio/words.json')).then(r => r.json()),
+      decode(audioUrl('audio/words.mp3')),
       // all up front, so an unlocked track never waits; one that won't load is left silent
-      ...TRACKS.map(([name, url]) => decode(url).catch(() => { warnings.push(`track ${name} (${url}) didn't load`); return null; })),
+      ...TRACKS.map(([name, url]) => decode(audioUrl(url)).catch(() => { warnings.push(`track ${name} (${url}) didn't load`); return null; })),
     ]);
     TRACKS.forEach(([name, url], k) => {
       if (tracks[k]) trackBufs[url] = tracks[k];
@@ -149,6 +149,29 @@ async function load() {
   showStep();
   applyGains();
 }
+
+// audio/v/index.json, from preprocess/hash_audio.py: each file in audio/ -> a copy named by its content's hash, which
+// is what loads, so a submission can name the files it was made with and they never change under it
+let audioIndex = {};
+async function loadAudioIndex() {
+  try {
+    const r = await fetch('audio/v/index.json', { cache: 'no-cache' });
+    if (r.ok) audioIndex = await r.json();
+  } catch {}
+  // served locally: a file replaced since hash_audio.py ran plays as it is now, with a warning
+  if (!['localhost', '127.0.0.1'].includes(location.hostname)) return;
+  const stale = [];
+  await Promise.all(Object.entries(audioIndex).map(async ([name, v]) => {
+    try {
+      const r = await fetch(`audio/${name}`, { method: 'HEAD', cache: 'no-cache' });
+      if (r.ok && Number(r.headers.get('content-length')) !== v.size) { stale.push(name); delete audioIndex[name]; }
+    } catch {}
+  }));
+  if (stale.length) warnings.push(`changed since preprocess/hash_audio.py last ran (submit won't work): ${stale.join(', ')}`);
+}
+// audio/<name>'s hashed copy, or null if it has none
+const audioFile = url => audioIndex[url.replace(/^audio\//, '')]?.file ?? null;
+const audioUrl = url => audioFile(url) ? `audio/v/${audioFile(url)}` : url;
 
 // config/clips.json, from tools/clippicker.html: recording id -> { start, end } to trim it (seconds, padding
 // included), and off: true to leave it out of the tray. Recordings it doesn't list keep PAD around their bounds.
@@ -1277,6 +1300,7 @@ $('#submit').addEventListener('click', async () => {
   submitting = true;
   stopLoop();
   $('#submit').hidden = true;  // back to writing brings it back
+  showSubmitted();
   $('#show-text').replaceChildren(...STORY.submitted.map(para => {
     const p = document.createElement('p');
     p.append(...para);
@@ -1318,6 +1342,64 @@ $('#show-back').addEventListener('click', () => {
   submitting = false;
   $('#show').hidden = true;
   $('#submit').hidden = false;
+});
+
+// Sending the lines. One per player: the server keeps one per voter cookie, and this browser remembers it did,
+// apart from the game's save so a new game doesn't forget.
+const SUBMITTED_KEY = 'cutup-submitted';
+function showSubmitted() {
+  let done = false;
+  try { done = !!localStorage.getItem(SUBMITTED_KEY); } catch {}
+  const b = $('#show-submit');
+  b.disabled = done;
+  b.classList.toggle('done', done);
+  b.textContent = done ? 'submitted' : 'submit your lines*';
+}
+
+// the lines as a submission (see hosting-plan.md): the lines on, in order, each with the bar of the tracks it starts
+// at and each word's place in the recording, and the tracks heard, by their hashed files, so it always sounds the same
+function score() {
+  const round = x => Math.round(x * 1e4) / 1e4;
+  const open = new Set(unlockedTracks().map(([name]) => name));
+  const heard = TRACKS.filter(([name]) => open.has(name) && trackOn[name]);
+  const solo = heard.filter(([name]) => SOLO_TRACKS.includes(name));
+  const out = [];
+  for (let i = 0; i < nLines; i++) {
+    if (lineOff[i]) continue;
+    out.push({ bar: (i % TRACK_LINES) * 2, words: lines[i].map(id => {
+      const w = words[id];
+      return w.bin === 'rest' ? { rest: round(w.d) } : { id: w.id, text: w.text, bin: w.bin, s: round(w.a), d: round(w.d) };
+    }) });
+  }
+  return {
+    v: 1,
+    audio: { words: audioFile('audio/words.mp3'), manifest: audioFile('audio/words.json'),
+      tracks: Object.fromEntries((solo.length ? solo : heard).map(([name, url]) => [name, audioFile(url)])) },
+    bpm: BPM, beats: BEATS_PER_LINE, fade: FADE, lines: out,
+  };
+}
+
+$('#show-submit').addEventListener('click', async () => {
+  const b = $('#show-submit');
+  if (b.disabled) return;
+  const s = score();
+  if (!s.lines.some(l => l.words.some(w => !w.rest))) { b.textContent = 'add some words first'; return; }
+  b.disabled = true;
+  b.textContent = 'submitting…';
+  try {
+    const r = await fetch('/api/submit', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(s) });
+    // 409: this browser has submitted already
+    if (r.ok || r.status === 409) {
+      try { localStorage.setItem(SUBMITTED_KEY, new Date().toISOString()); } catch {}
+      showSubmitted();
+      return;
+    }
+    console.warn('submit:', r.status, await r.text());
+  } catch (e) {
+    console.warn('submit:', e);
+  }
+  b.disabled = false;
+  b.textContent = 'couldn\'t submit, try again';
 });
 
 // story.yaml's submitted text, shown under the lines and their buttons: paragraphs (split at blank lines), each a list of nodes: text, and [text](url) as a
