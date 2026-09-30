@@ -301,6 +301,19 @@ body.writing #show-lines span.said { color: #ccc; }
 #show-lines span { color: #bbb; transition: color .1s; }
 #show-lines span.said { color: black; }
 
+/* after submitting: theirs, then everyone else's, as submit shows them, each lit as it plays, with play / pause
+   under it; over everything, header included, scrolling for more (openListen() in main.js) */
+#listen { position: fixed; inset: 0; z-index: 14; overflow-y: auto; overscroll-behavior: contain; background: black; color: #ccc; padding: 0 1em; text-align: center; }
+#listen[hidden] { display: none; }
+body:has(#listen:not([hidden])) { overflow: hidden; }
+.listen-item { display: flex; flex-direction: column; align-items: center; gap: 1em; padding: calc(64 * var(--u)) 0; }
+.listen-lines { display: flex; flex-direction: column; gap: 16px; font: clamp(22px, 4vw, calc(40 * var(--u))) var(--hand); }
+.listen-lines span { display: inline-block; color: #555; transition: color .1s; }
+.listen-lines span.said { color: #ccc; }
+.listen-play { width: calc(28 * var(--u)); height: calc(28 * var(--u)); min-width: 24px; min-height: 24px; padding: 0; border: 0; background: none; color: #ccc; cursor: pointer; }
+.listen-play svg { display: block; width: 100%; height: 100%; }
+#listen-more { height: 1px; }
+
 /* the holding page, until the game opens (OPENS in index.html): the image and the countdown on black, over everything */
 #holding { display: none; }
 html.holding body > :not(#holding) { display: none; }

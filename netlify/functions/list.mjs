@@ -1,9 +1,10 @@
-// GET /api/list?order=new|top|random&page=0&seed=…: a page of the submissions not hidden, with their votes.
+// GET /api/list?order=new|top|random&page=0&seed=…: a page of the submissions not hidden, each only its id and score
+// (no time or votes: the listing after submitting shows just the lines).
 // random is shuffled by seed, so the pages of one seed don't overlap. Cached for 30 s, so it's the same for everyone.
 
 import { db, handle, ensureSchema, json } from '../lib/db.mjs';
 
-const PAGE = 20;
+const PAGE = 100;
 const ORDERS = {
   new: 'id desc',
   top: 'up - down desc, id desc',
@@ -27,7 +28,7 @@ export default handle(async req => {
       group by s.id
     ) t
     order by ${ORDERS[order]} limit $1 offset $2`, order === 'random' ? [PAGE + 1, page * PAGE, seed] : [PAGE + 1, page * PAGE]);
-  return json({ items: rows.slice(0, PAGE).map(r => ({ ...r, id: Number(r.id) })), more: rows.length > PAGE }, 200,
+  return json({ items: rows.slice(0, PAGE).map(r => ({ id: Number(r.id), score: r.score })), more: rows.length > PAGE }, 200,
     { 'Netlify-CDN-Cache-Control': 'public, max-age=30, stale-while-revalidate=30', 'Cache-Control': 'public, max-age=0, must-revalidate' });
 });
 

@@ -167,6 +167,7 @@ async function load() {
   fillStrip();
   showStep();
   applyGains();
+  if (phase === 'write' && submission()) openListen();  // a reload after submitting goes back to the listing
 }
 
 // the end needs the recording and the tracks: until they've loaded, the button shows loading…
@@ -1401,12 +1402,17 @@ $('#show-back').addEventListener('click', () => {
   $('#submit').hidden = false;
 });
 
-// Sending the lines. One per visit: this tab remembers it did, apart from the game's save; a new visit can submit again.
-// The server keeps each one, whoever sent it.
+// Sending the lines. One per visit: this tab remembers it did, and what (for the listing), apart from the game's save;
+// a new visit can submit again. The server keeps each one, whoever sent it.
 const SUBMITTED_KEY = 'cutup-submitted';
+function submission() {
+  try {
+    const s = JSON.parse(sessionStorage.getItem(SUBMITTED_KEY));
+    return s?.score ? s : null;
+  } catch { return null; }
+}
 function showSubmitted() {
-  let done = false;
-  try { done = !!sessionStorage.getItem(SUBMITTED_KEY); } catch {}
+  const done = !!submission();
   const b = $('#show-submit');
   b.disabled = done;
   b.classList.toggle('done', done);
@@ -1446,8 +1452,10 @@ $('#show-submit').addEventListener('click', async () => {
   try {
     const r = await fetch('/api/submit', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(s) });
     if (r.ok) {
-      try { sessionStorage.setItem(SUBMITTED_KEY, new Date().toISOString()); } catch {}
+      const { id } = await r.json();
+      try { sessionStorage.setItem(SUBMITTED_KEY, JSON.stringify({ id, score: s })); } catch {}
       showSubmitted();
+      openListen({ id, score: s });
       return;
     }
     console.warn('submit:', r.status, await r.text());
@@ -1457,6 +1465,144 @@ $('#show-submit').addEventListener('click', async () => {
   b.disabled = false;
   b.textContent = 'couldn\'t submit, try again';
 });
+
+// ---------- listen: everyone's lines, once submitted ----------
+
+// Their lines at the top, then everyone else's, newest first, a page at a time as they scroll (/api/list). Each
+// has a play / pause under it, playing it once through as it sounded, from its own audio files, lit word by word.
+let listenPage = 0, listenMore = true, listenBusy = false, listenOpen = false;
+const listenSeen = new Set();  // ids shown, as pages can overlap when new ones come in
+function openListen(own = submission()) {
+  showing++;  // stops the submit screen's lighting up
+  stopLoop();
+  submitting = true;  // keeps the loop stopped
+  $('#show').hidden = true;
+  $('#listen').hidden = false;
+  if (listenOpen) return;
+  listenOpen = true;
+  if (own) {
+    listenSeen.add(own.id);
+    $('#listen-items').append(listenItem(own.score));
+  }
+  new IntersectionObserver(es => { if (es.some(e => e.isIntersecting)) loadMoreListen(); },
+    { root: $('#listen'), rootMargin: '0px 0px 100% 0px' }).observe($('#listen-more'));
+}
+
+async function loadMoreListen() {
+  if (listenBusy || !listenMore) return;
+  listenBusy = true;
+  try {
+    const r = await fetch(`/api/list?order=new&page=${listenPage}`);
+    if (!r.ok) throw new Error(r.status);
+    const { items, more } = await r.json();
+    listenPage++;
+    listenMore = !!more;
+    for (const it of items) {
+      if (listenSeen.has(it.id) || !it.score?.lines) continue;
+      listenSeen.add(it.id);
+      $('#listen-items').append(listenItem(it.score));
+    }
+  } catch (e) {
+    console.warn('list:', e);
+    listenBusy = false;
+    setTimeout(loadMoreListen, 5000);  // try again
+    return;
+  }
+  listenBusy = false;
+  // the observer only fires on a change: if the end's still near, carry on
+  const end = $('#listen-more').getBoundingClientRect(), box = $('#listen').getBoundingClientRect();
+  if (listenMore && end.top < box.bottom + box.height) loadMoreListen();
+}
+
+// a submission's lines, as submit shows them, each word with the time it's said from the start, and its play button
+function listenItem(score) {
+  const el = document.createElement('div'), box = document.createElement('div'), b = document.createElement('button');
+  el.className = 'listen-item';
+  box.className = 'listen-lines';
+  const lineDur = score.beats * 60 / score.bpm, cues = [];
+  score.lines.forEach((line, k) => {
+    const div = document.createElement('div');
+    let t = k * lineDur;
+    for (const w of line.words) {
+      if ('rest' in w) { t += w.rest; continue; }
+      const span = textSpan(w.text);
+      span.style.rotate = `${randomTilt()}deg`;
+      div.append(span, ' ');
+      cues.push([span, t]);
+      t += w.d;
+    }
+    div.append(' ');  // an empty line still takes its place
+    box.append(div);
+  });
+  b.className = 'listen-play';
+  b.innerHTML = PLAY_ICON;
+  b.setAttribute('aria-label', 'play');
+  const item = { score, cues, b };
+  b.addEventListener('click', () => listening?.b === b ? stopListen() : playListen(item));
+  el.append(box, b);
+  return el;
+}
+
+// the audio a submission names, by its hashed file in audio/v/: the game's own when it's the same file
+const listenBufs = new Map();
+function listenBuf(file) {
+  if (!listenBufs.has(file)) {
+    const track = TRACKS.find(([, url]) => audioFile(url) === file);
+    const have = file === audioFile('audio/words.mp3') ? wordsBuf : track && trackBufs[track[1]];
+    const p = have ? Promise.resolve(have)
+      : fetch(`audio/v/${file}`).then(r => { if (!r.ok) throw new Error(r.status); return r.arrayBuffer(); }).then(b => ctx.decodeAudioData(b));
+    listenBufs.set(file, p);
+    p.catch(() => listenBufs.delete(file));
+  }
+  return listenBufs.get(file);
+}
+
+// one plays at a time, once through; pause stops it, and play starts it again from the top
+let listening = null, listenGen = 0;
+function stopListen() {
+  listenGen++;
+  if (!listening) return;
+  for (const src of listening.srcs) { try { src.stop(); } catch {} }
+  listening.b.innerHTML = PLAY_ICON;
+  listening.b.setAttribute('aria-label', 'play');
+  for (const [span] of listening.cues) span.classList.remove('said');
+  listening = null;
+}
+async function playListen(item) {
+  stopListen();
+  const me = listenGen, { audio, bpm, beats, fade, lines } = item.score;
+  const now = listening = { ...item, srcs: [] };
+  item.b.innerHTML = PAUSE_ICON;
+  item.b.setAttribute('aria-label', 'pause');
+  let voice, tracks;
+  try {
+    [voice, ...tracks] = await Promise.all([listenBuf(audio.words), ...Object.values(audio.tracks ?? {}).map(listenBuf)]);
+  } catch (e) {
+    console.warn('listen:', e);
+    if (me === listenGen) stopListen();
+    return;
+  }
+  if (me !== listenGen) return;  // paused, or another played, while it loaded
+  await ctx.resume();
+  const lineDur = beats * 60 / bpm, barDur = 4 * 60 / bpm, t0 = ctx.currentTime + 0.1, end = t0 + lines.length * lineDur;
+  lines.forEach((line, k) => {
+    const start = t0 + k * lineDur;
+    for (const buf of tracks) now.srcs.push(playSlice(buf, start, line.bar * barDur, lineDur, 0));
+    let t = start;
+    for (const w of line.words) {
+      if ('rest' in w) { t += w.rest; continue; }
+      now.srcs.push(playSlice(voice, t, w.s, w.d, fade));
+      t += w.d;
+    }
+  });
+  const light = () => {
+    if (me !== listenGen) return;
+    for (const [span, at] of item.cues) span.classList.toggle('said', ctx.currentTime - t0 >= at);
+    if (ctx.currentTime < end) requestAnimationFrame(light);
+    else stopListen();
+  };
+  light();
+}
 
 // story.yaml's submitted text, shown under the lines and their buttons: paragraphs (split at blank lines), each a list of nodes: text, and [text](url) as a
 // link opening in a new tab (with no url, just the text)

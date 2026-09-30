@@ -1,8 +1,8 @@
 # Hosting plan: submissions and "scroll for inspiration"
 
-Players submit their lines at the end. Built, and merged to `main`: the submit path, the API (`/api/submit`, `/api/list`, `/api/vote`, `/api/admin`), the database tables and a private page for hearing the submissions. Not built: "scroll for inspiration" and the freeze script.
+Players submit their lines at the end. Built, and merged to `main`: the submit path, the API (`/api/submit`, `/api/list`, `/api/vote`, `/api/admin`), the database tables, a private page for hearing the submissions, and the listing players see after submitting. Not built: the freeze script.
 
-"Scroll for inspiration", a page or overlay for browsing the submissions and voting them up or down, may not be built. The submit path, the API and the database still support it: listing and voting are part of the API and the table from the start, so the page can be added later without changing them.
+"Scroll for inspiration" is built as the listing: once a player submits, a screen in the game shows their lines at the top and everyone else's below, newest first, 100 at a time from `/api/list` as they scroll, each with play / pause. It has no voting and shows no time or other metadata. `/api/vote` and the `votes` table are still there, unused.
 
 ## Requirements
 
@@ -46,7 +46,7 @@ Rendering each submission to an audio file (`OfflineAudioContext`, then an encod
 - **The site:** `build/` as it is now, on Netlify's CDN.
 - **The API:** Netlify Functions in `netlify/functions/`, on the same domain (so no CORS setup), sharing `netlify/lib/`:
   - `/api/submit` (POST a score) checks and stores it: 201, 400 with the problem, or 429 past 100 an hour from one IP (high, as a large institution's visitors may share one).
-  - `/api/list?order=new|top|random&page=0&seed=…` returns 20 submissions not hidden, with their `up` and `down`, and `more`. Cached on the CDN for 30 s. `random` is shuffled by `seed`, so one seed's pages don't overlap.
+  - `/api/list?order=new|top|random&page=0&seed=…` returns 100 submissions not hidden, each only its `id` and `score`, and `more`. Cached on the CDN for 30 s. `random` is shuffled by `seed`, so one seed's pages don't overlap.
   - `/api/vote` (POST `{ id, value }`, value 1, −1 or 0 to take it back) returns the counts. 300 an hour from one IP.
   - `/api/admin`, for `build/tools/submissions.html`, with `ADMIN_PASSWORD` as the password: every submission, hidden ones too, and hiding or showing one.
 - **The database:** Postgres on a free Neon account, reached from the functions through a connection string kept in the site's environment variables in Netlify. Netlify's own database (Netlify DB, which also runs on Neon) needs a credit-based plan, and the account is on a legacy plan, so Neon is used directly.
@@ -75,7 +75,7 @@ A $5–6/month server would work, but it needs security updates, TLS, backups an
 ### Speed
 
 - The pages come from the CDN. Only submitting and voting reach a function, and the first call after a quiet spell can take 0.2–1 s.
-- "Scroll for inspiration" plays every submission from `words.mp3` and the tracks. The game has those in memory already, so the overlay loads only the scores. On its own the page loads them once (about 2.5 MB), and each submission after that is about 2 KB.
+- The listing plays every submission from `words.mp3` and the tracks. The game has those in memory already, so it loads only the scores (about 2 KB each), plus any older audio version a submission names.
 - Submissions load a page at a time as the viewer scrolls.
 
 ## Votes without logins
@@ -111,7 +111,7 @@ The archive is then plain static files and can stay up indefinitely on Netlify o
 - Netlify deploys from the GitHub repo (`dmstfctn/3e-audio-cutup`), so the functions deploy with the site.
 - One submission per visit (changed from one per player on 2026-09-30), no share links.
 - A submission keeps its track mix.
-- Whether "scroll for inspiration" is built, and if so as an overlay or a page, is left for later.
+- "Scroll for inspiration" is a screen in the game after submitting, with no voting.
 
 ## Hearing the submissions
 
@@ -120,7 +120,7 @@ The archive is then plain static files and can stay up indefinitely on Netlify o
 ## Still to do
 
 1. Before launch, in Neon's SQL editor: drop the old one-per-voter key with `alter table submissions drop constraint if exists submissions_voter_key;` (the table was made with it, and `create table if not exists` won't change it), then clear the test submissions with `truncate submissions, votes restart identity;`.
-2. The freeze script. "Scroll for inspiration" only if it's wanted.
+2. The freeze script.
 
 ## Sources
 
