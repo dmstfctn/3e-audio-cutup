@@ -5,12 +5,22 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Big things coming (human in the loop)</title>
 <link rel="icon" href="data:,">
+<script>
+// until the game opens, the holding page and its countdown show in its place; ?bypass in the url skips it
+const OPENS = new Date('2026-10-01T10:00:00+01:00');  // 10am London time (BST)
+if (Date.now() < OPENS && !new URLSearchParams(location.search).has('bypass')) document.documentElement.classList.add('holding');
+</script>
 <link rel="preload" href="fonts/times-new-roman-mt-condensed-opentype-1_ufonts.com.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="fonts/times-new-roman-mt-bold-condensed-opentype-1_ufonts.com.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="style/style.css?v=32">
-<link rel="stylesheet" href="style/minigames.css?v=32">
+<link rel="stylesheet" href="style/style.css?v=33">
+<link rel="stylesheet" href="style/minigames.css?v=33">
 </head>
 <body>
+
+<div id="holding">
+  <img src="images/story/degular-training.jpg" alt="">
+  <div id="countdown"></div>
+</div>
 
 <div id="ui-header" hidden>
   <button id="play"></button>
@@ -50,7 +60,7 @@
 </div>
 
 <script src="javascript/lib/js-yaml.min.js"></script>
-<script src="javascript/minigames.js?v=32"></script>
-<script src="javascript/main.js?v=32"></script>
+<script src="javascript/minigames.js?v=33"></script>
+<script src="javascript/main.js?v=33"></script>
 </body>
 </html>

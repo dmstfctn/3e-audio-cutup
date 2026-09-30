@@ -2320,4 +2320,16 @@ function drawPlayhead() {
 }
 requestAnimationFrame(drawPlayhead);
 
-load();
+// until OPENS (index.html) the holding page counts down, and nothing else loads; at zero the game does
+function countdown() {
+  const left = OPENS - Date.now();
+  if (left <= 0) {
+    document.documentElement.classList.remove('holding');
+    return load();
+  }
+  const s = Math.floor(left / 1000);
+  $('#countdown').textContent = `${Math.floor(s / 86400)}d ${Math.floor(s % 86400 / 3600)}h ${Math.floor(s % 3600 / 60)}m ${s % 60}s`;
+  setTimeout(countdown, left % 1000 || 1000);  // on the second
+}
+if (document.documentElement.classList.contains('holding')) countdown();
+else load();
