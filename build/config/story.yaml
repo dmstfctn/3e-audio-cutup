@@ -128,15 +128,7 @@ nudges:
   first: 5
   show: 3
   every: 20
-  lines:
-    - Try a parallelism
-    - Write a simile
-    - Make it rhyme
-    - Tell them
-    - Make it simpler
-    - Make it poetic
-    - Make it real
-    - Make it loud
+  lines: []
 
 # The lines at the end start empty. The tray has line's words and these.
 first:
