@@ -4,9 +4,9 @@
 import { db, handle, ensureSchema, isAdmin, json } from '../lib/db.mjs';
 
 export default handle(async req => {
-  const sql = db();
   if (!process.env.ADMIN_PASSWORD) return json({ error: 'ADMIN_PASSWORD isn\'t set in Netlify' }, 503);
   if (!isAdmin(req)) return json({ error: 'wrong password' }, 401);
+  const sql = db();
   await ensureSchema();
   if (req.method === 'POST') {
     const { id, hidden } = await req.json().catch(() => ({}));
