@@ -395,6 +395,7 @@ function loadStory(doc) {
     first: { line, words: byBin('first', first.words) },
     write: { words: [...byBin('write', write.words), ...yeahs], pauses },
     submitted: submittedText(doc.submitted),
+    nudges: readNudges(doc.nudges, problems),
   };
   SEQUENCE = readSequence(doc.sequence, String(doc.next ?? 'next'), problems);
   const games = SEQUENCE.find(s => s.kind === 'games');
@@ -915,6 +916,7 @@ function showPhase(before = null, strip = null) {
   buildPalette(before, strip ? ENTER_DELAY : 0);  // the new words pop in while the strip's fly
   if (strip) morphTray(strip);
   $('#submit').hidden = $('#more-lines').hidden = $('#active').hidden = phase !== 'write';
+  startNudges();
   showBars();
 }
 
@@ -1347,6 +1349,40 @@ function fly(el, target, x, y, ms, land, { scale = 1.4, grow = 0, hold = 0 } = {
     land();
   };
   requestAnimationFrame(frame);
+}
+
+// ---------- nudges: a line of encouragement under the lines when writing ----------
+
+// story.yaml's nudges: { first, show, every } in seconds, and the lines to pick from
+function readNudges(n, problems) {
+  n ??= {};
+  const secs = (key, fallback) => {
+    if (n[key] == null) return fallback;
+    if (Number(n[key]) > 0) return Number(n[key]);
+    problems.push(`nudges: ${key} should be a number of seconds`);
+    return fallback;
+  };
+  return { first: secs('first', 5), show: secs('show', 3), every: secs('every', 20),
+    lines: [].concat(n.lines ?? []).map(x => String(x).trim()).filter(Boolean) };
+}
+
+// one at random, never the one before, first seconds after writing starts, then every seconds, each for show seconds
+let nudgeTimer = null, nudgeLast = null;
+function startNudges() {
+  clearTimeout(nudgeTimer);
+  const box = $('#nudge'), { first, show, every, lines } = STORY.nudges;
+  box.classList.remove('on');
+  if (phase !== 'write' || !lines.length) return;
+  const next = () => {
+    const pool = lines.length > 1 ? lines.filter(l => l !== nudgeLast) : lines;
+    box.textContent = nudgeLast = pickOne(pool);
+    box.classList.add('on');
+    nudgeTimer = setTimeout(() => {
+      box.classList.remove('on');
+      nudgeTimer = setTimeout(next, Math.max(0, every - show) * 1000);
+    }, show * 1000);
+  };
+  nudgeTimer = setTimeout(next, first * 1000);
 }
 
 // ---------- submit: the lines once through, on their own ----------
