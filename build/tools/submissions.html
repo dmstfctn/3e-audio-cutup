@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Submissions</title>
+<link rel="icon" href="data:,">
+<style>
+  @font-face { font-family: hand; src: url(../fonts/times-new-roman-mt-condensed-opentype-1_ufonts.com.woff2) format('woff2'); }
+  :root { color-scheme: light; }
+  body { margin: 0; padding: 16px; font: 18px hand, 'Times New Roman', serif; background: white; color: black; }
+  button, input, select { font: inherit; color: inherit; background: white; border: 1px solid black; border-radius: 0; padding: 2px 8px; }
+  button { cursor: pointer; }
+  #bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 16px; }
+  #status { color: #555; }
+  .item { border-top: 1px solid black; padding: 10px 0; display: grid; grid-template-columns: auto 1fr; gap: 4px 16px; }
+  .item.hidden .lines { color: #aaa; text-decoration: line-through; }
+  .item.playing .lines { background: #ff0; }
+  .meta { grid-column: 2; color: #555; font-size: 15px; display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: center; }
+  .lines { white-space: pre-line; }
+  .play { grid-row: 1 / 3; align-self: start; width: 44px; }
+  label { cursor: pointer; }
+</style>
+</head>
+<body>
+
+<div id="bar">
+  <form id="login"><input id="password" type="password" placeholder="password" autocomplete="current-password"> <button id="load">load</button></form>
+  <select id="order"><option value="new">newest</option><option value="old">oldest</option><option value="top">top</option></select>
+  <label><input type="checkbox" id="show-hidden" checked> show hidden</label>
+  <button id="stop">stop</button>
+  <button id="download">download .txt</button>
+  <span id="status"></span>
+</div>
+<div id="list"></div>
+
+<script>
+// Every submission, to hear them as they sounded and hide the ones that shouldn't be listed. Reads /api/admin,
+// with ADMIN_PASSWORD from Netlify's environment variables. Plays a score as the game's submit does: each line over
+// its bars of the tracks, the words one after another from its start.
+const $ = s => document.querySelector(s);
+const ctx = new AudioContext();
+const buffers = new Map();  // audio/v/ file -> promise of its decoded audio
+let items = [], live = [], playing = null;
+
+try { $('#password').value = localStorage.getItem('submissions-password') ?? ''; } catch {}
+
+const api = (method = 'GET', body) => fetch('/api/admin', {
+  method, headers: { authorization: `Bearer ${$('#password').value}`, 'content-type': 'application/json' },
+  body: body && JSON.stringify(body),
+}).then(async r => { const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(j.error ?? r.status); return j; });
+
+async function load() {
+  $('#status').textContent = 'loading…';
+  try {
+    items = (await api()).items;
+    try { localStorage.setItem('submissions-password', $('#password').value); } catch {}
+    render();
+  } catch (e) {
+    $('#status').textContent = `couldn't load: ${e.message}`;
+  }
+}
+
+function sorted() {
+  const score = i => i.up - i.down;
+  const out = items.filter(i => $('#show-hidden').checked || !i.hidden);
+  const order = $('#order').value;
+  return out.sort((a, b) => order === 'old' ? a.id - b.id : order === 'top' ? score(b) - score(a) || b.id - a.id : b.id - a.id);
+}
+
+function render() {
+  const shown = sorted();
+  $('#status').textContent = `${items.length} submitted, ${items.filter(i => i.hidden).length} hidden`;
+  $('#list').replaceChildren(...shown.map(item => {
+    const el = document.createElement('div');
+    el.className = 'item' + (item.hidden ? ' hidden' : '') + (playing === item.id ? ' playing' : '');
+    const play = document.createElement('button');
+    play.className = 'play';
+    play.textContent = '▶';
+    play.addEventListener('click', () => playScore(item));
+    const lines = document.createElement('div');
+    lines.className = 'lines';
+    lines.textContent = item.text || '(pauses only)';
+    const meta = document.createElement('div');
+    meta.className = 'meta';
+    const tracks = Object.keys(item.score.audio.tracks).join(', ') || 'no tracks';
+    meta.append(...[`#${item.id}`, new Date(item.created_at).toLocaleString(), `+${item.up} −${item.down}`, tracks].map(t => {
+      const span = document.createElement('span');
+      span.textContent = t;
+      return span;
+    }));
+    const hide = document.createElement('label');
+    const box = document.createElement('input');
+    box.type = 'checkbox';
+    box.checked = item.hidden;
+    box.addEventListener('change', async () => {
+      try {
+        await api('POST', { id: item.id, hidden: box.checked });
+        item.hidden = box.checked;
+      } catch (e) {
+        box.checked = item.hidden;
+        alert(`couldn't change it: ${e.message}`);
+      }
+      render();
+    });
+    hide.append(box, ' hidden');
+    meta.append(hide);
+    el.append(play, lines, meta);
+    return el;
+  }));
+}
+
+const buffer = file => {
+  if (!buffers.has(file)) {
+    buffers.set(file, fetch(`../audio/v/${file}`).then(r => r.arrayBuffer()).then(b => ctx.decodeAudioData(b)));
+    buffers.get(file).catch(() => buffers.delete(file));
+  }
+  return buffers.get(file);
+};
+
+function slice(buf, when, offset, duration, fade) {
+  const src = ctx.createBufferSource(), g = ctx.createGain();
+  src.buffer = buf;
+  if (fade) {
+    g.gain.setValueAtTime(0, when);
+    g.gain.linearRampToValueAtTime(1, when + fade);
+    g.gain.setValueAtTime(1, when + duration - fade);
+    g.gain.linearRampToValueAtTime(0, when + duration);
+  }
+  src.connect(g).connect(ctx.destination);
+  src.start(when, offset, duration);
+  live.push(src);
+}
+
+function stop() {
+  live.forEach(s => { try { s.stop(); } catch {} });
+  live = [];
+  playing = null;
+  render();
+}
+
+async function playScore(item) {
+  stop();
+  const { audio, bpm, beats, fade, lines } = item.score;
+  $('#status').textContent = 'loading audio…';
+  let voice, tracks;
+  try {
+    [voice, ...tracks] = await Promise.all([buffer(audio.words), ...Object.values(audio.tracks).map(buffer)]);
+  } catch (e) {
+    $('#status').textContent = `couldn't load its audio: ${e.message}`;
+    return;
+  }
+  await ctx.resume();
+  const lineDur = beats * 60 / bpm, barDur = 4 * 60 / bpm;
+  const t0 = ctx.currentTime + 0.1;
+  lines.forEach((line, k) => {
+    const start = t0 + k * lineDur;
+    for (const buf of tracks) slice(buf, start, line.bar * barDur, lineDur, 0);
+    let t = start;
+    for (const w of line.words) {
+      if ('rest' in w) { t += w.rest; continue; }
+      slice(voice, t, w.s, w.d, fade);
+      t += w.d;
+    }
+  });
+  playing = item.id;
+  render();
+  const me = item.id;
+  setTimeout(() => { if (playing === me) { playing = null; render(); } }, (lines.length * lineDur + 0.2) * 1000);
+}
+
+function download() {
+  const text = sorted().map(i => `#${i.id}  ${new Date(i.created_at).toISOString()}  +${i.up} -${i.down}${i.hidden ? '  (hidden)' : ''}\n${i.text}\n`).join('\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([text], { type: 'text/plain' }));
+  a.download = `submissions-${new Date().toISOString().slice(0, 10)}.txt`;
+  a.click();
+}
+
+$('#login').addEventListener('submit', e => { e.preventDefault(); load(); });
+$('#order').addEventListener('change', render);
+$('#show-hidden').addEventListener('change', render);
+$('#stop').addEventListener('click', stop);
+$('#download').addEventListener('click', download);
+if ($('#password').value) load();
+</script>
+</body>
+</html>

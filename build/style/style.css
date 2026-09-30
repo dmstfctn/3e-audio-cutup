@@ -290,6 +290,8 @@ body.writing #show-lines span.said { color: #ccc; }
 #show[hidden] { display: none; }
 #show-buttons { display: flex; gap: 1.5em; }
 #show-buttons button { background: none; border: 0; padding: 0; font: inherit; color: inherit; text-decoration: underline; cursor: pointer; }
+#show-buttons button:disabled { cursor: default; }
+#show-buttons button.done { text-decoration: none; }  /* submitted: plain text */
 /* under the buttons: story.yaml's submitted text, left-aligned paragraphs; the screen scrolls if it has to */
 #show-text { flex: none; max-width: 34em; margin-top: 4.2em; text-align: left; font-size: calc(14 * var(--u)); line-height: 1.4; }  /* 3 lines lower */
 #show-text:empty { display: none; }

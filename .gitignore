@@ -15,3 +15,7 @@ data/demucs/
 
 # Ableton analysis files
 *.asd
+
+# Node (netlify/functions)
+node_modules/
+.netlify/
