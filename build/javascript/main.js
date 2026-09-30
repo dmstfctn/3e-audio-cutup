@@ -1495,7 +1495,7 @@ $('#show-submit').addEventListener('click', async () => {
       const { id } = await r.json();
       try { sessionStorage.setItem(SUBMITTED_KEY, JSON.stringify({ id, score: s })); } catch {}
       showSubmitted();
-      openListen({ id, score: s });
+      openListen({ id, score: s }, true);
       return;
     }
     console.warn('submit:', r.status, await r.text());
@@ -1512,17 +1512,25 @@ $('#show-submit').addEventListener('click', async () => {
 // has a play / stop under it, playing it once through as it sounded, from its own audio files, lit word by word.
 let listenPage = 0, listenMore = true, listenBusy = false, listenOpen = false;
 const listenSeen = new Set();  // ids shown, as pages can overlap when new ones come in
-function openListen(own = submission()) {
+const LISTEN_BLACK_MS = 600;   // on submitting, the page fading to black
+const LISTEN_IN_MS = 500, LISTEN_GAP = 200;  // then each submission in view fading in, from the top, this far apart
+let listenNext = 0;  // when the next one may start fading in (performance.now())
+// fade = on submitting: the listing fades in over the page, black, before its submissions
+function openListen(own = submission(), fade = false) {
   showing++;  // stops the submit screen's lighting up
   stopLoop();
   submitting = true;  // keeps the loop stopped
   $('#show').hidden = true;
   $('#listen').hidden = false;
+  if (fade) {
+    $('#listen').animate([{ opacity: 0 }, { opacity: 1 }], { duration: LISTEN_BLACK_MS, easing: 'ease-in-out' });
+    listenNext = performance.now() + LISTEN_BLACK_MS;
+  }
   if (listenOpen) return;
   listenOpen = true;
   if (own) {
     listenSeen.add(own.id);
-    $('#listen-items').append(listenItem(own.score));
+    revealListen($('#listen-items').appendChild(listenItem(own.score)));
   }
   new IntersectionObserver(es => { if (es.some(e => e.isIntersecting)) loadMoreListen(); },
     { root: $('#listen'), rootMargin: '0px 0px 100% 0px' }).observe($('#listen-more'));
@@ -1540,7 +1548,7 @@ async function loadMoreListen() {
     for (const it of items) {
       if (listenSeen.has(it.id) || !it.score?.lines) continue;
       listenSeen.add(it.id);
-      $('#listen-items').append(listenItem(it.score));
+      revealListen($('#listen-items').appendChild(listenItem(it.score)));
     }
   } catch (e) {
     console.warn('list:', e);
@@ -1552,6 +1560,14 @@ async function loadMoreListen() {
   // the observer only fires on a change: if the end's still near, carry on
   const end = $('#listen-more').getBoundingClientRect(), box = $('#listen').getBoundingClientRect();
   if (listenMore && end.top < box.bottom + box.height) loadMoreListen();
+}
+
+// one in view fades in LISTEN_GAP after the one before; one below it is simply there when scrolled to
+function revealListen(el) {
+  if (el.getBoundingClientRect().top >= $('#listen').getBoundingClientRect().bottom) return;
+  const now = performance.now(), at = Math.max(now, listenNext);
+  listenNext = at + LISTEN_GAP;
+  el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: LISTEN_IN_MS, delay: at - now, fill: 'backwards' });
 }
 
 // a submission's lines, as submit shows them, each word with the time it's said from the start, and its play button
