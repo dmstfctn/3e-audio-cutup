@@ -2235,12 +2235,18 @@ document.addEventListener('contextmenu', e => { if (e.target.closest?.('.word'))
 
 // ---------- skipping, from the console ----------
 
-// Jumps to a game of the games step (skip('find')), the end (skip('write')) or step k of the sequence (skip(k)).
+// Jumps to a game of the games step (skip('find')), the end (skip('write')), the listing after submitting (skip('subs'),
+// with this tab's submission at the top if it has one) or step k of the sequence (skip(k)).
 // The games before it count as won in full, the tracks as the steps before left them; the game jumped to and
 // those after it are played again.
 function skip(to) {
+  if (to === 'subs') {
+    if (!audioDone) return audioLoaded.then(() => skip(to));
+    skip('write');
+    return openListen();
+  }
   const k = typeof to === 'number' ? to : GAME_ORDER.includes(to) ? gamesAt() : SEQUENCE.findIndex(s => s.kind === to);
-  if (!SEQUENCE[k]) return console.log(`skip to: ${[...GAME_ORDER, 'write'].join(', ')}, or a step from 0 to ${SEQUENCE.length - 1}`);
+  if (!SEQUENCE[k]) return console.log(`skip to: ${[...GAME_ORDER, 'write', 'subs'].join(', ')}, or a step from 0 to ${SEQUENCE.length - 1}`);
   if (SEQUENCE[k].kind === 'write' && !audioDone) return audioLoaded.then(() => skip(to));
   const games = k > gamesAt() ? GAME_ORDER.length : k === gamesAt() ? Math.max(0, GAME_ORDER.indexOf(to)) : 0;
   mounted?.destroy();
@@ -2249,6 +2255,8 @@ function skip(to) {
   showing++;
   submitting = false;
   $('#show').hidden = true;
+  stopListen();
+  $('#listen').hidden = true;
   GAME_ORDER.forEach(key => stripGen[key] = (stripGen[key] ?? 0) + 1);  // words and points still flying land nowhere
   GAME_ORDER.forEach((key, n) => {
     if (n >= games) { delete results[key]; retried = retried.filter(r => r !== key); return; }
