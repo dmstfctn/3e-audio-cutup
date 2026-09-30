@@ -3,12 +3,26 @@
 import { neon } from '@neondatabase/serverless';
 import { createHash, randomUUID, timingSafeEqual } from 'node:crypto';
 
-export const sql = neon(process.env.DATABASE_URL);
+// made on first use, inside handle(), so a bad DATABASE_URL is a plain 500, not an error page showing it
+let client = null;
+export const db = () => client ??= neon(process.env.DATABASE_URL);
+
+// Wraps a function's handler: an error is logged (connection strings blanked out) and answered with a plain
+// "server error", never with its details, which Netlify would otherwise show to anyone.
+export const handle = fn => async (req, context) => {
+  try {
+    return await fn(req, context);
+  } catch (e) {
+    console.error(String(e?.stack ?? e).replace(/postgres(ql)?:\/\/[^\s"']*/g, '[database url]'));
+    return json({ error: 'server error' }, 500);
+  }
+};
 
 // The tables, made on the first request after a deploy if they aren't there. hidden is set by hand in Neon's console
 // (or the submissions page) to take a submission out of the list.
 let ready = null;
 export function ensureSchema() {
+  const sql = db();
   ready ??= sql.transaction([
     sql`create table if not exists submissions (
       id bigint generated always as identity primary key,

@@ -1,11 +1,12 @@
 // POST /api/vote { id, value: 1, -1 or 0 (taken back) }: one vote per voter per submission, a new one replacing it.
 // Returns the submission's counts.
 
-import { sql, ensureSchema, voterOf, ipHash, json } from '../lib/db.mjs';
+import { db, handle, ensureSchema, voterOf, ipHash, json } from '../lib/db.mjs';
 
 const PER_IP_HOUR = 300;
 
-export default async (req, context) => {
+export default handle(async (req, context) => {
+  const sql = db();
   if (req.method !== 'POST') return json({ error: 'POST only' }, 405);
   let id, value;
   try {
@@ -28,6 +29,6 @@ export default async (req, context) => {
   const [c] = await sql`select count(*) filter (where value = 1)::int as up, count(*) filter (where value = -1)::int as down
     from votes where submission_id = ${id}`;
   return json({ id, ...c });
-};
+});
 
 export const config = { path: '/api/vote' };
