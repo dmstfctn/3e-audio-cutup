@@ -17,6 +17,7 @@ const MORPH_MS = 900, MORPH_SPREAD = 300;       // the strip growing into the tr
 const JITTER = 30;                              // px (times UNIT()): a point, word or track won flies from a random spot this near the click
 const FLY_GAP = 120;                            // the most gap between points won together bursting out
 const WORD_GAP = 317;                           // ms between words won together coming up
+const WORD_OFFSET = [120, 240];                 // px (times UNIT()): how far each word after the first comes up from the click, at least and at most, any direction
 // how long a +1 takes to burst out, and a word to fly to the strip, the word 10% slower
 const POINT_FLY_MS = 700, WORD_FLY_MS = POINT_FLY_MS * 1.1;
 // a word won grows from nothing to this many times its size in the strip (or as big as fits on screen), holds,
@@ -760,6 +761,7 @@ function renderTracks() {
 
 // the play / pause button's icons: a triangle, or two bars
 const PLAY_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4l13 8-13 8z" fill="currentColor"/></svg>';
+const STOP_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6h12v12H6z" fill="currentColor"/></svg>';
 const PAUSE_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4h4v16H6zM14 4h4v16h-4z" fill="currentColor"/></svg>';
 
 // paused stops the loop; playing starts it again from the first line
@@ -1254,7 +1256,9 @@ function flyWords(texts, x, y, key, flash) {
   const gen = stripGen[key];
   texts.forEach((t, k) => setTimeout(() => {
     if (stripGen[key] === gen) {
-      flyWord(t, x, y, key, flash);
+      // after the first, from further off, so words won together don't come up on top of each other
+      const a = Math.random() * 2 * Math.PI, r = k ? (WORD_OFFSET[0] + Math.random() * (WORD_OFFSET[1] - WORD_OFFSET[0])) * UNIT() : 0;
+      flyWord(t, x + r * Math.cos(a), y + r * Math.sin(a), key, flash);
       if (!k) playUnlock();  // one sound for the words won together
     }
   }, k * WORD_GAP));
@@ -1505,7 +1509,7 @@ $('#show-submit').addEventListener('click', async () => {
 // ---------- listen: everyone's lines, once submitted ----------
 
 // Their lines at the top, then everyone else's, newest first, a page at a time as they scroll (/api/list). Each
-// has a play / pause under it, playing it once through as it sounded, from its own audio files, lit word by word.
+// has a play / stop under it, playing it once through as it sounded, from its own audio files, lit word by word.
 let listenPage = 0, listenMore = true, listenBusy = false, listenOpen = false;
 const listenSeen = new Set();  // ids shown, as pages can overlap when new ones come in
 function openListen(own = submission()) {
@@ -1593,7 +1597,7 @@ function listenBuf(file) {
   return listenBufs.get(file);
 }
 
-// one plays at a time, once through; pause stops it, and play starts it again from the top
+// one plays at a time, once through; stop stops it, and play starts it again from the top
 let listening = null, listenGen = 0;
 function stopListen() {
   listenGen++;
@@ -1608,8 +1612,8 @@ async function playListen(item) {
   stopListen();
   const me = listenGen, { audio, bpm, beats, fade, lines } = item.score;
   const now = listening = { ...item, srcs: [] };
-  item.b.innerHTML = PAUSE_ICON;
-  item.b.setAttribute('aria-label', 'pause');
+  item.b.innerHTML = STOP_ICON;
+  item.b.setAttribute('aria-label', 'stop');
   let voice, tracks;
   try {
     [voice, ...tracks] = await Promise.all([listenBuf(audio.words), ...Object.values(audio.tracks ?? {}).map(listenBuf)]);

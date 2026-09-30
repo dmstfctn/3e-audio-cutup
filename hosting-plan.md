@@ -2,7 +2,7 @@
 
 Players submit their lines at the end. Built, and merged to `main`: the submit path, the API (`/api/submit`, `/api/list`, `/api/vote`, `/api/admin`), the database tables, a private page for hearing the submissions, and the listing players see after submitting. Not built: the freeze script.
 
-"Scroll for inspiration" is built as the listing: once a player submits, a screen in the game shows their lines at the top and everyone else's below, newest first, 100 at a time from `/api/list` as they scroll, each with play / pause. It has no voting and shows no time or other metadata. `/api/vote` and the `votes` table are still there, unused.
+"Scroll for inspiration" is built as the listing: once a player submits, a screen in the game shows their lines at the top and everyone else's below, newest first, 100 at a time from `/api/list` as they scroll, each with play / stop. It has no voting and shows no time or other metadata. `/api/vote` and the `votes` table are still there, unused.
 
 ## Requirements
 

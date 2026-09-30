@@ -307,7 +307,7 @@ body.writing #show-lines span.said { color: #ccc; }
 #show-lines span { color: #bbb; transition: color .1s; }
 #show-lines span.said { color: black; }
 
-/* after submitting: theirs, then everyone else's, as submit shows them, each lit as it plays, with play / pause
+/* after submitting: theirs, then everyone else's, as submit shows them, each lit as it plays, with play / stop
    under it; over everything, header included, scrolling for more (openListen() in main.js) */
 #listen { position: fixed; inset: 0; z-index: 14; overflow-y: auto; overscroll-behavior: contain; background: black; color: #ccc; padding: 0 1em; text-align: center; }
 #listen[hidden] { display: none; }
