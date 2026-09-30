@@ -12,6 +12,7 @@ const PAD = 0.03;                               // seconds around each word's al
 const FADE = 0.008;                             // seconds of fade in/out on each word
 const LOOKAHEAD = 0.15;                         // how far ahead lines are scheduled
 const ENTER_SPREAD = 1.2;                       // seconds over which the words won drop into the tray
+const ENTER_DELAY = 0.4;                        // seconds after the strip's words start flying into the tray that the new words pop in
 const MORPH_MS = 900, MORPH_SPREAD = 300;       // the strip growing into the tray, and the most its words are staggered by
 const JITTER = 30;                              // px (times UNIT()): a point, word or track won flies from a random spot this near the click
 const FLY_GAP = 120;                            // the gap between words won together flying to the strip
@@ -833,7 +834,7 @@ function showPhase(before = null, strip = null) {
   showLines();
   sizeToWindow();  // the lines have only just shown, and the tray's words are sized from them
   morphing = new Set(strip?.chips.map(c => trayTakes(c.text)[0]).filter(Boolean));
-  buildPalette(before, strip ? (MORPH_MS + MORPH_SPREAD) / 1000 : 0);
+  buildPalette(before, strip ? ENTER_DELAY : 0);  // the new words pop in while the strip's fly
   if (strip) morphTray(strip);
   $('#submit').hidden = $('#more-lines').hidden = $('#active').hidden = phase !== 'write';
   showBars();
