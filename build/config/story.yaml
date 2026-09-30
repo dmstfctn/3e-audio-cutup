@@ -121,6 +121,23 @@ submitted: |
   
   The same version will stream on [3ETV](https://www.somersethouse.org.uk/channel/commissions/3etv) until December 16.
 
+# Writing: a line from these, at random, under the lines now and then: the first
+# after first seconds, then one every seconds (from one coming up to the next),
+# each showing for show seconds.
+nudges:
+  first: 5
+  show: 3
+  every: 20
+  lines:
+    - Try a parallelism
+    - Write a simile
+    - Make it rhyme
+    - Tell them
+    - Make it simpler
+    - Make it poetic
+    - Make it real
+    - Make it loud
+
 # The lines at the end start empty. The tray has line's words and these.
 first:
   line: 

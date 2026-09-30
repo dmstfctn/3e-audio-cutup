@@ -88,6 +88,12 @@ html { user-select: none; -webkit-user-select: none; -webkit-touch-callout: none
 #more { width: var(--mute-w); text-align: left; }   /* on's width, starting where its text does */
 #more[hidden], #fewer[hidden] { display: block; visibility: hidden; }
 #submit[hidden], #more-lines[hidden] { display: none; }
+/* a nudge under the lines, now and then (startNudges() in main.js); its room kept, so nothing moves as it comes and goes */
+#nudge { flex: none; height: 1.4em; margin-top: calc(16 * var(--u)); font: calc(28 * var(--u))/1.4 var(--hand); text-align: center;
+         white-space: nowrap; opacity: 0; transition: opacity .5s; pointer-events: none; }
+#nudge.on { opacity: 1; }
+body:not(.writing) #nudge { display: none; }
+@media (max-width: 640px) { #nudge { font-size: 18px; margin-top: 8px; } }
 /* phones: the lines' on / off as a row of squares at the left, one per line, with − / + just after them, so they
    move right as lines are added; − takes no room while it's hidden */
 #active { display: none; }
