@@ -5,7 +5,7 @@ const MIN_LINES = 2, MAX_LINES = 8;              // the lines showing, one more 
 const TRACK_LINES = 4;                          // the tracks are 8 bars: line i plays over bars 2i+1..2i+2, mod 8
 const TAKES = 2;                                // the most recordings of a word the tray offers, picked at random
 const MAX_YEAHS = 5;                            // the most yeahs the tray offers, picked at random
-const FIND_ALL_EXTRA = 3;                       // find-all: the most words a photo wins besides the thing's own
+const FIND_ALL_EXTRA = 5;                       // find-all: the most words a photo wins besides the thing's own
 // find-all: how likely each of those is to be a verb, an adjective (or describer) or a noun, of the ones the photo has
 const EXTRA_ODDS = { verb: .4, adjective: .4, noun: .2 };
 const PAD = 0.03;                               // seconds around each word's aligned bounds, unless config/clips.json sets them
@@ -598,8 +598,14 @@ async function loadGames(doc) {
             if (Number.isInteger(Number(p.points)) && Number(p.points) > 0) points = Number(p.points);
             else problems.push(`${where}: points should be a whole number, e.g. 5`);
           }
+          // every: a word every this many shapes found, all of the photo's words, instead of FIND_ALL_EXTRA spread to the end
+          let every = null;
+          if (p.every != null) {
+            if (Number.isInteger(Number(p.every)) && Number(p.every) > 0) every = Number(p.every);
+            else problems.push(`${where}: every should be a whole number, e.g. 20`);
+          }
           game.items.push({ photo, viewBox: shapes.viewBox, target, prompt: p.prompt == null ? null : String(p.prompt),
-            shapes: found, reach, points, rewards: rewards(p.rewards ?? target) });
+            shapes: found, reach, points, every, rewards: rewards(p.rewards ?? target) });
         }
       }
     }
@@ -971,8 +977,10 @@ let mounted = null;  // the game being played, so it can be torn down
 // find-all: a photo's words for a run, the first listed and FIND_ALL_EXTRA of the others at random, each a verb,
 // adjective or noun by EXTRA_ODDS (a kind the photo has none of left is skipped, and the others' odds scale up; its
 // other words come only once those run out); and the counts at which each is won: the first listed at the first
-// found, the rest spread evenly up to finding them all
+// found, the rest spread evenly up to finding them all. A photo with every wins all its words, the others shuffled,
+// one each time that many more are found (the last by finding them all at the latest)
 function findAllWords(item) {
+  if (item.every) return [item.rewards[0], ...shuffle(item.rewards.slice(1))];
   const kind = text => { const b = Object.values(words).find(w => w.text === text)?.bin; return b === 'describer' ? 'adjective' : b; };
   const left = shuffle(item.rewards.slice(1)), extra = [];
   while (extra.length < FIND_ALL_EXTRA && left.length) {
@@ -983,7 +991,8 @@ function findAllWords(item) {
   }
   return [item.rewards[0], ...extra];
 }
-const steps = (item, won) => won.map((_, k) => k ? Math.ceil((k + 1) * item.shapes.length / won.length) : 1);
+const steps = (item, won) => won.map((_, k) => !k ? 1
+  : item.every ? Math.min(k * item.every, item.shapes.length) : Math.ceil((k + 1) * item.shapes.length / won.length));
 
 function showGame() {
   if ($('#minigame').hidden) clearBackdrop();  // not the last game's, from before the pages in between
@@ -1084,12 +1093,12 @@ function totalOf(key, plays) {
 }
 
 // the words a run can win: find, each thing's; find-all, each photo's for the run; pair-it, every pair's;
-// caption-match, each round's first
+// caption-match, each round's
 function possibleOf(key, plays) {
   const texts = key === 'find' ? plays.map(p => p.t.reward)
     : key === 'find-all' ? plays.flatMap(p => p.rewards)
     : key === 'pair-it' ? plays[0].pairs.flatMap(p => p.rewards)
-    : plays[0].rounds.map(r => r.rewards[0]);
+    : plays[0].rounds.flatMap(r => r.rewards);
   return new Set(texts.filter(Boolean)).size;
 }
 
@@ -1121,7 +1130,7 @@ function startRun(key) {
 }
 
 // A win in play k of the run: its points, its words (flown to the strip from the click) and any unlock it passes.
-// find: a thing found wins its own word. caption-match: a round matched wins its first word. find-all: a
+// find: a thing found wins its own word. caption-match: a round matched wins its words. find-all: a
 // photo's words come at its steps. pair-it: a pair matched wins its words.
 function progress(k, ev) {
   const p = run.plays[k];
@@ -1142,7 +1151,7 @@ function progress(k, ev) {
     won = p.pairs[ev.pair].rewards;
   } else {
     run.points += each;
-    won = p.rounds[ev.round].rewards.slice(0, 1);
+    won = p.rounds[ev.round].rewards;
   }
   const fresh = won.filter(t => t && !run.words.includes(t));
   run.words.push(...fresh);

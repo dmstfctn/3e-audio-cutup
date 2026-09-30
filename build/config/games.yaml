@@ -34,6 +34,10 @@
 #   tolerance. For photos with many small shapes. One click can find several.
 # - points (find-all photos, optional): what each shape found in this photo is
 #   worth, instead of the game's points.
+# - every (find-all photos, optional): win every word listed, the first at the
+#   first found and the others in a random order, one each time this many more
+#   are found, instead of 5 spread up to finding them all. For photos with too
+#   many shapes to find them all.
 
 # The tracks, each unlocked by a game or played by story.yaml's sequence. They
 # are 8 bars long: line 1 plays over bars 1-2, line 2 over 3-4, and so on,
@@ -92,22 +96,22 @@ pair-it:
       track: beat
   pairs:
     - photos: [pair-it/A1.jpg, pair-it/A2.jpg]
-      rewards: [awaken]
+      rewards: [awaken, fear]
     - photos: [pair-it/B1.jpg, pair-it/B2.jpg]
-      rewards: [together]
+      rewards: [together, puritan]
     - photos: [pair-it/C1.jpg, pair-it/C2.jpg]
-      rewards: [angels]
+      rewards: [angels, hot-dog]
     - photos: [pair-it/D1.jpg, pair-it/D2.jpg]
-      rewards: [counterfeit]
+      rewards: [counterfeit, holding]
     - photos: [pair-it/E1.jpg, pair-it/E2.jpg]
       rewards: [say]
     - photos: [pair-it/F1.jpg, pair-it/F2.jpg]
       rewards: [unruly]
 
 # Find Them All: every photo once, whole, with the count found next to the
-# prompt. The first word listed is won at the first found, then 3 of the others
-# picked at random each play, spread evenly up to finding them all (with 10 to
-# find, at 1, 5, 8 and 10). Each of the 3 is a verb (40%), an adjective (40%)
+# prompt. The first word listed is won at the first found, then 5 of the others
+# picked at random each play, spread evenly up to finding them all (with 12 to
+# find, at 1, 4, 6, 8, 10 and 12). Each of the 3 is a verb (40%), an adjective (40%)
 # or a noun (20%), of the ones the photo has left (EXTRA_ODDS in main.js), so
 # list more verbs and adjectives for a photo to see them come up more. With no
 # rewards, the thing's own word is the only one.
@@ -134,13 +138,13 @@ find-all:
       rewards: [white, piece, geometries, smooth, fine, blank, minimal]
     12.jpg:
       find: rain
-      reach: 40         # a click finds every drop within 30 of the photo's pixels
+      reach: 40         # a click finds every drop within 40 of the photo's pixels
       points: 5         # half the game's, so many drops don't fly so many +1s
-      rewards: [rain, P12, barclays, shining, SL, bike-lane, crack, person, colourless]
+      every: 20         # all its words, the others in a random order, one every 20 drops found
+      rewards: [rain, P12, barclays, shining, crack, person, colourless]
 
 # Caption Match: every round is played each time, in a random order. Pick the
-# photo the caption describes from it and its decoys to win its first word
-# (the first listed in rewards).
+# photo the caption describes from it and its decoys to win all its words.
 # prompt is the line over the photos; {caption} is the round's caption.
 caption-match:
   title: caption match
@@ -152,12 +156,12 @@ caption-match:
     - photo: 9.png
       caption: holding it furiously
       decoys: [15.jpg, 16.jpg]
-      rewards: [dog]
+      rewards: [dog, furiously]
     - photo: 7.jpg
       caption: blowing paper
       decoys: [13.jpg, 14.jpg]
-      rewards: [made]
+      rewards: [pages]
     - photo: 10.jpg
       caption: Treasures from the Stone Age
       decoys: [17.jpg, 18.jpg]
-      rewards: [stone]
+      rewards: [stone, coin]
