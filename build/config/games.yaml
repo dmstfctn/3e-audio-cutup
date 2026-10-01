@@ -104,7 +104,7 @@ pair-it:
     - photos: [pair-it/D1.jpg, pair-it/D2.jpg]
       rewards: [counterfeit, holding]
     - photos: [pair-it/E1.jpg, pair-it/E2.jpg]
-      rewards: [say]
+      rewards: [say, words]
     - photos: [pair-it/F1.jpg, pair-it/F2.jpg]
       rewards: [unruly]
 
@@ -126,7 +126,7 @@ find-all:
   photos:
     11.jpg:
       find: green
-      rewards: [green, banana-fish, woman, phone-box, happy, connected, deep]
+      rewards: [green, banana-fish, woman, phone-box, happy, connected, living]
     3.jpg:
       find: fruits
       rewards: [fruits, market, sale, growntology, sustainable, renewable]
@@ -135,7 +135,7 @@ find-all:
       rewards: [ecology, blessings, cloth, vegetables, much, alone, real]
     5.jpg:
       find: white
-      rewards: [white, piece, geometries, smooth, fine, blank, minimal]
+      rewards: [white, piece, geometries, smooth, deep, blank, minimal]
     12.jpg:
       find: rain
       reach: 40         # a click finds every drop within 40 of the photo's pixels
